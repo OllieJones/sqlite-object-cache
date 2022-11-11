@@ -141,50 +141,6 @@ class SQLite_Object_Cache {
 	} // End __construct ()
 
 	/**
-	 * Register post type function.
-	 *
-	 * @param string $post_type Post Type.
-	 * @param string $plural Plural Label.
-	 * @param string $single Single Label.
-	 * @param string $description Description.
-	 * @param array  $options Options array.
-	 *
-	 * @return bool|string|SQLite_Object_Cache_Post_Type
-	 */
-	public function register_post_type( $post_type = '', $plural = '', $single = '', $description = '', $options = array() ) {
-
-		if ( ! $post_type || ! $plural || ! $single ) {
-			return false;
-		}
-
-		$post_type = new SQLite_Object_Cache_Post_Type( $post_type, $plural, $single, $description, $options );
-
-		return $post_type;
-	}
-
-	/**
-	 * Wrapper function to register a new taxonomy.
-	 *
-	 * @param string $taxonomy Taxonomy.
-	 * @param string $plural Plural Label.
-	 * @param string $single Single Label.
-	 * @param array  $post_types Post types to register this taxonomy for.
-	 * @param array  $taxonomy_args Taxonomy arguments.
-	 *
-	 * @return bool|string|SQLite_Object_Cache_Taxonomy
-	 */
-	public function register_taxonomy( $taxonomy = '', $plural = '', $single = '', $post_types = array(), $taxonomy_args = array() ) {
-
-		if ( ! $taxonomy || ! $plural || ! $single ) {
-			return false;
-		}
-
-		$taxonomy = new SQLite_Object_Cache_Taxonomy( $taxonomy, $plural, $single, $post_types, $taxonomy_args );
-
-		return $taxonomy;
-	}
-
-	/**
 	 * Load frontend CSS.
 	 *
 	 * @access  public
@@ -243,7 +199,7 @@ class SQLite_Object_Cache {
 	 * @since   1.0.0
 	 */
 	public function load_localisation() {
-		load_plugin_textdomain( 'sqlite-object-cache', false, dirname( plugin_basename( $this->file ) ) . '/lang/' );
+		load_plugin_textdomain( 'sqlite-object-cache', false, dirname( plugin_basename( $this->file ) ) . '/languages/' );
 	} // End load_localisation ()
 
 	/**
@@ -259,7 +215,7 @@ class SQLite_Object_Cache {
 		$locale = apply_filters( 'plugin_locale', get_locale(), $domain );
 
 		load_textdomain( $domain, WP_LANG_DIR . '/' . $domain . '/' . $domain . '-' . $locale . '.mo' );
-		load_plugin_textdomain( $domain, false, dirname( plugin_basename( $this->file ) ) . '/lang/' );
+		load_plugin_textdomain( $domain, false, dirname( plugin_basename( $this->file ) ) . '/languages/' );
 	} // End load_plugin_textdomain ()
 
 	/**

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "cd819f1bcf7db06a24add86c5ccce6f4",
+    "content-hash": "162e3830c947f46a8e5ac200a8330fde",
     "packages": [
         {
             "name": "squizlabs/php_codesniffer",
@@ -121,7 +121,8 @@
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
-        "php": ">=5.4"
+        "php": ">=5.4",
+        "ext-sqlite3": "*"
     },
     "platform-dev": [],
     "plugin-api-version": "2.3.0"

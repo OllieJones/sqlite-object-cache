@@ -7,10 +7,11 @@
  * Author: Ollie Jones
  * Author URI: https://plumislandmedia.net/
  * Requires at least: 5.9
+ * Requires PHP: 5.6
  * Tested up to: 6.1
  *
  * Text Domain: sqlite-object-cache
- * Domain Path: /lang/
+ * Domain Path: /languages/
  *
  * @package WordPress
  * @author Ollie Jones
@@ -31,8 +32,8 @@ require_once 'includes/lib/class-sqlite-object-cache-admin-api.php';
 /**
  * Returns the main instance of SQLite_Object_Cache to prevent the need to use globals.
  *
- * @since  1.0.0
  * @return object SQLite_Object_Cache
+ * @since  1.0.0
  */
 function sqlite_object_cache() {
 	$instance = SQLite_Object_Cache::instance( __FILE__, '0.1.0' );
