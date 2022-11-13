@@ -38,7 +38,6 @@ defined( '\\ABSPATH' ) || exit;
  *
  * @since 2.0.0
  */
-#[AllowDynamicProperties]
 class WP_Object_Cache extends SQLite3 {
 
 	/**
@@ -121,13 +120,6 @@ class WP_Object_Cache extends SQLite3 {
 	private $has_igbinary;
 
 	/**
-	 * Flag for availability of nanosecond resolution time.
-	 *
-	 * @var bool true if it is available.
-	 */
-	private $has_hrtime;
-
-	/**
 	 * The expiration time of non-expiring cache entries has this added to the timestamp.
 	 *
 	 * @var int a large number of seconds.
@@ -142,6 +134,55 @@ class WP_Object_Cache extends SQLite3 {
 	private $max_lifetime;
 
 	/**
+	 * An array of elapsed times for each cache-retrieval operation.
+	 *
+	 * @var array[float]
+	 */
+	private $select_times = [];
+
+	/**
+	 * An array of elapsed times for each cache-insertion / update operation.
+	 *
+	 * @var array[float]
+	 */
+	private $insert_times = [];
+
+	/**
+	 * An array of item names for each cache-retrieval operation.
+	 *
+	 * @var array[string]
+	 */
+	private $select_names = [];
+
+	/**
+	 * An array of item names for each cache-insertion / update operation.
+	 *
+	 * @var array[float]
+	 */
+	private $insert_names = [];
+
+	/**
+	 * An array of elapsed times for each single-row cache deletion operation.
+	 *
+	 * @var array[float]
+	 */
+	private $delete_times = [];
+
+	/**
+	 * The time it took to open the db.
+	 *
+	 * @var float
+	 */
+	private $open_time;
+
+	/**
+	 * The time it took to update the db with changes.
+	 *
+	 * @var float
+	 */
+	private $update_time;
+
+	/**
 	 * Sets up object properties; PHP 5 style constructor.
 	 *
 	 * @param string $directory Name of the directory for the db file.
@@ -152,21 +193,42 @@ class WP_Object_Cache extends SQLite3 {
 	 * @since 2.0.8
 	 */
 	public function __construct( $directory = WP_CONTENT_DIR, $file = 'sqlite-object-cache.db', $timeout = 500 ) {
+
+		$start = $this->time_usec();
+
 		$this->multisite   = is_multisite();
 		$this->blog_prefix = $this->multisite ? get_current_blog_id() . ':' : '';
 		$filepath          = $directory . '/' . $file;
 		parent::__construct( $filepath );
 		$this->busyTimeout( $timeout );
 		$this->has_igbinary = function_exists( 'igbinary_serialize' ) && function_exists( 'igbinary_unserialize' );
-		$this->has_hrtime   = function_exists( 'hrtime' );
-
 		$this->initialize_connection();
+
+		$this->open_time = $this->time_usec() - $start;
+	}
+
+	/**
+	 * Get current time.
+	 *
+	 * @return float Current time in microseconds, from an arbitrary epoch.
+	 */
+	private function time_usec() {
+
+		if ( function_exists( 'hrtime' ) ) {
+			return hrtime( true ) * 0.001;
+		}
+		if ( function_exists( 'microtime' ) ) {
+			return microtime( true );
+		}
+
+		return time() * 1000000.0;
 	}
 
 	/** Initialize the SQLite database system.
 	 *
 	 * @param string $tbl The name of the cache table in the database.
 	 * @param int    $noexpire_timestamp_offset The offset number to add to time() for non-expiring items.
+	 * @param int    $max_lifetime Time in seconds after which to purge cache entries.
 	 *
 	 * @return void
 	 * @throws Exception Database failure.
@@ -328,6 +390,7 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 	 */
 	public function close() {
 
+		$start = $this->time_usec();
 		if ( count( $this->put_queue ) > 0 ) {
 			try {
 				$this->exec( 'BEGIN;' );
@@ -350,41 +413,9 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 				$this->exec( 'COMMIT;' );
 			}
 		}
+		$this->update_time = $this->time_usec() - $start;
 
 		return parent::close();
-	}
-
-	/**
-	 * Remove old entries and VACUUM the database, one time in many.
-	 *
-	 * @param int $inverse_probability Do the job one time in this many.
-	 *
-	 * @return void
-	 * @throws Exception Announce database failure.
-	 */
-	private function maybe_clean_up_cache( $inverse_probability = 1000 ) {
-		$random = wp_rand( 1, $inverse_probability );
-		if ( 1 !== $random ) {
-			return;
-		}
-		$sql  = "DELETE FROM $this->cache_table_name WHERE expires <= :now;";
-		$stmt = $this->prepare( $sql );
-		$stmt->bindValue( ':now', time(), SQLITE3_INTEGER );
-		$result = $stmt->execute();
-		if ( false !== $result ) {
-			$result->finalize();
-		}
-		$sql    = "DELETE FROM $this->cache_table_name WHERE expires BETWEEN :offset AND :end;";
-		$stmt   = $this->prepare( $sql );
-		$offset = $this->noexpire_timestamp_offset;
-		$end    = time() + $offset - $this->max_lifetime;
-		$stmt->bindValue( ':offset', $offset, SQLITE3_INTEGER );
-		$stmt->bindValue( ':end', $end, SQLITE3_INTEGER );
-		$result = $stmt->execute();
-		if ( false !== $result ) {
-			$result->finalize();
-		}
-		$this->exec( 'VACUUM' );
 	}
 
 	/** Put one item into the persistent cache.
@@ -395,6 +426,7 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 	 * @throws Exception Announce database failure.
 	 */
 	private function putone( $item ) {
+		$start   = $this->time_usec();
 		$name    = $this->getName( $item[0], $item[2] );
 		$value   = $this->maybe_serialize( $item[1] );
 		$expires = $item[3] ?: 500000000000;
@@ -407,6 +439,8 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 			throw new Exception( 'SQLite3 putone: ' . $this->lastErrorMsg(), $this->lastErrorCode() );
 		}
 		$result->finalize();
+		$this->insert_times[] = $this->time_usec() - $start;
+		$this->insert_names[] = $name;
 	}
 
 	/**
@@ -444,14 +478,49 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 	 * @throws Exception Announce database failure.
 	 */
 	private function deleteone( $item ) {
-		$name = $this->getName( $item[0], $item[1] );
-		$stmt = $this->statements['deleteone'];
+		$start = $this->time_usec();
+		$name  = $this->getName( $item[0], $item[1] );
+		$stmt  = $this->statements['deleteone'];
 		$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
 		$result = $stmt->execute();
 		if ( false === $result ) {
 			throw new Exception( 'SQLite3 putone: ' . $this->lastErrorMsg(), $this->lastErrorCode() );
 		}
 		$result->finalize();
+		$this->delete_times[] = $this->time_usec() - $start;
+	}
+
+	/**
+	 * Remove old entries and VACUUM the database, one time in many.
+	 *
+	 * @param int $inverse_probability Do the job one time in this many.
+	 *
+	 * @return void
+	 * @throws Exception Announce database failure.
+	 */
+	private function maybe_clean_up_cache( $inverse_probability = 1000 ) {
+		$random = wp_rand( 1, $inverse_probability );
+		if ( 1 !== $random ) {
+			return;
+		}
+		$sql  = "DELETE FROM $this->cache_table_name WHERE expires <= :now;";
+		$stmt = $this->prepare( $sql );
+		$stmt->bindValue( ':now', time(), SQLITE3_INTEGER );
+		$result = $stmt->execute();
+		if ( false !== $result ) {
+			$result->finalize();
+		}
+		$sql    = "DELETE FROM $this->cache_table_name WHERE expires BETWEEN :offset AND :end;";
+		$stmt   = $this->prepare( $sql );
+		$offset = $this->noexpire_timestamp_offset;
+		$end    = time() + $offset - $this->max_lifetime;
+		$stmt->bindValue( ':offset', $offset, SQLITE3_INTEGER );
+		$stmt->bindValue( ':end', $end, SQLITE3_INTEGER );
+		$result = $stmt->execute();
+		if ( false !== $result ) {
+			$result->finalize();
+		}
+		$this->exec( 'VACUUM' );
 	}
 
 	/**
@@ -634,7 +703,8 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 	 * @throws Exception Announce database failure.
 	 */
 	private function getone( $key, $group ) {
-		$name = $this->getName( $key, $group );
+		$start = $this->time_usec();
+		$name  = $this->getName( $key, $group );
 		if ( array_key_exists( $name, $this->not_in_persistent_cache ) ) {
 			return null;
 		}
@@ -652,6 +722,9 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 		} else {
 			$this->not_in_persistent_cache [ $name ] = true;
 		}
+
+		$this->select_times[] = $this->time_usec() - $start;
+		$this->select_names[] = $name;
 
 		return $data;
 	}
