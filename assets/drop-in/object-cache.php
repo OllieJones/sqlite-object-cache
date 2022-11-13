@@ -183,6 +183,20 @@ class WP_Object_Cache extends SQLite3 {
 	private $update_time;
 
 	/**
+	 * Monitoring options for the SQLite cache.
+	 *
+	 * Options in array [
+	 *    'capture' => (bool)
+	 *    'resolution' => how often in seconds (float)
+	 *    'lifetime' => how long until entries expire in seconds (int)
+	 *    'verbose'  => (bool) capture extra stuff.
+	 *  ]
+	 *
+	 * @var array $options Option list.
+	 */
+	private $monitoring_options = [];
+
+	/**
 	 * Sets up object properties; PHP 5 style constructor.
 	 *
 	 * @param string $directory Name of the directory for the db file.
@@ -245,7 +259,7 @@ class WP_Object_Cache extends SQLite3 {
 		$this->exec( 'PRAGMA journal_mode = MEMORY' );
 
 		$this->do_ddl( $tbl, $noexpire_timestamp_offset );
-		$this->do_statements( $tbl, $noexpire_timestamp_offset );
+		$this->prepare_statements( $tbl, $noexpire_timestamp_offset );
 	}
 
 	/**
@@ -325,7 +339,7 @@ CREATE INDEX IF NOT EXISTS expires ON $tbl (expires);";
 	 * @return void
 	 * @throws Exception Announce failure.
 	 */
-	private function do_statements( $tbl, $noexpire_timestamp_offset ) {
+	private function prepare_statements( $tbl, $noexpire_timestamp_offset ) {
 		/* Some versions of SQLite3 built into php predate the 3.38 advent of unixepoch() (2022-02-22). */
 		$now         = time();
 		$putone      = "
@@ -383,6 +397,24 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 	}
 
 	/**
+	 * Set the monitoring options for the SQLite cache.
+	 *
+	 * Options in array [
+	 *    'capture' => (bool)
+	 *    'resolution' => how often in seconds (float)
+	 *    'lifetime' => how long until entries expire in seconds (int)
+	 *    'verbose'  => (bool) capture extra stuff.
+	 *  ]
+	 *
+	 * @param array $options Option list.
+	 *
+	 * @return void
+	 */
+	public function set_sqlite_monitoring_options( $options ) {
+		$this->monitoring_options = $options;
+	}
+
+	/**
 	 * Write out the accumulated puts in one transaction, then close the connection.
 	 *
 	 * @return bool
@@ -414,6 +446,11 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 			}
 		}
 		$this->update_time = $this->time_usec() - $start;
+
+		//todo debugging $this->monitoring_options = [ 'capture' => true, 'resolution' => 1, 'lifetime' => 3600, 'verbose' => true ];
+		if ( is_array( $this->monitoring_options ) ) {
+			$this->capture( $this->monitoring_options );
+		}
 
 		return parent::close();
 	}
@@ -484,7 +521,7 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 		$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
 		$result = $stmt->execute();
 		if ( false === $result ) {
-			throw new Exception( 'SQLite3 putone: ' . $this->lastErrorMsg(), $this->lastErrorCode() );
+			throw new Exception( 'SQLite3 deleteone: ' . $this->lastErrorMsg(), $this->lastErrorCode() );
 		}
 		$result->finalize();
 		$this->delete_times[] = $this->time_usec() - $start;
@@ -521,6 +558,60 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 			$result->finalize();
 		}
 		$this->exec( 'VACUUM' );
+	}
+
+	/**
+	 * Do the performance-capture operation.
+	 *
+	 * Put a row named sqlite_object_cache.mon.123456 into sqlite containing the raw data.
+	 *
+	 * @param array $options Contents of $this->monitoring_options.
+	 *
+	 * @return void
+	 */
+	private function capture( $options ) {
+		if ( ! $options['capture'] ) {
+			return;
+		}
+		try {
+			$now    = microtime( true );
+			$record = [
+				'time'         => microtime( true ),
+				'open_time'    => $this->open_time,
+				'select_times' => $this->select_times,
+				'insert_times' => $this->insert_times,
+				'delete_times' => $this->delete_times,
+				'update_time'  => $this->update_time,
+			];
+			if ( $options['verbose'] ) {
+				$record ['select_names'] = $this->select_names;
+				$record ['delete_names'] = $this->insert_names;
+			}
+
+			/* make ourselves a clean timestamp number applying desired resolution */
+			$resolution = $options['resolution'] ?: 60.0;
+			$resolution = round( $resolution, 3 );
+			$resolution = $resolution >= 1.0 ? round( $resolution, 0 ) : $resolution;
+			$timestamp  = $now - ( fmod( $now, $resolution ) );
+			$timestamp  = round( $timestamp, 3 );
+			$timestamp  = $resolution >= 1.0 ? intval( $timestamp ) : $timestamp;
+
+			/* get the lifetime */
+			$lifetime = $options['lifetime'] ? intval( $options['lifetime'] ) : HOUR_IN_SECONDS;
+
+			$name = 'sqlite_object_cache.mon.' . $timestamp;
+			$sql  = "INSERT INTO $this->cache_table_name (name, value, expires) VALUES (:name, :value, :expires) ON CONFLICT (name) DO NOTHING;";
+			$stmt = $this->prepare( $sql );
+			$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
+			$stmt->bindValue( ':value', $this->maybe_serialize( $record ), SQLITE3_BLOB );
+			$stmt->bindValue( ':expires', intval( $lifetime + $now ), SQLITE3_INTEGER );
+			$result = $stmt->execute();
+			$result->finalize();
+			unset( $record );
+			unset( $stmt );
+		} catch ( Exception $e ) {
+			/* Empty, intentionally. Ignore problems putting capture data into the table. */
+		}
 	}
 
 	/**
