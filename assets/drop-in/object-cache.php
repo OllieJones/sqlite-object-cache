@@ -449,7 +449,6 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 		$this->maybe_clean_up_cache();
 		$this->update_time = $this->time_usec() - $start;
 
-		//todo debugging $this->monitoring_options = [ 'capture' => true, 'resolution' => 1, 'lifetime' => 3600, 'verbose' => true ];
 		if ( is_array( $this->monitoring_options ) ) {
 			$this->capture( $this->monitoring_options );
 		}

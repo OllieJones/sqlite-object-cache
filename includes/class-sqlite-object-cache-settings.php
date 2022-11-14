@@ -237,9 +237,7 @@ class SQLite_Object_Cache_Settings {
 			],
 		];
 
-		$settings = apply_filters( $this->parent->_token . '_settings_fields', $settings );
-
-		return $settings;
+		return apply_filters( $this->parent->_token . '_settings_fields', $settings );
 	}
 
 	private function numeric_option( &$option, $name, $default ) {
@@ -264,6 +262,7 @@ class SQLite_Object_Cache_Settings {
 	 * @since 2.3.0
 	 * @since 4.3.0 Added the `$original_value` parameter.
 	 *
+	 * @noinspection PhpUnusedParameterInspection
 	 */
 	public function validate( $option, $name, $original_value ) {
 		if ( ! is_array( $option ) ) {
@@ -388,7 +387,7 @@ class SQLite_Object_Cache_Settings {
 	 */
 	public function add_settings_link( $links ) {
 		$settings_link = '<a href="options-general.php?page=' . $this->parent->_token . '_settings">' . __( 'Settings', 'sqlite-object-cache' ) . '</a>';
-		array_push( $links, $settings_link );
+		$links[]       = $settings_link;
 
 		return $links;
 	}
@@ -437,7 +436,7 @@ class SQLite_Object_Cache_Settings {
 				// Validation callback for section.
 				$option_name = $this->base . 'settings';
 				if ( isset( $data['callback'] ) ) {
-					add_filter( "sanitize_option_{$option_name}", $data['callback'], 10, 3 );
+					add_filter( "sanitize_option_$option_name", $data['callback'], 10, 3 );
 				}
 
 				/* register the settings object */
@@ -510,7 +509,7 @@ class SQLite_Object_Cache_Settings {
 						$class .= ' nav-tab-active';
 					}
 				} else {
-					if ( isset( $_GET['tab'] ) && $section == $_GET['tab'] ) { //phpcs:ignore
+					if ( $section == $_GET['tab'] ) { //phpcs:ignore
 						$class .= ' nav-tab-active';
 					}
 				}
@@ -555,6 +554,7 @@ class SQLite_Object_Cache_Settings {
 	 * @param string $hook Hook parameter.
 	 *
 	 * @return void
+	 * @noinspection PhpUnusedParameterInspection
 	 */
 	public function enqueue_assets( $hook = '' ) {
 		wp_register_style( $this->parent->_token . '-admin',
@@ -562,10 +562,13 @@ class SQLite_Object_Cache_Settings {
 			[], $this->parent->_version );
 		wp_enqueue_style( $this->parent->_token . '-admin' );
 
-		wp_register_script( $this->parent->_token . '-admin',
-			esc_url( $this->parent->assets_url ) . 'js/admin' . $this->parent->script_suffix . '.js',
-			[ 'jquery' ], $this->parent->_version, true );
-		wp_enqueue_script( $this->parent->_token . '-admin' );
+		if (false) {
+			// TODO put this back if we need js in the backend.
+			wp_register_script( $this->parent->_token . '-admin',
+				esc_url( $this->parent->assets_url ) . 'js/admin' . $this->parent->script_suffix . '.js',
+				[ 'jquery' ], $this->parent->_version, true );
+			wp_enqueue_script( $this->parent->_token . '-admin' );
+		}
 	}
 
 	/**

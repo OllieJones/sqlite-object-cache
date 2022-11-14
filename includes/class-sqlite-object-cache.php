@@ -133,7 +133,11 @@ class SQLite_Object_Cache {
 
 		// Handle localisation.
 		$this->load_plugin_textdomain();
-		add_action( 'init', [ $this, 'load_localisation' ], 0 );
+		add_action( 'init', [ $this, 'load_localization' ], 0 );
+		$option = get_option( $this->_token . '_settings' );
+		if ( array_key_exists( 'capture', $option ) && $option['capture'] === 'on' ) {
+			add_action( 'init', [ $this, 'do_capture' ] );
+		}
 	} // End __construct ()
 
 	/**
@@ -181,8 +185,11 @@ class SQLite_Object_Cache {
 	 * @since   1.0.0
 	 */
 	public function enqueue_styles() {
-		wp_register_style( $this->_token . '-frontend', esc_url( $this->assets_url ) . 'css/frontend.css', [], $this->_version );
-		wp_enqueue_style( $this->_token . '-frontend' );
+		if ( false ) {
+			// TODO put this back if we need front end css
+			wp_register_style( $this->_token . '-frontend', esc_url( $this->assets_url ) . 'css/frontend.css', [], $this->_version );
+			wp_enqueue_style( $this->_token . '-frontend' );
+		}
 	} // End admin_enqueue_styles ()
 
 	/**
@@ -193,20 +200,53 @@ class SQLite_Object_Cache {
 	 * @since   1.0.0
 	 */
 	public function enqueue_scripts() {
-		wp_register_script( $this->_token . '-frontend', esc_url( $this->assets_url ) . 'js/frontend' . $this->script_suffix . '.js', [ 'jquery' ], $this->_version, true );
-		wp_enqueue_script( $this->_token . '-frontend' );
+		if ( false ) {
+			// TODO put this back if we need front end javascript
+			wp_register_script( $this->_token . '-frontend', esc_url( $this->assets_url ) . 'js/frontend' . $this->script_suffix . '.js', [ 'jquery' ], $this->_version, true );
+			wp_enqueue_script( $this->_token . '-frontend' );
+		}
 	} // End enqueue_scripts ()
 
 	/**
-	 * Load plugin localisation
+	 * Load plugin localization
 	 *
 	 * @access  public
 	 * @return  void
 	 * @since   1.0.0
 	 */
-	public function load_localisation() {
+	public function load_localization() {
 		load_plugin_textdomain( 'sqlite-object-cache', false, dirname( plugin_basename( $this->file ) ) . '/languages/' );
-	} // End instance ()
+	}
+
+	public function do_capture() {
+		$option = get_option( $this->_token . '_settings' );
+		if ( ! is_array( $option )
+		    || ! array_key_exists( 'frequency', $option )
+		    || ! array_key_exists( 'retainmeasurements', $option ) ) {
+			/* Something's wrong with the option. Just ignore it. */
+			return;
+		}
+		$frequency       = $option['frequency'];
+		$frequency       = $frequency ?: 1;
+		$headway         = intval( HOUR_IN_SECONDS / $frequency );
+		$now             = time();
+		$previouscapture = array_key_exists( 'previouscapture', $option ) ? $option['previouscapture'] : 0;
+		$sincelastcapture = $previouscapture > 0 ? $now - $previouscapture : $headway;
+		if ( $sincelastcapture >= $headway ) {
+			/* Time for a capture! */
+			global $wp_object_cache;
+			if ( method_exists( $wp_object_cache, 'set_sqlite_monitoring_options' ) ) {
+				$monitoring_options = [ 'capture' => true,
+				                        'resolution' => $headway,
+				                        'lifetime' => $option['retainmeasurements'] * HOUR_IN_SECONDS,
+				                        'verbose' => true ];
+				$wp_object_cache->set_sqlite_monitoring_options($monitoring_options);
+			}
+			$previouscapture = $now;
+			$option['previouscapture'] = $previouscapture;
+			update_option($this->_token . '_settings', $option );
+		}
+	}
 
 	/**
 	 * Cloning is forbidden.
