@@ -194,7 +194,7 @@ class WP_Object_Cache extends SQLite3 {
 	 *
 	 * @var array $options Option list.
 	 */
-	private $monitoring_options = [];
+	private $monitoring_options;
 
 	/**
 	 * Sets up object properties; PHP 5 style constructor.
@@ -440,11 +440,13 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 							throw new Exception( 'SQLite3 put_queue: unknown item ' . $put_item[0] );
 					}
 				}
-				$this->maybe_clean_up_cache();
+			} catch ( Exception $e ) {
+				throw $e;
 			} finally {
 				$this->exec( 'COMMIT;' );
 			}
 		}
+		$this->maybe_clean_up_cache();
 		$this->update_time = $this->time_usec() - $start;
 
 		//todo debugging $this->monitoring_options = [ 'capture' => true, 'resolution' => 1, 'lifetime' => 3600, 'verbose' => true ];
@@ -530,34 +532,61 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 	/**
 	 * Remove old entries and VACUUM the database, one time in many.
 	 *
-	 * @param int $inverse_probability Do the job one time in this many.
+	 * @param int $retention_time How long, in seconds, to keep old entries. Default one week.
+	 * @param int $inverse_probability Do the job one time in this many. Default 1000.
 	 *
 	 * @return void
-	 * @throws Exception Announce database failure.
 	 */
-	private function maybe_clean_up_cache( $inverse_probability = 1000 ) {
+	private function maybe_clean_up_cache( $retention_time = null, $inverse_probability = 1000 ) {
 		$random = wp_rand( 1, $inverse_probability );
 		if ( 1 !== $random ) {
 			return;
 		}
-		$sql  = "DELETE FROM $this->cache_table_name WHERE expires <= :now;";
-		$stmt = $this->prepare( $sql );
-		$stmt->bindValue( ':now', time(), SQLITE3_INTEGER );
-		$result = $stmt->execute();
-		if ( false !== $result ) {
-			$result->finalize();
+
+		$this->sqlite_clean_up_cache( $retention_time, true, true );
+	}
+
+	/**
+	 * Remove old entries and VACUUM the database.
+	 *
+	 * @param int  $retention_time How long, in seconds, to keep old entries. Default one week.
+	 * @param bool $use_transaction True if the cleanup should be inside BEGIN / COMMIT.
+	 * @param bool $vacuum VACUUM the db.
+	 *
+	 * @return void
+	 * @throws Exception Announce database failure.
+	 */
+	public function sqlite_clean_up_cache( $retention_time = null, $use_transaction = true, $vacuum = false ) {
+		try {
+			if ( $use_transaction ) {
+				$this->exec( 'BEGIN;' );
+			}
+			$retention_time = is_numeric( $retention_time ) ? $retention_time : $this->max_lifetime;
+			$sql            = "DELETE FROM $this->cache_table_name WHERE expires <= :now;";
+			$stmt           = $this->prepare( $sql );
+			$stmt->bindValue( ':now', time(), SQLITE3_INTEGER );
+			$result = $stmt->execute();
+			if ( false !== $result ) {
+				$result->finalize();
+			}
+			$sql    = "DELETE FROM $this->cache_table_name WHERE expires BETWEEN :offset AND :end;";
+			$stmt   = $this->prepare( $sql );
+			$offset = $this->noexpire_timestamp_offset;
+			$end    = time() + $offset - $retention_time;
+			$stmt->bindValue( ':offset', $offset, SQLITE3_INTEGER );
+			$stmt->bindValue( ':end', $end, SQLITE3_INTEGER );
+			$result = $stmt->execute();
+			if ( false !== $result ) {
+				$result->finalize();
+			}
+		} finally {
+			if ( $use_transaction ) {
+				$this->exec( 'COMMIT;' );
+			}
 		}
-		$sql    = "DELETE FROM $this->cache_table_name WHERE expires BETWEEN :offset AND :end;";
-		$stmt   = $this->prepare( $sql );
-		$offset = $this->noexpire_timestamp_offset;
-		$end    = time() + $offset - $this->max_lifetime;
-		$stmt->bindValue( ':offset', $offset, SQLITE3_INTEGER );
-		$stmt->bindValue( ':end', $end, SQLITE3_INTEGER );
-		$result = $stmt->execute();
-		if ( false !== $result ) {
-			$result->finalize();
+		if ( $vacuum ) {
+			$this->exec( 'VACUUM;' );
 		}
-		$this->exec( 'VACUUM' );
 	}
 
 	/**
@@ -570,18 +599,20 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 	 * @return void
 	 */
 	private function capture( $options ) {
-		if ( ! $options['capture'] ) {
+		if ( ! array_key_exists( 'capture', $options ) || ! $options['capture'] ) {
 			return;
 		}
 		try {
 			$now    = microtime( true );
 			$record = [
-				'time'         => microtime( true ),
-				'open_time'    => $this->open_time,
-				'select_times' => $this->select_times,
-				'insert_times' => $this->insert_times,
-				'delete_times' => $this->delete_times,
-				'update_time'  => $this->update_time,
+				'time'    => $now,
+				'hits'    => $this->cache_hits,
+				'misses'  => $this->cache_misses,
+				'open'    => $this->open_time,
+				'selects' => $this->select_times,
+				'inserts' => $this->insert_times,
+				'deletes' => $this->delete_times,
+				'update'  => $this->update_time,
 			];
 			if ( $options['verbose'] ) {
 				$record ['select_names'] = $this->select_names;
@@ -1194,16 +1225,25 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 	/**
 	 * Clears the object cache of all data.
 	 *
+	 * @param bool $keep_performance_data True to retain performance data.
+	 * @param bool $vacuum True to do a VACUUM operation.
+	 *
 	 * @return true Always returns true.
 	 * @throws Exception Announce database failure.
 	 * @since 2.0.0
-	 *
 	 */
-	public function flush() {
+	public function flush( $keep_performance_data = false, $vacuum = false ) {
 		$this->cache = [];
+		$where       = $keep_performance_data
+			? " WHERE name NOT LIKE 'sqlite_object_cache.%'"
+			: " WHERE name <> 'sqlite_object_cache.created";
 		/** @noinspection SqlWithoutWhere */
 		$this->exec( 'DELETE FROM ' . $this->cache_table_name . ';' );
 		$this->not_in_persistent_cache = [];
+
+		if ( $vacuum ) {
+			$this->exec( 'VACUUM;' );
+		}
 
 		return true;
 	}

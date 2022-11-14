@@ -120,15 +120,11 @@ class SQLite_Object_Cache {
 
 		$this->script_suffix = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
 
-		register_activation_hook( $this->file, array( $this, 'install' ) );
+		register_activation_hook( $this->file, [ $this, 'install' ] );
 
 		// Load frontend JS & CSS.
-		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_styles' ), 10 );
-		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ), 10 );
-
-		// Load admin JS & CSS.
-		add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_scripts' ), 10, 1 );
-		add_action( 'admin_enqueue_scripts', array( $this, 'admin_enqueue_styles' ), 10, 1 );
+		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_styles' ], 10 );
+		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_scripts' ], 10 );
 
 		// Load API for generic admin functions.
 		if ( is_admin() ) {
@@ -137,70 +133,8 @@ class SQLite_Object_Cache {
 
 		// Handle localisation.
 		$this->load_plugin_textdomain();
-		add_action( 'init', array( $this, 'load_localisation' ), 0 );
+		add_action( 'init', [ $this, 'load_localisation' ], 0 );
 	} // End __construct ()
-
-	/**
-	 * Load frontend CSS.
-	 *
-	 * @access  public
-	 * @return void
-	 * @since   1.0.0
-	 */
-	public function enqueue_styles() {
-		wp_register_style( $this->_token . '-frontend', esc_url( $this->assets_url ) . 'css/frontend.css', array(), $this->_version );
-		wp_enqueue_style( $this->_token . '-frontend' );
-	} // End enqueue_styles ()
-
-	/**
-	 * Load frontend Javascript.
-	 *
-	 * @access  public
-	 * @return  void
-	 * @since   1.0.0
-	 */
-	public function enqueue_scripts() {
-		wp_register_script( $this->_token . '-frontend', esc_url( $this->assets_url ) . 'js/frontend' . $this->script_suffix . '.js', array( 'jquery' ), $this->_version, true );
-		wp_enqueue_script( $this->_token . '-frontend' );
-	} // End enqueue_scripts ()
-
-	/**
-	 * Admin enqueue style.
-	 *
-	 * @param string $hook Hook parameter.
-	 *
-	 * @return void
-	 */
-	public function admin_enqueue_styles( $hook = '' ) {
-		wp_register_style( $this->_token . '-admin', esc_url( $this->assets_url ) . 'css/admin.css', array(), $this->_version );
-		wp_enqueue_style( $this->_token . '-admin' );
-	} // End admin_enqueue_styles ()
-
-	/**
-	 * Load admin Javascript.
-	 *
-	 * @access  public
-	 *
-	 * @param string $hook Hook parameter.
-	 *
-	 * @return  void
-	 * @since   1.0.0
-	 */
-	public function admin_enqueue_scripts( $hook = '' ) {
-		wp_register_script( $this->_token . '-admin', esc_url( $this->assets_url ) . 'js/admin' . $this->script_suffix . '.js', array( 'jquery' ), $this->_version, true );
-		wp_enqueue_script( $this->_token . '-admin' );
-	} // End admin_enqueue_scripts ()
-
-	/**
-	 * Load plugin localisation
-	 *
-	 * @access  public
-	 * @return  void
-	 * @since   1.0.0
-	 */
-	public function load_localisation() {
-		load_plugin_textdomain( 'sqlite-object-cache', false, dirname( plugin_basename( $this->file ) ) . '/languages/' );
-	} // End load_localisation ()
 
 	/**
 	 * Load plugin textdomain
@@ -216,7 +150,7 @@ class SQLite_Object_Cache {
 
 		load_textdomain( $domain, WP_LANG_DIR . '/' . $domain . '/' . $domain . '-' . $locale . '.mo' );
 		load_plugin_textdomain( $domain, false, dirname( plugin_basename( $this->file ) ) . '/languages/' );
-	} // End load_plugin_textdomain ()
+	} // End enqueue_styles ()
 
 	/**
 	 * Main SQLite_Object_Cache Instance
@@ -237,6 +171,41 @@ class SQLite_Object_Cache {
 		}
 
 		return self::$_instance;
+	} // End enqueue_scripts ()
+
+	/**
+	 * Load frontend CSS.
+	 *
+	 * @access  public
+	 * @return void
+	 * @since   1.0.0
+	 */
+	public function enqueue_styles() {
+		wp_register_style( $this->_token . '-frontend', esc_url( $this->assets_url ) . 'css/frontend.css', [], $this->_version );
+		wp_enqueue_style( $this->_token . '-frontend' );
+	} // End admin_enqueue_styles ()
+
+	/**
+	 * Load frontend Javascript.
+	 *
+	 * @access  public
+	 * @return  void
+	 * @since   1.0.0
+	 */
+	public function enqueue_scripts() {
+		wp_register_script( $this->_token . '-frontend', esc_url( $this->assets_url ) . 'js/frontend' . $this->script_suffix . '.js', [ 'jquery' ], $this->_version, true );
+		wp_enqueue_script( $this->_token . '-frontend' );
+	} // End enqueue_scripts ()
+
+	/**
+	 * Load plugin localisation
+	 *
+	 * @access  public
+	 * @return  void
+	 * @since   1.0.0
+	 */
+	public function load_localisation() {
+		load_plugin_textdomain( 'sqlite-object-cache', false, dirname( plugin_basename( $this->file ) ) . '/languages/' );
 	} // End instance ()
 
 	/**
@@ -246,7 +215,6 @@ class SQLite_Object_Cache {
 	 */
 	public function __clone() {
 		_doing_it_wrong( __FUNCTION__, esc_html( __( 'Cloning of SQLite_Object_Cache is forbidden' ) ), esc_attr( $this->_version ) );
-
 	} // End __clone ()
 
 	/**
@@ -277,7 +245,7 @@ class SQLite_Object_Cache {
 	 * @since   1.0.0
 	 */
 	private function _log_version_number() { //phpcs:ignore
-		update_option( $this->_token . '_version', $this->_version );
+		update_option( $this->_token . '_version', $this->_version, false );
 	} // End _log_version_number ()
 
 }

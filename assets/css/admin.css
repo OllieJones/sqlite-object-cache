@@ -1,1 +1,6 @@
-/* phpcs:ignore */
+#sqlite_object_cache_settings > form > table.form-table > tbody > tr > th {
+    text-align: right;
+}
+#sqlite_object_cache_settings > form > table.form-table > tbody > tr > td > input.narrow {
+    width: 6em;
+}

@@ -48,7 +48,7 @@ class SQLite_Object_Cache_Settings {
 	 * @access  public
 	 * @since   1.0.0
 	 */
-	public $settings = array();
+	public $settings = [];
 
 	/**
 	 * Constructor function.
@@ -58,28 +58,51 @@ class SQLite_Object_Cache_Settings {
 	public function __construct( $parent ) {
 		$this->parent = $parent;
 
-		$this->base = 'wpt_';
+		$this->base = 'sqlite_object_cache_';
 
 		// Initialise settings.
-		add_action( 'init', array( $this, 'init_settings' ), 11 );
+		add_action( 'init', [ $this, 'init_settings' ], 11 );
 
 		// Register plugin settings.
-		add_action( 'admin_init', array( $this, 'register_settings' ) );
+		add_action( 'admin_init', [ $this, 'register_settings' ] );
 
 		// Add settings page to menu.
-		add_action( 'admin_menu', array( $this, 'add_menu_item' ) );
+		add_action( 'admin_menu', [ $this, 'add_menu_item' ] );
 
 		// Add settings link to plugins page.
 		add_filter(
 			'plugin_action_links_' . plugin_basename( $this->parent->file ),
-			array(
+			[
 				$this,
 				'add_settings_link',
-			)
+			]
 		);
 
 		// Configure placement of plugin settings page. See readme for implementation.
-		add_filter( $this->base . 'menu_settings', array( $this, 'configure_settings' ) );
+		add_filter( $this->base . 'menu_settings', [ $this, 'configure_settings' ] );
+
+		// Load admin JS & CSS.
+		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_assets' ], 10, 1 );
+	}
+
+	/**
+	 * Main SQLite_Object_Cache_Settings Instance
+	 *
+	 * Ensures only one instance of SQLite_Object_Cache_Settings is loaded or can be loaded.
+	 *
+	 * @param object $parent Object instance.
+	 *
+	 * @return object SQLite_Object_Cache_Settings instance
+	 * @since 1.0.0
+	 * @static
+	 * @see SQLite_Object_Cache()
+	 */
+	public static function instance( $parent ) {
+		if ( is_null( self::$_instance ) ) {
+			self::$_instance = new self( $parent );
+		}
+
+		return self::$_instance;
 	}
 
 	/**
@@ -89,6 +112,189 @@ class SQLite_Object_Cache_Settings {
 	 */
 	public function init_settings() {
 		$this->settings = $this->settings_fields();
+	}
+
+	/**
+	 * Build settings fields
+	 *
+	 * @return array Fields to be displayed on settings page
+	 */
+	private function settings_fields() {
+
+		$settings['standard'] = [
+			'title'       => __( 'SQLite Object Cache', 'sqlite-object-cache' ),
+			'description' => '',
+			'callback'    => [ $this, 'validate' ],
+			'fields'      => [
+				[
+					'id'          => 'active',
+					'label'       => __( 'Activate', 'sqlite-object-cache' ),
+					'description' => __( 'Check to activate the SQLite Persistent Object Cache.', 'sqlite-object-cache' ),
+					'type'        => 'checkbox',
+					'default'     => '',
+				],
+				[
+					'id'          => 'flush',
+					'label'       => __( 'Flush now', 'sqlite-object-cache' ),
+					'description' => __( 'Check to flush the cache (delete all its entries).', 'sqlite-object-cache' ),
+					'type'        => 'checkbox',
+					'default'     => '',
+					'reset'       => '',
+				],
+				[
+					'id'          => 'retention',
+					'label'       => __( 'Cached data expires after', 'sqlite-object-cache' ),
+					'description' => __( 'days.', 'sqlite-object-cache' ),
+					'type'        => 'number',
+					'default'     => 7,
+					'max'         => 365,
+					'min'         => 1,
+					'step'        => 'any',
+					'cssclass'    => 'narrow',
+					'placeholder' => __( 'Days to retain.', 'sqlite-object-cache' ),
+				],
+				[
+					'id'          => 'cleanup',
+					'label'       => __( 'Clean up now', 'sqlite-object-cache' ),
+					'description' => __( 'Check to clean up the cache (delete expired data).', 'sqlite-object-cache' ),
+					'type'        => 'checkbox',
+					'default'     => '',
+					'reset'       => '',
+				],
+				[
+					'id'          => 'capture',
+					'label'       => __( 'Measure performance', 'sqlite-object-cache' ),
+					'description' => __( 'Check to measure cache performance. ', 'sqlite-object-cache' ),
+					'type'        => 'checkbox',
+					'default'     => '',
+				],
+				[
+					'id'          => 'frequency',
+					'label'       => __( 'Measure', 'sqlite-object-cache' ),
+					'description' => __( 'times per hour.', 'sqlite-object-cache' ),
+					'type'        => 'number',
+					'default'     => 10,
+					'max'         => 36000,
+					'min'         => 0.001,
+					'step'        => 'any',
+					'cssclass'    => 'narrow',
+					'placeholder' => __( 'Times per hour to measure.', 'sqlite-object-cache' ),
+				],
+				[
+					'id'          => 'retainmeasurements',
+					'label'       => __( 'Retain measurements for', 'sqlite-object-cache' ),
+					'description' => __( 'hours.', 'sqlite-object-cache' ),
+					'type'        => 'number',
+					'default'     => 2,
+					'max'         => 31 * 24,
+					'min'         => 0.1,
+					'step'        => 'any',
+					'cssclass'    => 'narrow',
+					'placeholder' => __( 'Hours to retain.', 'sqlite-object-cache' ),
+				],
+			],
+		];
+
+		$settings['extra'] = [
+			'title'       => __( 'Extra', 'sqlite-object-cache' ),
+			'description' => __( 'These are some extra input fields that maybe aren\'t as common as the others.', 'sqlite-object-cache' ),
+			'fields'      => [
+				[
+					'id'          => 'number_field',
+					'label'       => __( 'A Number', 'sqlite-object-cache' ),
+					'description' => __( 'This is a standard number field - if this field contains anything other than numbers then the form will not be submitted.', 'sqlite-object-cache' ),
+					'type'        => 'number',
+					'default'     => '',
+					'placeholder' => __( '42', 'sqlite-object-cache' ),
+				],
+				[
+					'id'          => 'colour_picker',
+					'label'       => __( 'Pick a colour', 'sqlite-object-cache' ),
+					'description' => __( 'This uses WordPress\' built-in colour picker - the option is stored as the colour\'s hex code.', 'sqlite-object-cache' ),
+					'type'        => 'color',
+					'default'     => '#21759B',
+				],
+				[
+					'id'          => 'an_image',
+					'label'       => __( 'An Image', 'sqlite-object-cache' ),
+					'description' => __( 'This will upload an image to your media library and store the attachment ID in the option field. Once you have uploaded an imge the thumbnail will display above these buttons.', 'sqlite-object-cache' ),
+					'type'        => 'image',
+					'default'     => '',
+					'placeholder' => '',
+				],
+				[
+					'id'          => 'multi_select_box',
+					'label'       => __( 'A Multi-Select Box', 'sqlite-object-cache' ),
+					'description' => __( 'A standard multi-select box - the saved data is stored as an array.', 'sqlite-object-cache' ),
+					'type'        => 'select_multi',
+					'options'     => [
+						'linux'   => 'Linux',
+						'mac'     => 'Mac',
+						'windows' => 'Windows',
+					],
+					'default'     => [ 'linux' ],
+				],
+			],
+		];
+
+		$settings = apply_filters( $this->parent->_token . '_settings_fields', $settings );
+
+		return $settings;
+	}
+
+	private function numeric_option( &$option, $name, $default ) {
+		$result = $default;
+		if ( array_key_exists( $name, $option ) && is_numeric( $option[ $name ] ) ) {
+			$result = $option[ $name ];
+			$result = $result ?: $default;
+		} else {
+			$option[ $name ] = $default;
+		}
+		return $result;
+	}
+
+	/**
+	 * Filters an option value following sanitization.
+	 *
+	 * @param string $option The sanitized option value.
+	 * @param string $name The option name.
+	 * @param string $original_value The original value passed to the function.
+	 *
+	 * @throws Exception Announce SQLite failure.
+	 * @since 2.3.0
+	 * @since 4.3.0 Added the `$original_value` parameter.
+	 *
+	 */
+	public function validate( $option, $name, $original_value ) {
+		if ( ! is_array( $option ) ) {
+			/* weird. not an option array */
+			return $option;
+		}
+		global $wp_object_cache;
+
+		if ( array_key_exists( 'flush', $option ) && $option ['flush'] === 'on' ) {
+			if ( method_exists( $wp_object_cache, 'flush' ) ) {
+				$wp_object_cache->flush( true, true );
+			}
+			unset ( $option['flush'] );
+		}
+		$retention = $this->numeric_option($option, 'retention', 7);
+		if ( array_key_exists( 'cleanup', $option ) && $option ['cleanup'] === 'on' ) {
+
+			if ( method_exists( $wp_object_cache, 'sqlite_clean_up_cache' ) ) {
+				$wp_object_cache->sqlite_clean_up_cache( $retention * DAY_IN_SECONDS, true, true );
+			}
+			unset ( $option['cleanup'] );
+		}
+
+		$frequency = $this->numeric_option($option, 'frequency', 10);
+		$retainmeasurements = $this->numeric_option($option, 'retainmeasurements', 2);
+
+		if ( array_key_exists( 'capture', $option ) && $option['capture'] === 'on' ) {
+			$option['previouscapture'] = 0;
+		}
+
+		return $option;
 	}
 
 	/**
@@ -113,7 +319,7 @@ class SQLite_Object_Cache_Settings {
 				default:
 					return;
 			}
-			add_action( 'admin_print_styles-' . $page, array( $this, 'settings_assets' ) );
+			add_action( 'admin_print_styles-' . $page, [ $this, 'settings_assets' ] );
 		}
 	}
 
@@ -125,17 +331,17 @@ class SQLite_Object_Cache_Settings {
 	private function menu_settings() {
 		return apply_filters(
 			$this->base . 'menu_settings',
-			array(
+			[
 				'location'    => 'options', // Possible settings: options, menu, submenu.
 				'parent_slug' => 'options-general.php',
-				'page_title'  => __( 'Plugin Settings', 'sqlite-object-cache' ),
-				'menu_title'  => __( 'Plugin Settings', 'sqlite-object-cache' ),
+				'page_title'  => __( 'SQLite Persistent Object Cache Settings', 'sqlite-object-cache' ),
+				'menu_title'  => __( 'Object Cache', 'sqlite-object-cache' ),
 				'capability'  => 'manage_options',
 				'menu_slug'   => $this->parent->_token . '_settings',
-				'function'    => array( $this, 'settings_page' ),
+				'function'    => [ $this, 'settings_page' ],
 				'icon_url'    => '',
 				'position'    => null,
-			)
+			]
 		);
 	}
 
@@ -146,7 +352,7 @@ class SQLite_Object_Cache_Settings {
 	 *
 	 * @return array
 	 */
-	public function configure_settings( $settings = array() ) {
+	public function configure_settings( $settings = [] ) {
 		return $settings;
 	}
 
@@ -166,157 +372,25 @@ class SQLite_Object_Cache_Settings {
 		// If you're not including an image upload then you can leave this function call out.
 		wp_enqueue_media();
 
-		wp_register_script( $this->parent->_token . '-settings-js', $this->parent->assets_url . 'js/settings' . $this->parent->script_suffix . '.js', array( 'farbtastic', 'jquery' ), '1.0.0', true );
+		wp_register_script( $this->parent->_token . '-settings-js', $this->parent->assets_url . 'js/settings' . $this->parent->script_suffix . '.js', [
+			'farbtastic',
+			'jquery',
+		], '1.0.0', true );
 		wp_enqueue_script( $this->parent->_token . '-settings-js' );
 	}
 
 	/**
 	 * Add settings link to plugin list table
 	 *
-	 * @param  array $links Existing links.
+	 * @param array $links Existing links.
+	 *
 	 * @return array        Modified links.
 	 */
 	public function add_settings_link( $links ) {
 		$settings_link = '<a href="options-general.php?page=' . $this->parent->_token . '_settings">' . __( 'Settings', 'sqlite-object-cache' ) . '</a>';
 		array_push( $links, $settings_link );
+
 		return $links;
-	}
-
-	/**
-	 * Build settings fields
-	 *
-	 * @return array Fields to be displayed on settings page
-	 */
-	private function settings_fields() {
-
-		$settings['standard'] = array(
-			'title'       => __( 'Standard', 'sqlite-object-cache' ),
-			'description' => __( 'These are fairly standard form input fields.', 'sqlite-object-cache' ),
-			'fields'      => array(
-				array(
-					'id'          => 'text_field',
-					'label'       => __( 'Some Text', 'sqlite-object-cache' ),
-					'description' => __( 'This is a standard text field.', 'sqlite-object-cache' ),
-					'type'        => 'text',
-					'default'     => '',
-					'placeholder' => __( 'Placeholder text', 'sqlite-object-cache' ),
-				),
-				array(
-					'id'          => 'password_field',
-					'label'       => __( 'A Password', 'sqlite-object-cache' ),
-					'description' => __( 'This is a standard password field.', 'sqlite-object-cache' ),
-					'type'        => 'password',
-					'default'     => '',
-					'placeholder' => __( 'Placeholder text', 'sqlite-object-cache' ),
-				),
-				array(
-					'id'          => 'secret_text_field',
-					'label'       => __( 'Some Secret Text', 'sqlite-object-cache' ),
-					'description' => __( 'This is a secret text field - any data saved here will not be displayed after the page has reloaded, but it will be saved.', 'sqlite-object-cache' ),
-					'type'        => 'text_secret',
-					'default'     => '',
-					'placeholder' => __( 'Placeholder text', 'sqlite-object-cache' ),
-				),
-				array(
-					'id'          => 'text_block',
-					'label'       => __( 'A Text Block', 'sqlite-object-cache' ),
-					'description' => __( 'This is a standard text area.', 'sqlite-object-cache' ),
-					'type'        => 'textarea',
-					'default'     => '',
-					'placeholder' => __( 'Placeholder text for this textarea', 'sqlite-object-cache' ),
-				),
-				array(
-					'id'          => 'single_checkbox',
-					'label'       => __( 'An Option', 'sqlite-object-cache' ),
-					'description' => __( 'A standard checkbox - if you save this option as checked then it will store the option as \'on\', otherwise it will be an empty string.', 'sqlite-object-cache' ),
-					'type'        => 'checkbox',
-					'default'     => '',
-				),
-				array(
-					'id'          => 'select_box',
-					'label'       => __( 'A Select Box', 'sqlite-object-cache' ),
-					'description' => __( 'A standard select box.', 'sqlite-object-cache' ),
-					'type'        => 'select',
-					'options'     => array(
-						'drupal'    => 'Drupal',
-						'joomla'    => 'Joomla',
-						'wordpress' => 'WordPress',
-					),
-					'default'     => 'wordpress',
-				),
-				array(
-					'id'          => 'radio_buttons',
-					'label'       => __( 'Some Options', 'sqlite-object-cache' ),
-					'description' => __( 'A standard set of radio buttons.', 'sqlite-object-cache' ),
-					'type'        => 'radio',
-					'options'     => array(
-						'superman' => 'Superman',
-						'batman'   => 'Batman',
-						'ironman'  => 'Iron Man',
-					),
-					'default'     => 'batman',
-				),
-				array(
-					'id'          => 'multiple_checkboxes',
-					'label'       => __( 'Some Items', 'sqlite-object-cache' ),
-					'description' => __( 'You can select multiple items and they will be stored as an array.', 'sqlite-object-cache' ),
-					'type'        => 'checkbox_multi',
-					'options'     => array(
-						'square'    => 'Square',
-						'circle'    => 'Circle',
-						'rectangle' => 'Rectangle',
-						'triangle'  => 'Triangle',
-					),
-					'default'     => array( 'circle', 'triangle' ),
-				),
-			),
-		);
-
-		$settings['extra'] = array(
-			'title'       => __( 'Extra', 'sqlite-object-cache' ),
-			'description' => __( 'These are some extra input fields that maybe aren\'t as common as the others.', 'sqlite-object-cache' ),
-			'fields'      => array(
-				array(
-					'id'          => 'number_field',
-					'label'       => __( 'A Number', 'sqlite-object-cache' ),
-					'description' => __( 'This is a standard number field - if this field contains anything other than numbers then the form will not be submitted.', 'sqlite-object-cache' ),
-					'type'        => 'number',
-					'default'     => '',
-					'placeholder' => __( '42', 'sqlite-object-cache' ),
-				),
-				array(
-					'id'          => 'colour_picker',
-					'label'       => __( 'Pick a colour', 'sqlite-object-cache' ),
-					'description' => __( 'This uses WordPress\' built-in colour picker - the option is stored as the colour\'s hex code.', 'sqlite-object-cache' ),
-					'type'        => 'color',
-					'default'     => '#21759B',
-				),
-				array(
-					'id'          => 'an_image',
-					'label'       => __( 'An Image', 'sqlite-object-cache' ),
-					'description' => __( 'This will upload an image to your media library and store the attachment ID in the option field. Once you have uploaded an imge the thumbnail will display above these buttons.', 'sqlite-object-cache' ),
-					'type'        => 'image',
-					'default'     => '',
-					'placeholder' => '',
-				),
-				array(
-					'id'          => 'multi_select_box',
-					'label'       => __( 'A Multi-Select Box', 'sqlite-object-cache' ),
-					'description' => __( 'A standard multi-select box - the saved data is stored as an array.', 'sqlite-object-cache' ),
-					'type'        => 'select_multi',
-					'options'     => array(
-						'linux'   => 'Linux',
-						'mac'     => 'Mac',
-						'windows' => 'Windows',
-					),
-					'default'     => array( 'linux' ),
-				),
-			),
-		);
-
-		$settings = apply_filters( $this->parent->_token . '_settings_fields', $settings );
-
-		return $settings;
 	}
 
 	/**
@@ -346,31 +420,41 @@ class SQLite_Object_Cache_Settings {
 				}
 
 				// Add section to page.
-				add_settings_section( $section, $data['title'], array( $this, 'settings_section' ), $this->parent->_token . '_settings' );
+				add_settings_section( $section, $data['title'],
+					[ $this, 'settings_section' ],
+					$this->parent->_token . '_settings' );
+
+				$default_option = [];
+				foreach ( $data['fields'] as $field ) {
+					$default_option [ $field['id'] ] = $field['default'];
+				}
+
+				$setting_args = [
+					'description' => $data['title'],
+					'default'     => $default_option,
+				];
+
+				// Validation callback for section.
+				$option_name = $this->base . 'settings';
+				if ( isset( $data['callback'] ) ) {
+					add_filter( "sanitize_option_{$option_name}", $data['callback'], 10, 3 );
+				}
+
+				/* register the settings object */
+				register_setting( $this->parent->_token . '_settings', $option_name, $setting_args );
 
 				foreach ( $data['fields'] as $field ) {
-
-					// Validation callback for field.
-					$validation = '';
-					if ( isset( $field['callback'] ) ) {
-						$validation = $field['callback'];
-					}
-
-					// Register field.
-					$option_name = $this->base . $field['id'];
-					register_setting( $this->parent->_token . '_settings', $option_name, $validation );
-
 					// Add field to page.
 					add_settings_field(
 						$field['id'],
 						$field['label'],
-						array( $this->parent->admin, 'display_field' ),
+						[ $this->parent->admin, 'display_field' ],
 						$this->parent->_token . '_settings',
 						$section,
-						array(
+						[
 							'field'  => $field,
-							'prefix' => $this->base,
-						)
+							'option' => $option_name,
+						]
 					);
 				}
 
@@ -385,6 +469,7 @@ class SQLite_Object_Cache_Settings {
 	 * Settings section.
 	 *
 	 * @param array $section Array of section ids.
+	 *
 	 * @return void
 	 */
 	public function settings_section( $section ) {
@@ -400,10 +485,10 @@ class SQLite_Object_Cache_Settings {
 	public function settings_page() {
 
 		// Build page HTML.
-		$html      = '<div class="wrap" id="' . $this->parent->_token . '_settings">' . "\n";
-			$html .= '<h2>' . __( 'Plugin Settings', 'sqlite-object-cache' ) . '</h2>' . "\n";
+		$html = '<div class="wrap" id="' . $this->parent->_token . '_settings">' . "\n";
+		$html .= '<h2>' . __( 'SQLite Persistent Object Cache Settings', 'sqlite-object-cache' ) . '</h2>' . "\n";
 
-			$tab = '';
+		$tab = '';
 		//phpcs:disable
 		if ( isset( $_GET['tab'] ) && $_GET['tab'] ) {
 			$tab .= $_GET['tab'];
@@ -431,7 +516,7 @@ class SQLite_Object_Cache_Settings {
 				}
 
 				// Set tab link.
-				$tab_link = add_query_arg( array( 'tab' => $section ) );
+				$tab_link = add_query_arg( [ 'tab' => $section ] );
 				if ( isset( $_GET['settings-updated'] ) ) { //phpcs:ignore
 					$tab_link = remove_query_arg( 'settings-updated', $tab_link );
 				}
@@ -439,47 +524,49 @@ class SQLite_Object_Cache_Settings {
 				// Output tab.
 				$html .= '<a href="' . $tab_link . '" class="' . esc_attr( $class ) . '">' . esc_html( $data['title'] ) . '</a>' . "\n";
 
-				++$c;
+				++ $c;
 			}
 
 			$html .= '</h2>' . "\n";
 		}
 
-			$html .= '<form method="post" action="options.php" enctype="multipart/form-data">' . "\n";
+		/** @noinspection HtmlUnknownTarget */
+		$html .= '<form method="post" action="options.php" enctype="multipart/form-data">' . "\n";
 
-				// Get settings fields.
-				ob_start();
-				settings_fields( $this->parent->_token . '_settings' );
-				do_settings_sections( $this->parent->_token . '_settings' );
-				$html .= ob_get_clean();
+		// Get settings fields.
+		ob_start();
+		settings_fields( $this->parent->_token . '_settings' );
+		do_settings_sections( $this->parent->_token . '_settings' );
+		$html .= ob_get_clean();
 
-				$html     .= '<p class="submit">' . "\n";
-					$html .= '<input type="hidden" name="tab" value="' . esc_attr( $tab ) . '" />' . "\n";
-					$html .= '<input name="Submit" type="submit" class="button-primary" value="' . esc_attr( __( 'Save Settings', 'sqlite-object-cache' ) ) . '" />' . "\n";
-				$html     .= '</p>' . "\n";
-			$html         .= '</form>' . "\n";
-		$html             .= '</div>' . "\n";
+		$html .= '<p class="submit">' . "\n";
+		$html .= '<input type="hidden" name="tab" value="' . esc_attr( $tab ) . '" />' . "\n";
+		$html .= '<input name="Submit" type="submit" class="button-primary" value="' . esc_attr( __( 'Save Settings', 'sqlite-object-cache' ) ) . '" />' . "\n";
+		$html .= '</p>' . "\n";
+		$html .= '</form>' . "\n";
+		$html .= '</div>' . "\n";
 
 		echo $html; //phpcs:ignore
 	}
 
 	/**
-	 * Main SQLite_Object_Cache_Settings Instance
+	 * Admin enqueue assets
 	 *
-	 * Ensures only one instance of SQLite_Object_Cache_Settings is loaded or can be loaded.
+	 * @param string $hook Hook parameter.
 	 *
-	 * @since 1.0.0
-	 * @static
-	 * @see SQLite_Object_Cache()
-	 * @param object $parent Object instance.
-	 * @return object SQLite_Object_Cache_Settings instance
+	 * @return void
 	 */
-	public static function instance( $parent ) {
-		if ( is_null( self::$_instance ) ) {
-			self::$_instance = new self( $parent );
-		}
-		return self::$_instance;
-	} // End instance()
+	public function enqueue_assets( $hook = '' ) {
+		wp_register_style( $this->parent->_token . '-admin',
+			esc_url( $this->parent->assets_url ) . 'css/admin.css',
+			[], $this->parent->_version );
+		wp_enqueue_style( $this->parent->_token . '-admin' );
+
+		wp_register_script( $this->parent->_token . '-admin',
+			esc_url( $this->parent->assets_url ) . 'js/admin' . $this->parent->script_suffix . '.js',
+			[ 'jquery' ], $this->parent->_version, true );
+		wp_enqueue_script( $this->parent->_token . '-admin' );
+	}
 
 	/**
 	 * Cloning is forbidden.
@@ -488,7 +575,7 @@ class SQLite_Object_Cache_Settings {
 	 */
 	public function __clone() {
 		_doing_it_wrong( __FUNCTION__, esc_html( __( 'Cloning of SQLite_Object_Cache_API is forbidden.' ) ), esc_attr( $this->parent->_version ) );
-	} // End __clone()
+	}
 
 	/**
 	 * Unserializing instances of this class is forbidden.
@@ -497,6 +584,6 @@ class SQLite_Object_Cache_Settings {
 	 */
 	public function __wakeup() {
 		_doing_it_wrong( __FUNCTION__, esc_html( __( 'Unserializing instances of SQLite_Object_Cache_API is forbidden.' ) ), esc_attr( $this->parent->_version ) );
-	} // End __wakeup()
+	}
 
 }
