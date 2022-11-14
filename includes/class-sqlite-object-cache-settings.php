@@ -2,7 +2,7 @@
 /**
  * Settings class file.
  *
- * @package WordPress Plugin Template/Settings
+ * @package SQLite Object Cache
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -195,60 +195,12 @@ class SQLite_Object_Cache_Settings {
 			],
 		];
 
-		$settings['extra'] = [
-			'title'       => __( 'Extra', 'sqlite-object-cache' ),
-			'description' => __( 'These are some extra input fields that maybe aren\'t as common as the others.', 'sqlite-object-cache' ),
-			'fields'      => [
-				[
-					'id'          => 'number_field',
-					'label'       => __( 'A Number', 'sqlite-object-cache' ),
-					'description' => __( 'This is a standard number field - if this field contains anything other than numbers then the form will not be submitted.', 'sqlite-object-cache' ),
-					'type'        => 'number',
-					'default'     => '',
-					'placeholder' => __( '42', 'sqlite-object-cache' ),
-				],
-				[
-					'id'          => 'colour_picker',
-					'label'       => __( 'Pick a colour', 'sqlite-object-cache' ),
-					'description' => __( 'This uses WordPress\' built-in colour picker - the option is stored as the colour\'s hex code.', 'sqlite-object-cache' ),
-					'type'        => 'color',
-					'default'     => '#21759B',
-				],
-				[
-					'id'          => 'an_image',
-					'label'       => __( 'An Image', 'sqlite-object-cache' ),
-					'description' => __( 'This will upload an image to your media library and store the attachment ID in the option field. Once you have uploaded an imge the thumbnail will display above these buttons.', 'sqlite-object-cache' ),
-					'type'        => 'image',
-					'default'     => '',
-					'placeholder' => '',
-				],
-				[
-					'id'          => 'multi_select_box',
-					'label'       => __( 'A Multi-Select Box', 'sqlite-object-cache' ),
-					'description' => __( 'A standard multi-select box - the saved data is stored as an array.', 'sqlite-object-cache' ),
-					'type'        => 'select_multi',
-					'options'     => [
-						'linux'   => 'Linux',
-						'mac'     => 'Mac',
-						'windows' => 'Windows',
-					],
-					'default'     => [ 'linux' ],
-				],
-			],
+		$settings['stats'] = [
+			'title'       => __( 'Statistics', 'sqlite-object-cache' ),
+			'description' => __( 'Cache performance statistics', 'sqlite-object-cache' ),
 		];
 
 		return apply_filters( $this->parent->_token . '_settings_fields', $settings );
-	}
-
-	private function numeric_option( &$option, $name, $default ) {
-		$result = $default;
-		if ( array_key_exists( $name, $option ) && is_numeric( $option[ $name ] ) ) {
-			$result = $option[ $name ];
-			$result = $result ?: $default;
-		} else {
-			$option[ $name ] = $default;
-		}
-		return $result;
 	}
 
 	/**
@@ -277,7 +229,7 @@ class SQLite_Object_Cache_Settings {
 			}
 			unset ( $option['flush'] );
 		}
-		$retention = $this->numeric_option($option, 'retention', 7);
+		$retention = $this->numeric_option( $option, 'retention', 7 );
 		if ( array_key_exists( 'cleanup', $option ) && $option ['cleanup'] === 'on' ) {
 
 			if ( method_exists( $wp_object_cache, 'sqlite_clean_up_cache' ) ) {
@@ -286,14 +238,35 @@ class SQLite_Object_Cache_Settings {
 			unset ( $option['cleanup'] );
 		}
 
-		$frequency = $this->numeric_option($option, 'frequency', 10);
-		$retainmeasurements = $this->numeric_option($option, 'retainmeasurements', 2);
+		$frequency          = $this->numeric_option( $option, 'frequency', 10 );
+		$retainmeasurements = $this->numeric_option( $option, 'retainmeasurements', 2 );
 
 		if ( array_key_exists( 'capture', $option ) && $option['capture'] === 'on' ) {
 			$option['previouscapture'] = 0;
 		}
 
 		return $option;
+	}
+
+	/**
+	 * Retrieve a numeric option, and set the default if it isn't present.
+	 *
+	 * @param array  $option Option array value.
+	 * @param string $name Name of the element in the option array.
+	 * @param mixed  $default Default value to use.
+	 *
+	 * @return float|int|mixed|string
+	 */
+	private function numeric_option( &$option, $name, $default ) {
+		$result = $default;
+		if ( array_key_exists( $name, $option ) && is_numeric( $option[ $name ] ) ) {
+			$result = $option[ $name ];
+			$result = $result ?: $default;
+		} else {
+			$option[ $name ] = $default;
+		}
+
+		return $result;
 	}
 
 	/**
@@ -424,41 +397,44 @@ class SQLite_Object_Cache_Settings {
 					$this->parent->_token . '_settings' );
 
 				$default_option = [];
-				foreach ( $data['fields'] as $field ) {
-					$default_option [ $field['id'] ] = $field['default'];
-				}
 
-				$setting_args = [
-					'description' => $data['title'],
-					'default'     => $default_option,
-				];
+				if ( array_key_exists( 'fields', $data ) && is_array( $data['fields'] ) ) {
+					foreach ( $data['fields'] as $field ) {
+						$default_option [ $field['id'] ] = $field['default'];
+					}
 
-				// Validation callback for section.
-				$option_name = $this->base . 'settings';
-				if ( isset( $data['callback'] ) ) {
-					add_filter( "sanitize_option_$option_name", $data['callback'], 10, 3 );
-				}
+					$setting_args = [
+						'description' => $data['title'],
+						'default'     => $default_option,
+					];
 
-				/* register the settings object */
-				register_setting( $this->parent->_token . '_settings', $option_name, $setting_args );
+					// Validation callback for section.
+					$option_name = $this->base . 'settings';
+					if ( isset( $data['callback'] ) ) {
+						add_filter( "sanitize_option_$option_name", $data['callback'], 10, 3 );
+					}
 
-				foreach ( $data['fields'] as $field ) {
-					// Add field to page.
-					add_settings_field(
-						$field['id'],
-						$field['label'],
-						[ $this->parent->admin, 'display_field' ],
-						$this->parent->_token . '_settings',
-						$section,
-						[
-							'field'  => $field,
-							'option' => $option_name,
-						]
-					);
-				}
+					/* register the settings object */
+					register_setting( $this->parent->_token . '_settings', $option_name, $setting_args );
 
-				if ( ! $current_section ) {
-					break;
+					foreach ( $data['fields'] as $field ) {
+						// Add field to page.
+						add_settings_field(
+							$field['id'],
+							$field['label'],
+							[ $this->parent->admin, 'display_field' ],
+							$this->parent->_token . '_settings',
+							$section,
+							[
+								'field'  => $field,
+								'option' => $option_name,
+							]
+						);
+					}
+
+					if ( ! $current_section ) {
+						break;
+					}
 				}
 			}
 		}
@@ -473,6 +449,14 @@ class SQLite_Object_Cache_Settings {
 	 */
 	public function settings_section( $section ) {
 		$html = '<p> ' . $this->settings[ $section['id'] ]['description'] . '</p>' . "\n";
+
+		if ( 'stats' === $section['id'] ) {
+
+			$stats = new SQLite_Object_Cache_Statistics ();
+			$stats->init();
+
+			$html .= $stats->render();
+		}
 		echo $html; //phpcs:ignore
 	}
 
@@ -562,7 +546,7 @@ class SQLite_Object_Cache_Settings {
 			[], $this->parent->_version );
 		wp_enqueue_style( $this->parent->_token . '-admin' );
 
-		if (false) {
+		if ( false ) {
 			// TODO put this back if we need js in the backend.
 			wp_register_script( $this->parent->_token . '-admin',
 				esc_url( $this->parent->assets_url ) . 'js/admin' . $this->parent->script_suffix . '.js',

@@ -28,6 +28,7 @@ require_once 'includes/class-sqlite-object-cache-settings.php';
 
 // Load plugin libraries.
 require_once 'includes/lib/class-sqlite-object-cache-admin-api.php';
+require_once 'includes/lib/class-sqlite-object-cache-statistics.php';
 
 /**
  * Returns the main instance of SQLite_Object_Cache to prevent the need to use globals.
