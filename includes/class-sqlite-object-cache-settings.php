@@ -197,7 +197,6 @@ class SQLite_Object_Cache_Settings {
 
 		$settings['stats'] = [
 			'title'       => __( 'Statistics', 'sqlite-object-cache' ),
-			'description' => __( 'Cache performance statistics', 'sqlite-object-cache' ),
 		];
 
 		return apply_filters( $this->parent->_token . '_settings_fields', $settings );
@@ -283,10 +282,12 @@ class SQLite_Object_Cache_Settings {
 			switch ( $args['location'] ) {
 				case 'options':
 				case 'submenu':
-					$page = add_submenu_page( $args['parent_slug'], $args['page_title'], $args['menu_title'], $args['capability'], $args['menu_slug'], $args['function'] );
+					$page =
+						add_submenu_page( $args['parent_slug'], $args['page_title'], $args['menu_title'], $args['capability'], $args['menu_slug'], $args['function'] );
 					break;
 				case 'menu':
-					$page = add_menu_page( $args['page_title'], $args['menu_title'], $args['capability'], $args['menu_slug'], $args['function'], $args['icon_url'], $args['position'] );
+					$page =
+						add_menu_page( $args['page_title'], $args['menu_title'], $args['capability'], $args['menu_slug'], $args['function'], $args['icon_url'], $args['position'] );
 					break;
 				default:
 					return;
@@ -359,7 +360,8 @@ class SQLite_Object_Cache_Settings {
 	 * @return array        Modified links.
 	 */
 	public function add_settings_link( $links ) {
-		$settings_link = '<a href="options-general.php?page=' . $this->parent->_token . '_settings">' . __( 'Settings', 'sqlite-object-cache' ) . '</a>';
+		$settings_link =
+			'<a href="options-general.php?page=' . $this->parent->_token . '_settings">' . __( 'Settings', 'sqlite-object-cache' ) . '</a>';
 		$links[]       = $settings_link;
 
 		return $links;
@@ -448,7 +450,20 @@ class SQLite_Object_Cache_Settings {
 	 * @return void
 	 */
 	public function settings_section( $section ) {
-		$html = '<p> ' . $this->settings[ $section['id'] ]['description'] . '</p>' . "\n";
+		$html = '';
+
+		global $wp_object_cache;
+		if ( method_exists( $wp_object_cache, 'sqlite_get_version' ) ) {
+
+			$html .= '<p>' . sprintf(
+				/* translators: 1: version for sqlite   2: version for php */
+					esc_html__( 'Using SQLite3 version %1$s and php version %2$s.' ),
+					esc_html( $wp_object_cache->sqlite_get_version() ),
+					esc_html( phpversion() ) ) . '</p>';
+		}
+		if (array_key_exists('description', $this->settings[ $section['id'] ])) {
+			$html .= '<p> ' . $this->settings[ $section['id'] ]['description'] . '</p>' . "\n";
+		}
 
 		if ( 'stats' === $section['id'] ) {
 
@@ -572,5 +587,4 @@ class SQLite_Object_Cache_Settings {
 	public function __wakeup() {
 		_doing_it_wrong( __FUNCTION__, esc_html( __( 'Unserializing instances of SQLite_Object_Cache_API is forbidden.' ) ), esc_attr( $this->parent->_version ) );
 	}
-
 }

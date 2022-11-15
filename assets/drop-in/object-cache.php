@@ -55,6 +55,20 @@ class WP_Object_Cache extends SQLite3 {
 	 */
 	public $cache_misses = 0;
 	/**
+	 * The amount of times the cache data was already stored in the persistent cache.
+	 *
+	 * @since 2.5.0
+	 * @var int
+	 */
+	public $persistent_hits = 0;
+	/**
+	 * Amount of times the cache did not have the request in persistent cache.
+	 *
+	 * @since 2.0.0
+	 * @var int
+	 */
+	public $persistent_misses = 0;
+	/**
 	 * List of global cache groups.
 	 *
 	 * @since 3.0.0
@@ -197,11 +211,11 @@ class WP_Object_Cache extends SQLite3 {
 	private $monitoring_options;
 
 	/**
-	 * Sets up object properties; PHP 5 style constructor.
+	 * Constructor for SQLite Object Cache.
 	 *
 	 * @param string $directory Name of the directory for the db file.
 	 * @param string $file Name of the db file.
-	 * @param int    $timeout Milliseconds before timeout. Do not set to zero.
+	 * @param int    $timeout Milliseconds before timeout.
 	 *
 	 * @throws Exception Database failure.
 	 * @since 2.0.8
@@ -214,6 +228,7 @@ class WP_Object_Cache extends SQLite3 {
 		$this->blog_prefix = $this->multisite ? get_current_blog_id() . ':' : '';
 		$filepath          = $directory . '/' . $file;
 		parent::__construct( $filepath );
+		$timeout = $timeout ?: 500;
 		$this->busyTimeout( $timeout );
 		$this->has_igbinary = function_exists( 'igbinary_serialize' ) && function_exists( 'igbinary_unserialize' );
 		$this->initialize_connection();
@@ -260,6 +275,7 @@ class WP_Object_Cache extends SQLite3 {
 
 		$this->do_ddl( $tbl, $noexpire_timestamp_offset );
 		$this->prepare_statements( $tbl, $noexpire_timestamp_offset );
+		$this->preload( $tbl );
 	}
 
 	/**
@@ -305,7 +321,7 @@ CREATE TABLE IF NOT EXISTS $tbl (
 ) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS expires ON $tbl (expires);";
 				$this->exec( $t );
-				$this->exec( "INSERT INTO $tbl (name, value, expires) VALUES ('sqlite_object_cache.created', datetime(), $now + $noexpire_timestamp_offset);" );
+				$this->exec( "INSERT INTO $tbl (name, value, expires) VALUES ('sqlite_object_cache|created', datetime(), $now + $noexpire_timestamp_offset);" );
 			}
 		} finally {
 			$this->exec( 'COMMIT;' );
@@ -375,6 +391,65 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 		}
 
 		return $result;
+	}
+
+	/**
+	 * Preload frequently accessed items.
+	 *
+	 * @param string $tbl Cache table name.
+	 *
+	 * @return void
+	 * @return void
+	 */
+	public function preload( $tbl ) {
+		$list =
+			[
+				'options|%',
+				'default|%',
+				'posts|last_changed',
+				'terms|last_changed',
+				'site_options%|notoptions',
+				'transient|doing_cron',
+			];
+
+		$sql     = '';
+		$clauses = [];
+		foreach ( $list as $item ) {
+			$clauses [] = "SELECT name, value FROM $tbl WHERE name LIKE '$item'";
+		}
+		$sql .= implode( ' UNION ALL ', $clauses ) . ';';
+
+		$resultset = $this->query( $sql );
+		if ( ! $resultset ) {
+			return;
+		}
+		while ( true ) {
+			$row = $resultset->fetchArray( SQLITE3_NUM );
+			if ( ! $row ) {
+				break;
+			}
+			$splits = explode( '|', $row[0], 2 );
+			$group  = $splits[0];
+			$key    = $splits[1];
+			$val    = $this->maybe_unserialize( $row[1] );
+			/* Put the preloaded value into the cache. */
+			$this->cache[ $group ][ $key ] = $val;
+		}
+	}
+
+	/**
+	 * Serialize data for persistence if need be. Use igbinary if available.
+	 *
+	 * @param mixed $data To be unserialized.
+	 *
+	 * @return string|mixed Data ready for use.
+	 */
+	private function maybe_unserialize( $data ) {
+		if ( $this->has_igbinary ) {
+			return igbinary_unserialize( $data );
+		}
+
+		return maybe_unserialize( $data );
 	}
 
 	/**
@@ -490,7 +565,7 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 	 * @return string The name.
 	 */
 	private function getName( $key, $group ) {
-		return str_replace( '.', '__', $group ) . '.' . str_replace( '.', '__', $key );
+		return $group . '|' . $key;
 	}
 
 	/**
@@ -604,14 +679,16 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 		try {
 			$now    = microtime( true );
 			$record = [
-				'time'    => $now,
-				'hits'    => $this->cache_hits,
-				'misses'  => $this->cache_misses,
-				'open'    => $this->open_time,
-				'selects' => $this->select_times,
-				'inserts' => $this->insert_times,
-				'deletes' => $this->delete_times,
-				'update'  => $this->update_time,
+				'time'       => $now,
+				'RAMhits'    => $this->cache_hits,
+				'RAMmisses'  => $this->cache_misses,
+				'DISKhits'   => $this->persistent_hits,
+				'DISKmisses' => $this->persistent_misses,
+				'open'       => $this->open_time,
+				'selects'    => $this->select_times,
+				'inserts'    => $this->insert_times,
+				'deletes'    => $this->delete_times,
+				'update'     => $this->update_time,
 			];
 			if ( $options['verbose'] ) {
 				$record ['select_names'] = $this->select_names;
@@ -629,8 +706,9 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 			/* get the lifetime */
 			$lifetime = $options['lifetime'] ? intval( $options['lifetime'] ) : HOUR_IN_SECONDS;
 
-			$name = 'sqlite_object_cache.mon.' . $timestamp;
-			$sql  = "INSERT INTO $this->cache_table_name (name, value, expires) VALUES (:name, :value, :expires) ON CONFLICT (name) DO NOTHING;";
+			$name = 'sqlite_object_cache|mon|' . str_pad( $timestamp, 12, '0', STR_PAD_LEFT );
+			$sql  =
+				"INSERT INTO $this->cache_table_name (name, value, expires) VALUES (:name, :value, :expires) ON CONFLICT (name) DO NOTHING;";
 			$stmt = $this->prepare( $sql );
 			$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
 			$stmt->bindValue( ':value', $this->maybe_serialize( $record ), SQLITE3_BLOB );
@@ -642,6 +720,17 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 		} catch ( Exception $e ) {
 			/* Empty, intentionally. Ignore problems putting capture data into the table. */
 		}
+	}
+
+	/**
+	 *  Get the version of SQLite in use.
+	 *
+	 * @return string
+	 * @throws Exception Announce database failure.
+	 */
+	public function sqlite_get_version() {
+
+		return $this->querySingle( 'SELECT sqlite_version();' );
 	}
 
 	/**
@@ -781,7 +870,8 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 			wp_load_translations_early();
 		}
 
-		$message = is_string( $key ) ? __( 'Cache key must not be an empty string.' ) /* translators: %s: The type of the given cache key. */ : sprintf( __( 'Cache key must be integer or non-empty string, %s given.' ), $type );
+		$message =
+			is_string( $key ) ? __( 'Cache key must not be an empty string.' ) /* translators: %s: The type of the given cache key. */ : sprintf( __( 'Cache key must be integer or non-empty string, %s given.' ), $type );
 		_doing_it_wrong( sprintf( '%s::%s', __CLASS__, debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS, 2 )[1]['function'] ), $message, '6.1.0' );
 
 		return false;
@@ -799,7 +889,8 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 	 *
 	 */
 	protected function cache_item_exists( $key, $group ) {
-		$exists = isset( $this->cache[ $group ] ) && ( isset( $this->cache[ $group ][ $key ] ) || array_key_exists( $key, $this->cache[ $group ] ) );
+		$exists =
+			isset( $this->cache[ $group ] ) && ( isset( $this->cache[ $group ][ $key ] ) || array_key_exists( $key, $this->cache[ $group ] ) );
 		if ( ! $exists ) {
 			$val = $this->getone( $key, $group );
 			if ( null !== $val ) {
@@ -808,6 +899,9 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 				}
 				$this->cache[ $group ][ $key ] = $val;
 				$exists                        = true;
+				$this->persistent_hits ++;
+			} else {
+				$this->persistent_misses ++;
 			}
 		}
 
@@ -851,21 +945,6 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 	}
 
 	/**
-	 * Serialize data for persistence if need be. Use igbinary if available.
-	 *
-	 * @param mixed $data To be unserialized.
-	 *
-	 * @return string|mixed Data ready for use.
-	 */
-	private function maybe_unserialize( $data ) {
-		if ( $this->has_igbinary ) {
-			return igbinary_unserialize( $data );
-		}
-
-		return maybe_unserialize( $data );
-	}
-
-	/**
 	 * Sets the data contents into the cache.
 	 *
 	 * The cache contents are grouped by the $group parameter followed by the
@@ -904,7 +983,8 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 			$data = clone $data;
 		}
 
-		$former_data = array_key_exists( $group, $this->cache ) && array_key_exists( $key, $this->cache[ $group ] ) ? $this->cache [ $group ][ $key ] : null;
+		$former_data =
+			array_key_exists( $group, $this->cache ) && array_key_exists( $key, $this->cache[ $group ] ) ? $this->cache [ $group ][ $key ] : null;
 
 		$this->cache[ $group ][ $key ] = $data;
 		if ( $former_data !== $data ) {
@@ -1046,7 +1126,7 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 
 		if ( $this->cache_item_exists( $key, $group ) ) {
 			$found            = true;
-			$this->cache_hits += 1;
+			$this->cache_hits = $this->cache_hits + 1;
 			if ( is_object( $this->cache[ $group ][ $key ] ) ) {
 				return clone $this->cache[ $group ][ $key ];
 			} else {
@@ -1055,7 +1135,7 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 		}
 
 		$found              = false;
-		$this->cache_misses += 1;
+		$this->cache_misses = $this->cache_misses + 1;
 
 		return false;
 	}
@@ -1234,8 +1314,8 @@ DO UPDATE SET value=excluded.value, expires=excluded.expires";
 	public function flush( $keep_performance_data = false, $vacuum = false ) {
 		$this->cache = [];
 		$where       = $keep_performance_data
-			? " WHERE name NOT LIKE 'sqlite_object_cache.%'"
-			: " WHERE name <> 'sqlite_object_cache.created";
+			? " WHERE name NOT LIKE 'sqlite_object_cache|%'"
+			: " WHERE name <> 'sqlite_object_cache|created";
 		/** @noinspection SqlWithoutWhere */
 		$this->exec( 'DELETE FROM ' . $this->cache_table_name . ';' );
 		$this->not_in_persistent_cache = [];

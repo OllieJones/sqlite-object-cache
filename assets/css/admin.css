@@ -4,3 +4,18 @@
 #sqlite_object_cache_settings > form > table.form-table > tbody > tr > td > input.narrow {
     width: 6em;
 }
+#sqlite_object_cache_settings  table.sql-object-cache-stats  {
+    border-collapse: collapse;
+}
+#sqlite_object_cache_settings  table.sql-object-cache-stats  tr  {
+    border-width: thin;
+    border-style: dotted;
+}
+
+#sqlite_object_cache_settings  table.sql-object-cache-stats > tbody > tr > td  {
+    text-align: right;
+    padding: 2px;
+}
+#sqlite_object_cache_settings  table.sql-object-cache-stats > tbody > tr > th  {
+    text-align: right;
+}
