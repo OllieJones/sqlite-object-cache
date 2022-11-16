@@ -134,7 +134,7 @@ class SQLite_Object_Cache {
 		// Handle localisation.
 		$this->load_plugin_textdomain();
 		add_action( 'init', [ $this, 'load_localization' ], 0 );
-		$option = get_option( $this->_token . '_settings' );
+		$option = get_option( $this->_token . '_settings', [] );
 		if ( array_key_exists( 'capture', $option ) && $option['capture'] === 'on' ) {
 			add_action( 'init', [ $this, 'do_capture' ] );
 		}
