@@ -2,18 +2,18 @@
 /**
  * Plugin Name: SQLite Object Cache
  * Version: 0.1.0
- * Plugin URI: http://www.hughlashbrooke.com/
- * Description: This is your starter template for your next WordPress plugin.
+ * Plugin URI: https://github.com/OllieJones/sqlite-object-cache
+ * Description: SQLite Persistent Object Cache.
  * Author: Ollie Jones
- * Author URI: https://plumislandmedia.net/
+ * Author URI: https://github.com/OllieJones/
  * Requires at least: 5.9
  * Requires PHP: 5.6
- * Tested up to: 6.1
+ * Tested up to: 6.1.1
  *
  * Text Domain: sqlite-object-cache
  * Domain Path: /languages/
  *
- * @package WordPress
+ * @package SQLiteObjectCache
  * @author Ollie Jones
  * @since 0.1.0
  */

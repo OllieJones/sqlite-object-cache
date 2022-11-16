@@ -127,13 +127,6 @@ class SQLite_Object_Cache_Settings {
 			'callback'    => [ $this, 'validate' ],
 			'fields'      => [
 				[
-					'id'          => 'active',
-					'label'       => __( 'Activate', 'sqlite-object-cache' ),
-					'description' => __( 'Check to activate the SQLite Persistent Object Cache.', 'sqlite-object-cache' ),
-					'type'        => 'checkbox',
-					'default'     => '',
-				],
-				[
 					'id'          => 'flush',
 					'label'       => __( 'Flush now', 'sqlite-object-cache' ),
 					'description' => __( 'Check to flush the cache (delete all its entries).', 'sqlite-object-cache' ),
@@ -196,7 +189,7 @@ class SQLite_Object_Cache_Settings {
 		];
 
 		$settings['stats'] = [
-			'title'       => __( 'Statistics', 'sqlite-object-cache' ),
+			'title' => __( 'Statistics', 'sqlite-object-cache' ),
 		];
 
 		return apply_filters( $this->parent->_token . '_settings_fields', $settings );
@@ -237,8 +230,8 @@ class SQLite_Object_Cache_Settings {
 			unset ( $option['cleanup'] );
 		}
 
-		$frequency          = $this->numeric_option( $option, 'frequency', 10 );
-		$retainmeasurements = $this->numeric_option( $option, 'retainmeasurements', 2 );
+		$this->numeric_option( $option, 'frequency', 10 );
+		$this->numeric_option( $option, 'retainmeasurements', 2 );
 
 		if ( array_key_exists( 'capture', $option ) && $option['capture'] === 'on' ) {
 			$option['previouscapture'] = 0;
@@ -362,7 +355,9 @@ class SQLite_Object_Cache_Settings {
 	public function add_settings_link( $links ) {
 		$settings_link =
 			'<a href="options-general.php?page=' . $this->parent->_token . '_settings">' . __( 'Settings', 'sqlite-object-cache' ) . '</a>';
-		$links[]       = $settings_link;
+		$statistics_link =
+			'<a href="options-general.php?page=' . $this->parent->_token . '_settings&tab=stats">' . __( 'Statistics', 'sqlite-object-cache' ) . '</a>';
+		array_unshift( $links, $settings_link, $statistics_link );
 
 		return $links;
 	}
@@ -452,16 +447,30 @@ class SQLite_Object_Cache_Settings {
 	public function settings_section( $section ) {
 		$html = '';
 
+		/** @noinspection HtmlUnknownTarget */
+		$hyperlink  = '<a href="%s" target="_blank">%s</a>';
+		$supportUrl = "https://wordpress.org/support/plugin/sqlite-object-cache/";
+		$reviewUrl  = "https://wordpress.org/support/plugin/sqlite-object-cache/reviews/";
+		$clickHere  = __( 'click here', 'sqlite-object-cache' );
+		$support    = sprintf( $hyperlink, $supportUrl, $clickHere );
+		$review     = sprintf( $hyperlink, $reviewUrl, $clickHere );
+		/* translators: 1: embeds "For help please ..."  2: hyperlink to review page on wp.org */
+		$supportString =
+			'<p>' . __( 'For support please %1$s.  Please %2$s to rate this plugin. Your feedback helps make it better, faster, and more useful.', 'sqlite-object-cache' ) . '</p>';
+		$supportString = sprintf( $supportString, $support, $review );
+
+		$html .= $supportString;
+
 		global $wp_object_cache;
 		if ( method_exists( $wp_object_cache, 'sqlite_get_version' ) ) {
-
 			$html .= '<p>' . sprintf(
-				/* translators: 1: version for sqlite   2: version for php */
-					esc_html__( 'Using SQLite3 version %1$s and php version %2$s.' ),
+				/* translators: 1: version for sqlite   2: version for php  3: version for plugin */
+					esc_html__( 'Versions: SQLite: %1$s  php: %2$s  Plugin: %3$s.', 'sqlite-object-cache' ),
 					esc_html( $wp_object_cache->sqlite_get_version() ),
-					esc_html( phpversion() ) ) . '</p>';
+					esc_html( phpversion() ),
+					esc_html( $this->parent->_version ) ) . '</p>';
 		}
-		if (array_key_exists('description', $this->settings[ $section['id'] ])) {
+		if ( array_key_exists( 'description', $this->settings[ $section['id'] ] ) ) {
 			$html .= '<p> ' . $this->settings[ $section['id'] ]['description'] . '</p>' . "\n";
 		}
 
@@ -560,14 +569,6 @@ class SQLite_Object_Cache_Settings {
 			esc_url( $this->parent->assets_url ) . 'css/admin.css',
 			[], $this->parent->_version );
 		wp_enqueue_style( $this->parent->_token . '-admin' );
-
-		if ( false ) {
-			// TODO put this back if we need js in the backend.
-			wp_register_script( $this->parent->_token . '-admin',
-				esc_url( $this->parent->assets_url ) . 'js/admin' . $this->parent->script_suffix . '.js',
-				[ 'jquery' ], $this->parent->_version, true );
-			wp_enqueue_script( $this->parent->_token . '-admin' );
-		}
 	}
 
 	/**

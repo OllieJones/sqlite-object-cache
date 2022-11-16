@@ -110,9 +110,9 @@ class SQLite_Object_Cache_Statistics {
 				__( 'Save and Close', 'sqlite-object-cache' ) => $this->descriptive_stats( $updates ),
 				__( 'RAM Hit Ratio', 'sqlite-object-cache' )  => $this->descriptive_stats( $RAMratios ),
 				__( 'Disk Hit Ratio', 'sqlite-object-cache' ) => $this->descriptive_stats( $DISKratios ),
-				__( 'Lookup', 'sqlite-object-cache' )        => $this->descriptive_stats( array_merge( ...$selects ) ),
-				__( 'Save', 'sqlite-object-cache' )          => $this->descriptive_stats( array_merge( ...$inserts ) ),
-				__( 'Delete', 'sqlite-object-cache' )        => $this->descriptive_stats( array_merge( ...$deletes ) ),
+				__( 'Lookup', 'sqlite-object-cache' )         => $this->descriptive_stats( array_merge( ...$selects ) ),
+				__( 'Save', 'sqlite-object-cache' )           => $this->descriptive_stats( array_merge( ...$inserts ) ),
+				__( 'Delete', 'sqlite-object-cache' )         => $this->descriptive_stats( array_merge( ...$deletes ) ),
 			];
 
 			$this->descriptions   = $descriptions;
@@ -126,29 +126,29 @@ class SQLite_Object_Cache_Statistics {
 	/**
 	 * Read rows from the stored statistics.
 	 *
-	 * @return array|Generator
+	 * @return Generator
 	 * @throws Exception Announce SQLite failure.
 	 */
 	private function load() {
 		global $wp_object_cache;
 
-		$result    = [];
-		$sql       = "SELECT name, value FROM object_cache WHERE name LIKE 'sqlite_object_cache|mon|%' ORDER BY name;";
-		$stmt      = $wp_object_cache->prepare( $sql );
-		$resultset = $stmt->execute();
-		while ( true ) {
-			$row = $resultset->fetchArray( SQLITE3_NUM );
-			if ( ! $row ) {
-				break;
+		if ( method_exists( $wp_object_cache, 'prepare' ) ) {
+			$sql       =
+				"SELECT name, value FROM object_cache WHERE name LIKE 'sqlite_object_cache|mon|%' ORDER BY name;";
+			$stmt      = $wp_object_cache->prepare( $sql );
+			$resultset = $stmt->execute();
+			while ( true ) {
+				$row = $resultset->fetchArray( SQLITE3_NUM );
+				if ( ! $row ) {
+					break;
+				}
+				$splits = explode( '|', $row[0], 3 );
+				$time   = $splits[2];
+				$value  = $this->has_igbinary ? igbinary_unserialize( $row[1] ) : unserialize( $row[1] );
+				yield (object) $value;
 			}
-			$splits = explode( '|', $row[0], 3 );
-			$time   = $splits[2];
-			$value  = $this->has_igbinary ? igbinary_unserialize( $row[1] ) : unserialize( $row[1] );
-			yield (object) $value;
+			$resultset->finalize();
 		}
-		$resultset->finalize();
-
-		return $result;
 	}
 
 	/**
@@ -161,17 +161,51 @@ class SQLite_Object_Cache_Statistics {
 	public function descriptive_stats( array $a ) {
 		$result          = [
 			'n'      => count( $a ),
-			'[min'    => $this->minimum( $a ),
+			'[min'   => $this->minimum( $a ),
 			'median' => $this->percentile( $a, 0.5 ),
 			'mean'   => $this->mean( $a ),
 			'p95'    => $this->percentile( $a, 0.95 ),
-			'max]'    => $this->maximum( $a ),
+			'max]'   => $this->maximum( $a ),
 			'mad'    => $this->mad( $a ),
 			'stdev'  => $this->stdev( $a ),
 		];
 		$result['range'] = $result['max]'] - $result['[min'];
 
 		return $result;
+	}
+
+	/**
+	 * The smallest value in an array.
+	 *
+	 * @param array $a The array.
+	 *
+	 * @return mixed|null
+	 */
+	public function minimum( array $a ) {
+		sort( $a );
+
+		return count( $a ) > 0 ? $a[0] : null;
+	}
+
+	/** Percentile.
+	 *
+	 * @param array  $a dataset.
+	 * @param number $p percentile as fraction 0-1.
+	 *
+	 * @return float
+	 */
+	public function percentile( array $a, $p ) {
+		$n = count( $a );
+		if ( ! $n ) {
+			return null;
+		}
+		sort( $a );
+		$i = intval( floor( $n * $p ) );
+		if ( $i >= $n ) {
+			$i = $n - 1;
+		}
+
+		return $a[ $i ];
 	}
 
 	/**
@@ -197,25 +231,17 @@ class SQLite_Object_Cache_Statistics {
 		return $acc / $n;
 	}
 
-	/** Percentile.
+	/**
+	 * The largest value in an array.
 	 *
-	 * @param array  $a dataset.
-	 * @param number $p percentile as fraction 0-1.
+	 * @param array $a The array.
 	 *
-	 * @return float
+	 * @return mixed|null
 	 */
-	public function percentile( array $a, $p ) {
-		$n = count( $a );
-		if ( ! $n ) {
-			return null;
-		}
+	public function maximum( array $a ) {
 		sort( $a );
-		$i = intval( floor( $n * $p ) );
-		if ( $i >= $n ) {
-			$i = $n - 1;
-		}
 
-		return $a[ $i ];
+		return count( $a ) > 0 ? $a[ count( $a ) - 1 ] : null;
 	}
 
 	/**
@@ -273,32 +299,6 @@ class SQLite_Object_Cache_Statistics {
 	}
 
 	/**
-	 * The smallest value in an array.
-	 *
-	 * @param array $a The array.
-	 *
-	 * @return mixed|null
-	 */
-	public function minimum( array $a ) {
-		sort( $a );
-
-		return count( $a ) > 0 ? $a[0] : null;
-	}
-
-	/**
-	 * The largest value in an array.
-	 *
-	 * @param array $a The array.
-	 *
-	 * @return mixed|null
-	 */
-	public function maximum( array $a ) {
-		sort( $a );
-
-		return count( $a ) > 0 ? $a[ count( $a ) - 1 ] : null;
-	}
-
-	/**
 	 * Render the statistics display.
 	 *
 	 * @return string
@@ -307,18 +307,18 @@ class SQLite_Object_Cache_Statistics {
 
 		$html = '';
 
-		$html .= '<h3>' . __( 'Cache performance statistics', 'sqlite-object-cache' ) . '</h3>';
-		$html .= '<p>' . sprintf(
-			/* translators:  1 start time   2 end time both in localized format */
-				__( 'From %1$s to %2$s.', 'sqlite-object-cache' ),
-				esc_html( $this->start_time ), esc_html( $this->end_time ) ) . ' ' . __( 'Times in microseconds.', 'sqlite-object-cache' ) . '</p>';
-		$html .= '<table class="sql-object-cache-stats">';
+		$html .= '<h3>' . esc_html__( 'Cache performance statistics', 'sqlite-object-cache' ) . '</h3>';
 		if ( is_array( $this->descriptions ) ) {
+			$html  .= '<p>' . sprintf(
+				/* translators:  1 start time   2 end time both in localized format */
+					esc_html__( 'From %1$s to %2$s.', 'sqlite-object-cache' ),
+					esc_html( $this->start_time ), esc_html( $this->end_time ) ) . ' ' . esc_html__( 'Times in microseconds.', 'sqlite-object-cache' ) . '</p>';
+			$html  .= '<table class="sql-object-cache-stats">';
 			$first = true;
 			foreach ( $this->descriptions as $stat => $description ) {
 				if ( $first ) {
 					$html .= '<thead><tr>';
-					$html .= "<th>Item</th>";
+					$html .= '<th>' . esc_html__( 'Item', 'sqlite-object-cache' ) . '</th>';
 					foreach ( $description as $item => $value ) {
 						$item = esc_html( $item );
 						$html .= "<th>$item</th>";
@@ -327,6 +327,7 @@ class SQLite_Object_Cache_Statistics {
 					$first = false;
 				}
 				$html .= '<tr>';
+				$stat = esc_html( $stat );
 				$html .= "<th scope='row'>$stat</th>";
 				foreach ( $description as $item => $value ) {
 					$value = esc_html( round( $value, 2 ) );
@@ -334,8 +335,10 @@ class SQLite_Object_Cache_Statistics {
 				}
 				$html .= '</tr>';
 			}
+			$html .= '</tr></tbody></table>';
+		} else {
+			$html .= '<p>' . esc_html__( 'No cache statistics recorded yet.', 'sqlite-object-cache' ) . '</p>';
 		}
-		$html .= '</tr></tbody></table>';
 
 		if ( count( $this->selected_names ) > 0 ) {
 			$html .= '<h3>' . esc_html__( 'Most frequently looked up cache items' ) . '</h3>';
@@ -350,7 +353,10 @@ class SQLite_Object_Cache_Statistics {
 				$count  = esc_html( $count );
 				if ( $first ) {
 					$html            .= '<thead><tr>';
-					$html            .= "<th>Group</th><th>Key</th><th>Count</th>";
+					$group_name = esc_html__("Cache Group", 'sqlite-object-cache' );
+					$key_name = esc_html__("Cache Key", 'sqlite-object-cache' );
+					$count_name = esc_html__("Count", 'sqlite-object-cache' );
+					$html            .= "<th>$group_name</th><th>$key_name</th><th>$count_name</th>";
 					$html            .= '</tr></thead><tbody>';
 					$count_threshold = intval( $count * 0.7 );
 					$first           = false;
