@@ -259,7 +259,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @throws Exception Database failure.
 		 * @since 2.0.8
 		 */
-		public function __construct( $directory = WP_CONTENT_DIR, $file = 'sqlite-object-cache.db', $timeout = 500 ) {
+		public function __construct( $directory = WP_CONTENT_DIR, $file = 'sqlite-object-cache.sqlite', $timeout = 500 ) {
 
 			$start = $this->time_usec();
 
@@ -523,7 +523,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		/**
 		 * Determine whether we can use SQLite3.
 		 *
-		 * @param string $directory The directory to hold the .db file. Default WP_CONTENT_DIR.
+		 * @param string $directory The directory to hold the .sqlite file. Default WP_CONTENT_DIR.
 		 *
 		 * @return bool|string true, or an error message.
 		 */
@@ -533,7 +533,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			}
 
 			if ( ! extension_loaded( 'sqlite3' ) || ! class_exists( 'SQLite3' ) ) {
-				return __( 'The SQLite Object Cache cannot be activated because the SQLite extension is not loaded.', 'sqlite-object-cache' );
+				return __( 'The SQLite Object Cache cannot be activated because the SQLite3 extension is not loaded.', 'sqlite-object-cache' );
 			}
 
 			return true;

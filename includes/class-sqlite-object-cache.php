@@ -431,7 +431,7 @@ class SQLite_Object_Cache {
 	public function on_deactivation( $plugin ) {
 		global $wp_filesystem;
 
-		$db_file = WP_CONTENT_DIR . '/sqlite-object-cache.db';
+		$db_file = WP_CONTENT_DIR . '/sqlite-object-cache.sqlite';
 		if ( defined( 'WP_SQLITE_OBJECT_CACHE_DB_FILE' ) ) {
 			$db_file = WP_SQLITE_OBJECT_CACHE_DB_FILE;
 		}
