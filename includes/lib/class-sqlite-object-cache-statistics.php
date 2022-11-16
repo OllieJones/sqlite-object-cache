@@ -19,7 +19,7 @@ class SQLite_Object_Cache_Statistics {
 	 *
 	 * @var array
 	 */
-	public $selected_names;
+	public $selected_names = [];
 
 	/**
 	 * Associative array with descriptive statistics.
