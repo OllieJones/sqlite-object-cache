@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2022-11-17T13:35:33-05:00\n"
+"POT-Creation-Date: 2022-11-17T16:10:15-05:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.6.0\n"
 "X-Domain: sqlite-object-cache\n"
@@ -105,12 +105,12 @@ msgid "Hours to retain."
 msgstr ""
 
 #: includes/class-sqlite-object-cache-settings.php:190
-#: includes/class-sqlite-object-cache-settings.php:377
+#: includes/class-sqlite-object-cache-settings.php:389
 msgid "Statistics"
 msgstr ""
 
 #: includes/class-sqlite-object-cache-settings.php:303
-#: includes/class-sqlite-object-cache-settings.php:515
+#: includes/class-sqlite-object-cache-settings.php:527
 msgid "SQLite Persistent Object Cache Settings"
 msgstr ""
 
@@ -122,34 +122,39 @@ msgstr ""
 msgid "Server configuration problem"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:332
+#: includes/class-sqlite-object-cache-settings.php:334
 msgid "The SQLite Persistent Object Cache plugin requires php's SQLite3 extension."
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:333
+#: includes/class-sqlite-object-cache-settings.php:335
 msgid "That extension is not installed in your server, so the plugin cannot work."
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:371
-#: includes/class-sqlite-object-cache-settings.php:375
+#. translators: 1 actual SQLite version. 2 required SQLite version)
+#: includes/class-sqlite-object-cache-settings.php:342
+msgid "You cannot use the SQLite Object Cache plugin. Your server only offers SQLite3 version %1$s, but at least %2$s is required."
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:383
+#: includes/class-sqlite-object-cache-settings.php:387
 msgid "Settings"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:473
+#: includes/class-sqlite-object-cache-settings.php:485
 msgid "click here"
 msgstr ""
 
 #. translators: 1: embeds "For help please ..."  2: hyperlink to review page on wp.org
-#: includes/class-sqlite-object-cache-settings.php:478
+#: includes/class-sqlite-object-cache-settings.php:490
 msgid "For support please %1$s.  Please %2$s to rate this plugin. Your feedback helps make it better, faster, and more useful."
 msgstr ""
 
 #. translators: 1: version for sqlite   2: version for php  3: version for plugin
-#: includes/class-sqlite-object-cache-settings.php:487
+#: includes/class-sqlite-object-cache-settings.php:499
 msgid "Versions: SQLite: %1$s  php: %2$s  Plugin: %3$s."
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:572
+#: includes/class-sqlite-object-cache-settings.php:584
 msgid "Save Settings"
 msgstr ""
 

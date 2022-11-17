@@ -8,7 +8,7 @@
  * Author:  Oliver Jones
  * Author URI: https://plumislandmedia.net
  * License: GPLv2+
- * License URI: http://www.gnu.org/licenses/gpl-3.0.html
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Requires PHP: 5.6
  *
  * Credit: Till Krüss's https://wordpress.org/plugins/redis-cache/ plugin. Thanks, Till!
