@@ -115,6 +115,13 @@ class SQLite_Object_Cache {
 	public $dropinfilesource;
 
 	/**
+	 * Minimum required sqlite version.
+	 *
+	 * @var string
+	 */
+	public $minimum_sqlite_version = '3.7.0';
+
+	/**
 	 * Constructor funtion.
 	 *
 	 * @param string $file File constructor.
@@ -150,8 +157,8 @@ class SQLite_Object_Cache {
 		add_action( 'admin_init', [ $this, 'maybe_update_dropin' ] );
 
 		/* Are we capturing SQLite Object Cache statistics? */
-		$option = get_option( $this->_token . '_settings' );
-		if ( array_key_exists( 'capture', $option ) && $option['capture'] === 'on' ) {
+		$option = get_option( $this->_token . '_settings', [] );
+		if ( is_array( $option ) && array_key_exists( 'capture', $option ) && $option['capture'] === 'on' ) {
 			add_action( 'init', [ $this, 'do_capture' ] );
 		}
 	} // End __construct ()
@@ -200,7 +207,10 @@ class SQLite_Object_Cache {
 	 */
 	public function on_activation() {
 		$this->_log_version_number();
-}
+		if ( true === $this->has_sqlite() ) {
+			add_action( 'shutdown', [ $this, 'update_dropin' ] );
+		}
+	}
 
 	/**
 	 * Log the plugin version number.
@@ -211,6 +221,48 @@ class SQLite_Object_Cache {
 	 */
 	private function _log_version_number() { //phpcs:ignore
 		update_option( $this->_token . '_version', $this->_version, false );
+	}
+
+	/**
+	 * Determine whether we can use SQLite3.
+	 *
+	 * @param string $directory The directory to hold the .sqlite file. Default WP_CONTENT_DIR.
+	 *
+	 * @return bool|string true, or an error message.
+	 */
+	public function has_sqlite() {
+		if ( ! extension_loaded( 'sqlite3' ) || ! class_exists( 'SQLite3' ) ) {
+			return __( 'You cannot use the SQLite Object Cache plugin. Your server does not have php\'s SQLite3 extension installed.', 'sqlite-object-cache' );
+		}
+
+		$sqlite_version = $this->sqlite_version();
+		if (version_compare($sqlite_version, $this->minimum_sqlite_version) < 0) {
+			return sprintf (
+				/* translators: 1 actual SQLite version. 2 required SQLite version) */
+				__( 'You cannot use the SQLite Object Cache plugin. Your server offers SQLite3 version %1$s, but at least %2$s is required.', 'sqlite-object-cache' ),
+				$sqlite_version, $this->minimum_sqlite_version );
+		}
+
+		return true;
+	}
+
+	/**
+	 * Get the version number for the SQLite extension.
+	 *
+	 * @return string|false  SQLite's version number.
+	 */
+	public function sqlite_version() {
+		$result = false;
+
+		try {
+			if ( extension_loaded( 'sqlite3' ) && class_exists( 'SQLite3' ) ) {
+				$v      = SQLite3::version();
+				$result = $v['versionString'];
+			}
+		} catch (Exception $e) {
+			/* empty, intentionally. Don't crash if no useful version */
+		}
+		return $result;
 	}
 
 	/**
@@ -273,7 +325,7 @@ class SQLite_Object_Cache {
 			return new WP_Error( 'fs', __( 'Could not initialize filesystem.', 'sqlite-object-cache' ) );
 		}
 
-		$testfiledest = WP_CONTENT_DIR . '/.sqlite-write-test.tmp';
+		$testfiledest = WP_CONTENT_DIR . '/sqlite-write-test.tmp';
 
 		if ( ! $wp_filesystem->exists( $this->dropinfilesource ) ) {
 			return new WP_Error( 'exists', __( 'Object cache drop-in file doesn’t exist.', 'sqlite-object-cache' ) );
@@ -361,8 +413,11 @@ class SQLite_Object_Cache {
 			return;
 		}
 
-		if ( $this->object_cache_dropin_needs_updating() ) {
-			add_action( 'shutdown', [ $this, 'update_dropin' ] );
+		$has = $this->has_sqlite();
+		if ( true === $has ) {
+			if ( $this->object_cache_dropin_needs_updating() ) {
+				add_action( 'shutdown', [ $this, 'update_dropin' ] );
+			}
 		}
 	}
 
@@ -405,8 +460,8 @@ class SQLite_Object_Cache {
 	 */
 	public function update_dropin() {
 		global $wp_filesystem;
-
-		if ( $this->initialize_filesystem( '', true ) ) {
+		$has = $this->has_sqlite();
+		if ( true === $has && $this->initialize_filesystem( '', true ) ) {
 			$result = $wp_filesystem->copy( $this->dropinfilesource, $this->dropinfiledest, true, FS_CHMOD_FILE );
 
 			/**
@@ -420,7 +475,7 @@ class SQLite_Object_Cache {
 		}
 	}
 
-/**
+	/**
 	 * Plugin deactivation hook
 	 *
 	 * @param string $plugin Plugin basename.
@@ -431,7 +486,7 @@ class SQLite_Object_Cache {
 	public function on_deactivation( $plugin ) {
 		global $wp_filesystem;
 
-		$db_file = WP_CONTENT_DIR . '/sqlite-object-cache.sqlite';
+		$db_file = WP_CONTENT_DIR . '/object-cache.sqlite';
 		if ( defined( 'WP_SQLITE_OBJECT_CACHE_DB_FILE' ) ) {
 			$db_file = WP_SQLITE_OBJECT_CACHE_DB_FILE;
 		}
@@ -441,22 +496,19 @@ class SQLite_Object_Cache {
 
 		ob_start();
 
-		if ( $plugin === $plugin ) {   //TODO compare to base name?
+		wp_cache_flush();
 
-			wp_cache_flush();
-
-			if ( $this->validate_object_cache_dropin() && $this->initialize_filesystem( '', true ) ) {
-				$wp_filesystem->delete( $this->dropinfiledest );
-				if ( ! $dont_delete_db_file ) {
-					$wp_filesystem->delete( $db_file );
-				}
+		if ( $this->validate_object_cache_dropin() && $this->initialize_filesystem( '', true ) ) {
+			$wp_filesystem->delete( $this->dropinfiledest );
+			if ( ! $dont_delete_db_file ) {
+				$wp_filesystem->delete( $db_file );
 			}
 		}
 
 		ob_end_clean();
 	}
 
-		/**
+	/**
 	 * Validates the `object-cache.php` drop-in
 	 *
 	 * @return bool

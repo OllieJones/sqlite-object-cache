@@ -1,407 +1,272 @@
-# Copyright (C) 2014 SQLite Object Cache
-# This file is distributed under the same license as the SQLite Object Cache package.
+# Copyright (C) 2022 Oliver Jones
+# This file is distributed under the same license as the SQLite Object Cache plugin.
 msgid ""
 msgstr ""
-"Project-Id-Version: SQLite Object Cache 1.0\n"
-"Report-Msgid-Bugs-To: http://wordpress.org/tag/WordPress-Plugin-Template\n"
-"POT-Creation-Date: 2014-04-07 11:28:06+00:00\n"
+"Project-Id-Version: SQLite Object Cache 0.1.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/sqlite-object-cache\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"PO-Revision-Date: 2014-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:52
-#: includes/post-types/class-sqlite-object-cache-post_type.php:42
-msgctxt "post type general name"
-msgid "Post Type"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:53
-#: includes/post-types/class-sqlite-object-cache-post_type.php:43
-msgctxt "post type singular name"
-msgid "Post Type"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:55
-#: includes/post-types/class-sqlite-object-cache-post_type.php:45
-msgid "Add New %s"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:55
-#: classes/post-types/class-sqlite-object-cache-post_type.php:56
-#: classes/post-types/class-sqlite-object-cache-post_type.php:57
-#: classes/post-types/class-sqlite-object-cache-post_type.php:59
-#: includes/post-types/class-sqlite-object-cache-post_type.php:45
-#: includes/post-types/class-sqlite-object-cache-post_type.php:46
-#: includes/post-types/class-sqlite-object-cache-post_type.php:47
-#: includes/post-types/class-sqlite-object-cache-post_type.php:49
-msgid "Post"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:56
-#: includes/post-types/class-sqlite-object-cache-post_type.php:46
-msgid "Edit %s"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:57
-#: includes/post-types/class-sqlite-object-cache-post_type.php:47
-msgid "New %s"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:58
-#: includes/post-types/class-sqlite-object-cache-post_type.php:48
-msgid "All %s"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:58
-#: classes/post-types/class-sqlite-object-cache-post_type.php:60
-#: classes/post-types/class-sqlite-object-cache-post_type.php:61
-#: classes/post-types/class-sqlite-object-cache-post_type.php:62
-#: includes/post-types/class-sqlite-object-cache-post_type.php:48
-#: includes/post-types/class-sqlite-object-cache-post_type.php:50
-#: includes/post-types/class-sqlite-object-cache-post_type.php:51
-#: includes/post-types/class-sqlite-object-cache-post_type.php:52
-msgid "Posts"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:59
-#: includes/post-types/class-sqlite-object-cache-post_type.php:49
-msgid "View %s"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:60
-#: includes/post-types/class-sqlite-object-cache-post_type.php:50
-msgid "Search %a"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:61
-#: includes/post-types/class-sqlite-object-cache-post_type.php:51
-msgid "No %s Found"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:62
-#: includes/post-types/class-sqlite-object-cache-post_type.php:52
-msgid "No %s Found In Trash"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:64
-#: includes/post-types/class-sqlite-object-cache-post_type.php:54
-msgid "*Posts"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:95
-#: classes/post-types/class-sqlite-object-cache-post_type.php:105
-#: includes/post-types/class-sqlite-object-cache-post_type.php:85
-#: includes/post-types/class-sqlite-object-cache-post_type.php:95
-msgid "Terms"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:96
-#: includes/post-types/class-sqlite-object-cache-post_type.php:86
-msgid "Term"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:97
-#: includes/post-types/class-sqlite-object-cache-post_type.php:87
-msgid "Search Terms"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:98
-#: includes/post-types/class-sqlite-object-cache-post_type.php:88
-msgid "All Terms"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:99
-#: includes/post-types/class-sqlite-object-cache-post_type.php:89
-msgid "Parent Term"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:100
-#: includes/post-types/class-sqlite-object-cache-post_type.php:90
-msgid "Parent Term:"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:101
-#: includes/post-types/class-sqlite-object-cache-post_type.php:91
-msgid "Edit Term"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:102
-#: includes/post-types/class-sqlite-object-cache-post_type.php:92
-msgid "Update Term"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:103
-#: includes/post-types/class-sqlite-object-cache-post_type.php:93
-msgid "Add New Term"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:104
-#: includes/post-types/class-sqlite-object-cache-post_type.php:94
-msgid "New Term Name"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:125
-#: includes/post-types/class-sqlite-object-cache-post_type.php:115
-msgid "Custom Field"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:180
-#: includes/post-types/class-sqlite-object-cache-post_type.php:170
-msgid "Post updated. %sView post%s."
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:181
-#: includes/post-types/class-sqlite-object-cache-post_type.php:171
-msgid "Custom field updated."
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:182
-#: includes/post-types/class-sqlite-object-cache-post_type.php:172
-msgid "Custom field deleted."
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:183
-#: includes/post-types/class-sqlite-object-cache-post_type.php:173
-msgid "Post updated."
-msgstr ""
-
-#. translators: %s: date and time of the revision
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:185
-#: includes/post-types/class-sqlite-object-cache-post_type.php:175
-msgid "Post restored to revision from %s."
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:186
-#: includes/post-types/class-sqlite-object-cache-post_type.php:176
-msgid "Post published. %sView post%s."
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:187
-#: includes/post-types/class-sqlite-object-cache-post_type.php:177
-msgid "Post saved."
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:188
-#: includes/post-types/class-sqlite-object-cache-post_type.php:178
-msgid "Post submitted. %sPreview post%s."
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:189
-#: includes/post-types/class-sqlite-object-cache-post_type.php:179
-msgid "Post scheduled for: %1$s. %2$sPreview post%3$s."
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:189
-#: includes/post-types/class-sqlite-object-cache-post_type.php:179
-msgid "M j, Y @ G:i"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:190
-#: includes/post-types/class-sqlite-object-cache-post_type.php:180
-msgid "Post draft updated. %sPreview post%s."
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:201
-#: includes/post-types/class-sqlite-object-cache-post_type.php:191
-msgid "Post Details"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:295
-#: includes/post-types/class-sqlite-object-cache-post_type.php:285
-msgid "Enter the post title here"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:308
-#: includes/post-types/class-sqlite-object-cache-post_type.php:298
-msgid "Custom field:"
-msgstr ""
-
-#: classes/post-types/class-sqlite-object-cache-post_type.php:309
-#: includes/post-types/class-sqlite-object-cache-post_type.php:299
-msgid "Description of this custom field."
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:70
-#: includes/class-sqlite-object-cache-settings.php:405
-msgid "Plugin Settings"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:99
-msgid "Settings"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:111
-msgid "Standard"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:112
-msgid "These are fairly standard form input fields."
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:116
-msgid "Some Text"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:117
-msgid "This is a standard text field."
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:120
-#: includes/class-sqlite-object-cache-settings.php:128
-#: includes/class-sqlite-object-cache-settings.php:136
-msgid "Placeholder text"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:124
-msgid "A Password"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:125
-msgid "This is a standard password field."
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:132
-msgid "Some Secret Text"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:133
-msgid "This is a secret text field - any data saved here will not be displayed after the page has reloaded, but it will be saved."
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:140
-msgid "A Text Block"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:141
-msgid "This is a standard text area."
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:144
-msgid "Placeholder text for this textarea"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:148
-msgid "An Option"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:149
-msgid "A standard checkbox - if you save this option as checked then it will store the option as 'on', otherwise it will be an empty string."
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:155
-msgid "A Select Box"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:156
-msgid "A standard select box."
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:163
-msgid "Some Options"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:164
-msgid "A standard set of radio buttons."
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:171
-msgid "Some Items"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:172
-msgid "You can select multiple items and they will be stored as an array."
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:181
-msgid "Extra"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:182
-msgid "These are some extra input fields that maybe aren't as common as the others."
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:186
-msgid "A Number"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:187
-msgid "This is a standard number field - if this field contains anything other than numbers then the form will not be submitted."
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:190
-msgid "42"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:194
-msgid "Pick a colour"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:195
-msgid "This uses WordPress' built-in colour picker - the option is stored as the colour's hex code."
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:201
-msgid "An Image"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:202
-msgid "This will upload an image to your media library and store the attachment ID in the option field. Once you have uploaded an imge the thumbnail will display above these buttons."
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:209
-msgid "A Multi-Select Box"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:210
-msgid "A standard multi-select box - the saved data is stored as an array."
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:354
-msgid "Upload an image"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:354
-msgid "Use image"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:354
-msgid "Upload new image"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:355
-msgid "Remove image"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:410
-msgid "All"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:427
-msgid "Save Settings"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:458
-#: includes/class-sqlite-object-cache-settings.php:467
-#: includes/class-sqlite-object-cache.php:207
-#: includes/class-sqlite-object-cache.php:216
-msgid "Cheatin&#8217; huh?"
-msgstr ""
-#. Plugin Name of the plugin/theme
+"POT-Creation-Date: 2022-11-17T13:35:33-05:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.6.0\n"
+"X-Domain: sqlite-object-cache\n"
+
+#. Plugin Name of the plugin
+#: includes/class-sqlite-object-cache-settings.php:123
 msgid "SQLite Object Cache"
 msgstr ""
 
-#. Plugin URI of the plugin/theme
-msgid "http://www.hughlashbrooke.com/"
+#. Plugin URI of the plugin
+msgid "https://github.com/OllieJones/sqlite-object-cache"
 msgstr ""
 
-#. Author of the plugin/theme
-msgid "Hugh Lashbrooke"
+#. Description of the plugin
+msgid "A persistent object cache backend powered by SQLite3."
 msgstr ""
 
-#. Author URI of the plugin/theme
-msgid "http://www.hughlashbrooke.com/"
+#. Author of the plugin
+msgid "Oliver Jones"
+msgstr ""
+
+#. Author URI of the plugin
+msgid "https://github.com/OllieJones/"
+msgstr ""
+
+#. translators: 1: WP_CONTENT_DIR
+#: assets/drop-in/object-cache.php:533
+msgid "The SQLite Object Cache cannot be activated because the %s directory is not writable."
+msgstr ""
+
+#: assets/drop-in/object-cache.php:537
+msgid "The SQLite Object Cache cannot be activated because the SQLite3 extension is not loaded."
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:129
+msgid "Flush now"
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:130
+msgid "Check to flush the cache (delete all its entries)."
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:137
+msgid "Cached data expires after"
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:138
+msgid "days."
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:145
+msgid "Days to retain."
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:149
+msgid "Clean up now"
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:150
+msgid "Check to clean up the cache (delete expired data)."
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:157
+msgid "Measure performance"
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:158
+msgid "Check to measure cache performance. "
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:164
+msgid "Measure"
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:165
+msgid "times per hour."
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:172
+msgid "Times per hour to measure."
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:176
+msgid "Retain measurements for"
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:177
+msgid "hours."
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:184
+msgid "Hours to retain."
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:190
+#: includes/class-sqlite-object-cache-settings.php:377
+msgid "Statistics"
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:303
+#: includes/class-sqlite-object-cache-settings.php:515
+msgid "SQLite Persistent Object Cache Settings"
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:304
+msgid "Object Cache"
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:330
+msgid "Server configuration problem"
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:332
+msgid "The SQLite Persistent Object Cache plugin requires php's SQLite3 extension."
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:333
+msgid "That extension is not installed in your server, so the plugin cannot work."
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:371
+#: includes/class-sqlite-object-cache-settings.php:375
+msgid "Settings"
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:473
+msgid "click here"
+msgstr ""
+
+#. translators: 1: embeds "For help please ..."  2: hyperlink to review page on wp.org
+#: includes/class-sqlite-object-cache-settings.php:478
+msgid "For support please %1$s.  Please %2$s to rate this plugin. Your feedback helps make it better, faster, and more useful."
+msgstr ""
+
+#. translators: 1: version for sqlite   2: version for php  3: version for plugin
+#: includes/class-sqlite-object-cache-settings.php:487
+msgid "Versions: SQLite: %1$s  php: %2$s  Plugin: %3$s."
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:572
+msgid "Save Settings"
+msgstr ""
+
+#: includes/class-sqlite-object-cache.php:235
+msgid "You cannot use the SQLite Object Cache plugin. Your server does not have php's SQLite3 extension installed."
+msgstr ""
+
+#. translators: 1 actual SQLite version. 2 required SQLite version)
+#: includes/class-sqlite-object-cache.php:242
+msgid "You cannot use the SQLite Object Cache plugin. Your server offers SQLite3 version %1$s, but at least %2$s is required."
+msgstr ""
+
+#: includes/class-sqlite-object-cache.php:325
+msgid "Could not initialize filesystem."
+msgstr ""
+
+#: includes/class-sqlite-object-cache.php:331
+msgid "Object cache drop-in file doesn’t exist."
+msgstr ""
+
+#: includes/class-sqlite-object-cache.php:336
+msgid "Test file exists, but couldn’t be deleted."
+msgstr ""
+
+#: includes/class-sqlite-object-cache.php:341
+msgid "Content directory is not writable."
+msgstr ""
+
+#: includes/class-sqlite-object-cache.php:345
+msgid "Failed to copy test file."
+msgstr ""
+
+#: includes/class-sqlite-object-cache.php:349
+msgid "Copied test file doesn’t exist."
+msgstr ""
+
+#: includes/class-sqlite-object-cache.php:355
+msgid "Couldn’t verify test file contents."
+msgstr ""
+
+#: includes/class-sqlite-object-cache.php:359
+msgid "Copied test file couldn’t be deleted."
+msgstr ""
+
+#: includes/lib/class-sqlite-object-cache-admin-api.php:252
+msgid "Upload an image"
+msgstr ""
+
+#: includes/lib/class-sqlite-object-cache-admin-api.php:252
+msgid "Use image"
+msgstr ""
+
+#: includes/lib/class-sqlite-object-cache-admin-api.php:252
+msgid "Upload new image"
+msgstr ""
+
+#: includes/lib/class-sqlite-object-cache-admin-api.php:253
+msgid "Remove image"
+msgstr ""
+
+#: includes/lib/class-sqlite-object-cache-statistics.php:109
+msgid "Start"
+msgstr ""
+
+#: includes/lib/class-sqlite-object-cache-statistics.php:110
+msgid "Save and Close"
+msgstr ""
+
+#: includes/lib/class-sqlite-object-cache-statistics.php:111
+msgid "RAM Hit Ratio"
+msgstr ""
+
+#: includes/lib/class-sqlite-object-cache-statistics.php:112
+msgid "Disk Hit Ratio"
+msgstr ""
+
+#: includes/lib/class-sqlite-object-cache-statistics.php:113
+msgid "Lookup"
+msgstr ""
+
+#: includes/lib/class-sqlite-object-cache-statistics.php:114
+msgid "Save"
+msgstr ""
+
+#: includes/lib/class-sqlite-object-cache-statistics.php:115
+msgid "Delete"
+msgstr ""
+
+#: includes/lib/class-sqlite-object-cache-statistics.php:310
+msgid "Cache performance statistics"
+msgstr ""
+
+#. translators:  1 start time   2 end time both in localized format
+#: includes/lib/class-sqlite-object-cache-statistics.php:314
+msgid "From %1$s to %2$s."
+msgstr ""
+
+#: includes/lib/class-sqlite-object-cache-statistics.php:315
+msgid "Times in microseconds."
+msgstr ""
+
+#: includes/lib/class-sqlite-object-cache-statistics.php:321
+msgid "Item"
+msgstr ""
+
+#: includes/lib/class-sqlite-object-cache-statistics.php:340
+msgid "No cache statistics recorded yet."
+msgstr ""
+
+#: includes/lib/class-sqlite-object-cache-statistics.php:356
+msgid "Cache Group"
+msgstr ""
+
+#: includes/lib/class-sqlite-object-cache-statistics.php:357
+msgid "Cache Key"
+msgstr ""
+
+#: includes/lib/class-sqlite-object-cache-statistics.php:358
+msgid "Count"
 msgstr ""

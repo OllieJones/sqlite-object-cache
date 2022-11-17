@@ -5,7 +5,7 @@
  * Note: This Version must match the one in the ctor for SQLite_Object_Cache.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
- * Author:  Ollie Jones
+ * Author:  Oliver Jones
  * Author URI: https://plumislandmedia.net
  * License: GPLv2+
  * License URI: http://www.gnu.org/licenses/gpl-3.0.html
@@ -162,7 +162,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 *
 		 * @var array Put ops.
 		 */
-		private $put_queue = [];
+		private $queue = [];
 		/**
 		 * Associative array of items we know aren't in SQLite.
 		 *
@@ -259,7 +259,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @throws Exception Database failure.
 		 * @since 2.0.8
 		 */
-		public function __construct( $directory = WP_CONTENT_DIR, $file = 'sqlite-object-cache.sqlite', $timeout = 500 ) {
+		public function __construct( $directory = WP_CONTENT_DIR, $file = 'object-cache.sqlite', $timeout = 500 ) {
 
 			$start = $this->time_usec();
 
@@ -322,8 +322,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @return void
 		 * @throws Exception Database failure.
 		 */
-		private function initialize_connection( $tbl = 'object_cache', $noexpire_timestamp_offset = 500000000000, $max_lifetime = WEEK_IN_SECONDS ) {
-			$tbl                             = esc_sql( $tbl );
+		private function initialize_connection( $tbl = 'object_cache', $noexpire_timestamp_offset = 500000000000, $max_lifetime = DAY_IN_SECONDS ) {
 			$this->cache_table_name          = $tbl;
 			$this->noexpire_timestamp_offset = $noexpire_timestamp_offset;
 			$this->max_lifetime              = $max_lifetime;
@@ -379,10 +378,11 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 					/* @noinspection SqlIdentifier */
 					$t = "
 						CREATE TABLE IF NOT EXISTS $tbl (
-						   name TEXT NOT NULL COLLATE BINARY PRIMARY KEY,
+						   name TEXT NOT NULL COLLATE BINARY,
 						   value BLOB,
 						   expires INT
-						) WITHOUT ROWID;
+						);
+						CREATE UNIQUE INDEX IF NOT EXISTS name ON $tbl (name);
 						CREATE INDEX IF NOT EXISTS expires ON $tbl (expires);";
 					$this->exec( $t );
 					$this->exec( "INSERT INTO $tbl (name, value, expires) VALUES ('sqlite_object_cache|created', datetime(), $now + $noexpire_timestamp_offset);" );
@@ -422,20 +422,22 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		private function prepare_statements( $tbl ) {
 			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
 
-			/* Some versions of SQLite3 built into php predate the 3.38 advent of unixepoch() (2022-02-22). */
+			/*
+			 * Some versions of SQLite3 built into php predate the 3.38 advent of unixepoch() (2022-02-22).
+			 * And, others predate the 3.24 advent of UPSERT (that is, ON CONFLICT) syntax.
+			 * So, we have to do attempt-update then insert to get updates to work. Sigh.
+			 */
 			$now         = time();
-			$putone      = "
-				INSERT INTO $tbl (name, value, expires) 
-				VALUES (:name, :value, $now + :expires)
-				ON CONFLICT(name)
-				DO UPDATE SET value=excluded.value, expires=excluded.expires";
+			$updateone   = "UPDATE $tbl SET value = :value, expires = $now + :expires WHERE name = :name;";
+			$insertone   = "INSERT INTO $tbl (name, value, expires) VALUES (:name, :value, $now + :expires);";
 			$getone      = "SELECT value FROM $tbl WHERE name = :name AND expires >= $now;";
 			$deleteone   = "DELETE FROM $tbl WHERE name = :name;";
 			$deletegroup = "DELETE FROM $tbl WHERE name LIKE :group || '.%';";
 
 			/* prepare the statements for later use */
 			$this->statements = [
-				'putone'      => $this->prepare( $putone ),
+				'updateone'   => $this->prepare( $updateone ),
+				'insertone'   => $this->prepare( $insertone ),
 				'getone'      => $this->prepare( $getone ),
 				'deleteone'   => $this->prepare( $deleteone ),
 				'deletegroup' => $this->prepare( $deletegroup ),
@@ -481,7 +483,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$sql     = '';
 			$clauses = [];
 			foreach ( $list as $item ) {
-				$item = esc_sql( $item );
 				/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
 				$clauses [] = "SELECT name, value FROM $tbl WHERE name LIKE '$item'";
 			}
@@ -566,21 +567,21 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		public function close() {
 
 			$start = $this->time_usec();
-			if ( count( $this->put_queue ) > 0 ) {
+			if ( count( $this->queue ) > 0 ) {
 				try {
 					$this->exec( 'BEGIN;' );
-					foreach ( $this->put_queue as $put_item ) {
-						switch ( $put_item[0] ) {
-							case 'putone':
-								$this->putone( $put_item[1] );
+					foreach ( $this->queue as $name => $item ) {
+						switch ( $item[0] ) {
+							case 'put':
+								$this->putone( $name, $item[1] );
 								break;
 
-							case 'deleteone':
-								$this->deleteone( $put_item[1] );
+							case 'delete':
+								$this->deleteone( $name );
 								break;
 
 							default:
-								throw new Exception( 'SQLite3 put_queue: unknown item ' . $put_item[0] );
+								throw new Exception( 'SQLite3 put_queue: unknown operation ' . $item[0] );
 						}
 					}
 				} catch ( Exception $e ) {
@@ -590,6 +591,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 					$this->exec( 'COMMIT;' );
 				}
 			}
+			$this->queue = [];
 			$this->maybe_clean_up_cache();
 			$this->update_time = $this->time_usec() - $start;
 
@@ -602,32 +604,60 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 
 		/** Put one item into the persistent cache.
 		 *
-		 * @param array $item The item, [$key, $data, $group, $expire].
+		 * @param string $name The table name for the item.
+		 * @param array  $item The item, [$data, $expire].
 		 *
 		 * @return void
 		 * @throws Exception Announce database failure.
 		 */
-		private function putone( $item ) {
-			$group = $item[2];
-			if ( $this->is_ignored_group( $group ) ) {
-				return;
-			}
-			$key     = $item[0];
+		private function putone( $name, $item ) {
 			$start   = $this->time_usec();
-			$name    = $this->getName( $key, $group );
-			$value   = $this->maybe_serialize( $item[1] );
-			$expires = $item[3] ?: 500000000000;
-			$stmt    = $this->statements['putone'];
+			$value   = $this->maybe_serialize( $item[0] );
+			$expires = $item[1] ?: 500000000000;
+			$stmt    = $this->statements['updateone'];
 			$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
 			$stmt->bindValue( ':value', $value, SQLITE3_BLOB );
 			$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
-			$result = $stmt->execute();
-			if ( false === $result ) {
-				throw new Exception( 'SQLite3 putone: ' . $this->lastErrorMsg(), $this->lastErrorCode() );
+			$changes_before = $this->changes();
+			$result         = $stmt->execute();
+			$changes_after  = $this->changes();
+			$update_failed  = ( false === $result ) || ( $changes_before === $changes_after );
+			if ( $update_failed ) {
+				if ( false !== $result ) {
+					$result->finalize();
+				}
+				/* Update failed, no such row, need insert */
+				$stmt = $this->statements['insertone'];
+				$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
+				$stmt->bindValue( ':value', $value, SQLITE3_BLOB );
+				$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
+				$result = $stmt->execute();
+				if ( false === $result ) {
+					throw new Exception( 'SQLite3 insertone: name: ' . $name . ' ' . $this->lastErrorMsg(), $this->lastErrorCode() );
+				}
 			}
 			$result->finalize();
 			$this->insert_times[] = $this->time_usec() - $start;
 			$this->insert_names[] = $name;
+		}
+
+		/** Delete one item from the persistent cache.
+		 *
+		 * @param string $name Database name of item to delete.
+		 *
+		 * @return void
+		 * @throws Exception Announce database failure.
+		 */
+		private function deleteone( $name ) {
+			$start = $this->time_usec();
+			$stmt  = $this->statements['deleteone'];
+			$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
+			$result = $stmt->execute();
+			if ( false === $result ) {
+				throw new Exception( 'SQLite3 deleteone: ' . $this->lastErrorMsg(), $this->lastErrorCode() );
+			}
+			$result->finalize();
+			$this->delete_times[] = $this->time_usec() - $start;
 		}
 
 		/**
@@ -655,31 +685,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			}
 
 			return maybe_serialize( $data );
-		}
-
-		/** Delete one item from the persistent cache.
-		 *
-		 * @param array $item The item, [$key, $group].
-		 *
-		 * @return void
-		 * @throws Exception Announce database failure.
-		 */
-		private function deleteone( $item ) {
-			$group = $item[1];
-			if ( $this->is_ignored_group( $group ) ) {
-				return;
-			}
-			$key   = $item[0];
-			$start = $this->time_usec();
-			$name  = $this->getName( $key, $group );
-			$stmt  = $this->statements['deleteone'];
-			$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
-			$result = $stmt->execute();
-			if ( false === $result ) {
-				throw new Exception( 'SQLite3 deleteone: ' . $this->lastErrorMsg(), $this->lastErrorCode() );
-			}
-			$result->finalize();
-			$this->delete_times[] = $this->time_usec() - $start;
 		}
 
 		/**
@@ -788,7 +793,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 
 				$name = 'sqlite_object_cache|mon|' . str_pad( $timestamp, 12, '0', STR_PAD_LEFT );
 				$sql  =
-					"INSERT INTO $this->cache_table_name (name, value, expires) VALUES (:name, :value, :expires) ON CONFLICT (name) DO NOTHING;";
+					"INSERT INTO $this->cache_table_name (name, value, expires) VALUES (:name, :value, :expires);";
 				$stmt = $this->prepare( $sql );
 				$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
 				$stmt->bindValue( ':value', $this->maybe_serialize( $record ), SQLITE3_BLOB );
@@ -1106,7 +1111,12 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @return void
 		 */
 		private function enqueue_put( $key, $data, $group, $expire ) {
-			$this->put_queue [] = [ 'putone', [ $key, $data, $group, $expire ] ];
+			if ( $this->is_ignored_group( $group ) ) {
+				return;
+			}
+
+			$name                  = $this->getName( $key, $group );
+			$this->queue [ $name ] = [ 'put', [ $data, $expire ] ];
 			unset( $this->not_in_persistent_cache[ $group . '.' . $key ] );
 		}
 
@@ -1309,7 +1319,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @return void
 		 */
 		private function enqueue_delete( $key, $group ) {
-			$this->put_queue []                                   = [ 'deleteone', [ $key, $group ] ];
+			$name                  = $this->getName( $key, $group );
+			$this->queue [ $name ] = [ 'delete', [] ];
+
 			$this->not_in_persistent_cache[ $group . '.' . $key ] = true;
 		}
 
@@ -1427,7 +1439,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				: "(name <> 'sqlite_object_cache|created')";
 			if ( $selective && is_array( $this->unflushable_groups ) ) {
 				foreach ( $this->unflushable_groups as $unflushable_group ) {
-					$unflushable_group = esc_sql( $unflushable_group );
+					$unflushable_group = sanitize_key( $unflushable_group );
 					$clauses []        = "(name NOT LIKE '$unflushable_group|%')";
 				}
 			}

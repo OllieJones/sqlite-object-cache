@@ -76,7 +76,7 @@ class SQLite_Object_Cache_Statistics {
 		$DISKhits       = 0;
 		$DISKmisses     = 0;
 
-		foreach ( $this->load() as $data ) {
+		foreach ( $this->load_measurements() as $data ) {
 			$first        = min( $data->time, $first );
 			$last         = max( $data->time, $last );
 			$RAMhits      = $RAMhits + $data->RAMhits;
@@ -129,7 +129,7 @@ class SQLite_Object_Cache_Statistics {
 	 * @return Generator
 	 * @throws Exception Announce SQLite failure.
 	 */
-	private function load() {
+	private function load_measurements() {
 		global $wp_object_cache;
 
 		if ( method_exists( $wp_object_cache, 'prepare' ) ) {
@@ -340,7 +340,7 @@ class SQLite_Object_Cache_Statistics {
 			$html .= '<p>' . esc_html__( 'No cache statistics recorded yet.', 'sqlite-object-cache' ) . '</p>';
 		}
 
-		if ( count( $this->selected_names ) > 0 ) {
+		if ( is_array($this->selected_names) && count( $this->selected_names ) > 0 ) {
 			$html .= '<h3>' . esc_html__( 'Most frequently looked up cache items' ) . '</h3>';
 
 			$html            .= '<table class="sql-object-cache-items">';

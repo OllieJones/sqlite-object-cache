@@ -3,8 +3,8 @@
  * Plugin Name: SQLite Object Cache
  * Version: 0.1.0
  * Plugin URI: https://github.com/OllieJones/sqlite-object-cache
- * Description: SQLite Persistent Object Cache.
- * Author: Ollie Jones
+ * Description: A persistent object cache backend powered by SQLite3.
+ * Author: Oliver Jones
  * Author URI: https://github.com/OllieJones/
  * Requires at least: 5.9
  * Requires PHP: 5.6
@@ -14,7 +14,7 @@
  * Domain Path: /languages/
  *
  * @package SQLiteObjectCache
- * @author Ollie Jones
+ * @author Oliver Jones
  * @since 0.1.0
  */
 
