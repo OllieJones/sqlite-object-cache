@@ -21,7 +21,7 @@ class SQLite_Object_Cache {
 	 * @access  private
 	 * @since   1.0.0
 	 */
-	private static $_instance = null; //phpcs:ignore
+	private static $_instance = null;
 
 	/**
 	 * Local instance of SQLite_Object_Cache_Admin_API
@@ -46,7 +46,7 @@ class SQLite_Object_Cache {
 	 * @access  public
 	 * @since   1.0.0
 	 */
-	public $_version; //phpcs:ignore
+	public $_version;
 
 	/**
 	 * The token.
@@ -55,7 +55,7 @@ class SQLite_Object_Cache {
 	 * @access  public
 	 * @since   1.0.0
 	 */
-	public $_token; //phpcs:ignore
+	public $_token;
 
 	/**
 	 * The main plugin file.
@@ -219,7 +219,7 @@ class SQLite_Object_Cache {
 	 * @return  void
 	 * @since   1.0.0
 	 */
-	private function _log_version_number() { //phpcs:ignore
+	private function _log_version_number() {
 		update_option( $this->_token . '_version', $this->_version, false );
 	}
 

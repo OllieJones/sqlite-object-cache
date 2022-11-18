@@ -385,6 +385,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 						CREATE UNIQUE INDEX IF NOT EXISTS name ON $tbl (name);
 						CREATE INDEX IF NOT EXISTS expires ON $tbl (expires);";
 					$this->exec( $t );
+					/* @noinspection SqlResolve */
 					$this->exec( "INSERT INTO $tbl (name, value, expires) VALUES ('sqlite_object_cache|created', datetime(), $now + $noexpire_timestamp_offset);" );
 				}
 			} finally {
@@ -466,7 +467,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 *
 		 * @param string $tbl Cache table name.
 		 *
-		 * @return void
 		 * @return void
 		 */
 		public function preload( $tbl ) {
@@ -1262,7 +1262,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @return bool[] Array of return values, grouped by key. Each value is either
 		 *                true on success, or false if the contents were not deleted.
 		 * @since 6.0.0
-		 *
 		 */
 		public function delete_multiple( array $keys, $group = '' ) {
 			$values = [];
@@ -1444,6 +1443,8 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				}
 			}
 			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
+			/** @noinspection SqlConstantCondition */
+			/** @noinspection SqlConstantExpression */
 			$sql = 'DELETE FROM ' . $this->cache_table_name . ' WHERE 1=1 AND ' . implode( ' AND ', $clauses ) . ';';
 			$this->exec( $sql );
 
@@ -1549,18 +1550,15 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @since 2.0.0
 		 */
 		public function stats() {
-			echo '<p>';
-			echo "<strong>Cache Hits:</strong> {$this->cache_hits}<br />";
-			echo "<strong>Cache Misses:</strong> {$this->cache_misses}<br />";
-			echo '</p>';
-			echo '<ul>';
+			echo esc_html( "<p><strong>Cache Hits:</strong> {$this->cache_hits}<br /><strong>Cache Misses:</strong> {$this->cache_misses}<br /></p>" );
+			echo esc_html( '<ul>' );
 			foreach ( $this->cache as $group => $cache ) {
 				// phpcs:ignore
 				$length = number_format( strlen( @serialize( $cache ) ) / KB_IN_BYTES, 2 );
 				$item   = $group . ' - ( ' . $length . 'KiB )';
-				echo '<li><strong>Group:</strong> ' . $item . '</li>';
+				echo esc_html( '<li><strong>Group:</strong> ' . $item . '</li>' );
 			}
-			echo '</ul>';
+			echo esc_html( '</ul>' );
 		}
 
 		/**

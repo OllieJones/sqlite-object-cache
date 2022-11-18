@@ -19,7 +19,7 @@ class SQLite_Object_Cache_Settings {
 	 *
 	 * @var     object
 	 */
-	private static $_instance = null; //phpcs:ignore
+	private static $_instance = null;
 
 	/**
 	 * The main plugin object.
@@ -319,35 +319,32 @@ class SQLite_Object_Cache_Settings {
 	 * @return string
 	 */
 	private function complain_if_sqlite3_unavailable( $verbose = false ) {
-		$html = '';
 		if ( true !== $this->has ) {
 			if ( ! $verbose ) {
-				$html .= '<div class="notice notice-error sql-object-cache">';
-				$html .= esc_html( $this->has );
-				$html .= '</div>';
+				echo '<div class="notice notice-error sql-object-cache">';
+				echo esc_html( $this->has );
+				echo '</div>';
 			} else {
-				$html .= '<div>';
-				$html .= '<h3 style="color: #d63638">' . esc_html__( 'Server configuration problem', 'sqlite-object-cache' ) . '</h3>';
-				$html .= '<p>';
+				echo '<div>';
+				echo '<h3 style="color: #d63638">' . esc_html__( 'Server configuration problem', 'sqlite-object-cache' ) . '</h3>';
+				echo '<p>';
 
 				if ( ! extension_loaded( 'sqlite3' ) || ! class_exists( 'SQLite3' ) ) {
-					$html .= esc_html__( 'The SQLite Persistent Object Cache plugin requires php\'s SQLite3 extension.', 'sqlite-object-cache' ) . ' ';
-					$html .= esc_html__( 'That extension is not installed in your server, so the plugin cannot work.', 'sqlite-object-cache' ) . ' ';
+					echo esc_html__( 'The SQLite Persistent Object Cache plugin requires php\'s SQLite3 extension.', 'sqlite-object-cache' ) . ' ';
+					echo esc_html__( 'That extension is not installed in your server, so the plugin cannot work.', 'sqlite-object-cache' ) . ' ';
 				}
 
 				$sqlite_version = $this->parent->sqlite_version();
-				if (version_compare($sqlite_version, $this->parent->minimum_sqlite_version) < 0) {
-					$html .= sprintf (
+				if ( version_compare( $sqlite_version, $this->parent->minimum_sqlite_version ) < 0 ) {
+					echo sprintf(
 					/* translators: 1 actual SQLite version. 2 required SQLite version) */
 						__( 'You cannot use the SQLite Object Cache plugin. Your server only offers SQLite3 version %1$s, but at least %2$s is required.', 'sqlite-object-cache' ),
 						$sqlite_version, $this->parent->minimum_sqlite_version );
 				}
 
-				$html .= '</p></div>';
+				echo '</p></div>';
 			}
 		}
-
-		return $html;
 	}
 
 	/**
@@ -402,7 +399,6 @@ class SQLite_Object_Cache_Settings {
 		if ( is_array( $this->settings ) ) {
 
 			// Check posted/selected tab.
-			//phpcs:disable
 			$current_section = '';
 			if ( isset( $_POST['tab'] ) && $_POST['tab'] ) {
 				$current_section = $_POST['tab'];
@@ -411,7 +407,6 @@ class SQLite_Object_Cache_Settings {
 					$current_section = $_GET['tab'];
 				}
 			}
-			//phpcs:enable
 
 			foreach ( $this->settings as $section => $data ) {
 
@@ -476,33 +471,31 @@ class SQLite_Object_Cache_Settings {
 	 * @return void
 	 */
 	public function settings_section( $section ) {
-		$html = '';
-
 		/** @noinspection HtmlUnknownTarget */
 		$hyperlink     = '<a href="%s" target="_blank">%s</a>';
 		$supportUrl    = "https://wordpress.org/support/plugin/sqlite-object-cache/";
 		$reviewUrl     = "https://wordpress.org/support/plugin/sqlite-object-cache/reviews/";
-		$clickHere     = __( 'click here', 'sqlite-object-cache' );
+		$clickHere     = esc_html__( 'click here', 'sqlite-object-cache' );
 		$support       = sprintf( $hyperlink, $supportUrl, $clickHere );
 		$review        = sprintf( $hyperlink, $reviewUrl, $clickHere );
 		$supportString =
 			/* translators: 1: embeds "For help please ..."  2: hyperlink to review page on wp.org */
-			'<p>' . __( 'For support please %1$s.  Please %2$s to rate this plugin. Your feedback helps make it better, faster, and more useful.', 'sqlite-object-cache' ) . '</p>';
+			'<p>' . esc_html__( 'For support please %1$s.  Please %2$s to rate this plugin. Your feedback helps make it better, faster, and more useful.', 'sqlite-object-cache' ) . '</p>';
 		$supportString = sprintf( $supportString, $support, $review );
 
-		$html .= $supportString;
+		echo $supportString;
 
 		global $wp_object_cache;
 		if ( method_exists( $wp_object_cache, 'sqlite_get_version' ) ) {
-			$html .= '<p>' . sprintf(
+			echo '<p>' . esc_html( sprintf(
 				/* translators: 1: version for sqlite   2: version for php  3: version for plugin */
-					esc_html__( 'Versions: SQLite: %1$s  php: %2$s  Plugin: %3$s.', 'sqlite-object-cache' ),
-					esc_html( $wp_object_cache->sqlite_get_version() ),
-					esc_html( phpversion() ),
-					esc_html( $this->parent->_version ) ) . '</p>';
+					__( 'Versions: SQLite: %1$s  php: %2$s  Plugin: %3$s.', 'sqlite-object-cache' ),
+					$wp_object_cache->sqlite_get_version(),
+					phpversion(),
+					$this->parent->_version ) ) . '</p>';
 		}
 		if ( array_key_exists( 'description', $this->settings[ $section['id'] ] ) ) {
-			$html .= '<p> ' . $this->settings[ $section['id'] ]['description'] . '</p>' . "\n";
+			echo '<p> ' . esc_html( $this->settings[ $section['id'] ]['description'] ) . '</p>' . PHP_EOL;
 		}
 
 		if ( 'stats' === $section['id'] ) {
@@ -510,9 +503,8 @@ class SQLite_Object_Cache_Settings {
 			$stats = new SQLite_Object_Cache_Statistics ();
 			$stats->init();
 
-			$html .= $stats->render();
+			$stats->render();
 		}
-		echo $html; //phpcs:ignore
 	}
 
 	/**
@@ -523,70 +515,64 @@ class SQLite_Object_Cache_Settings {
 	public function settings_page() {
 
 		// Build page HTML.
-		$html = '<div class="wrap" id="' . $this->parent->_token . '_settings">' . "\n";
-		$html .= '<h2>' . __( 'SQLite Persistent Object Cache Settings', 'sqlite-object-cache' ) . '</h2>' . "\n";
+		echo '<div class="wrap" id="' . esc_attr( $this->parent->_token . '_settings' ) . '">' . PHP_EOL;
+		echo '<h2>' . esc_html__( 'SQLite Persistent Object Cache Settings', 'sqlite-object-cache' ) . '</h2>' . PHP_EOL;
 
 		$tab = '';
-		//phpcs:disable
 		if ( isset( $_GET['tab'] ) && $_GET['tab'] ) {
 			$tab .= $_GET['tab'];
 		}
-		//phpcs:enable
 
-		$html .= $this->complain_if_sqlite3_unavailable( true );
+		echo $this->complain_if_sqlite3_unavailable( true );
 
 		// Show page tabs.
 		if ( is_array( $this->settings ) && 1 < count( $this->settings ) ) {
 
-			$html .= '<h2 class="nav-tab-wrapper">' . "\n";
+			echo '<h2 class="nav-tab-wrapper">' . PHP_EOL;
 
 			$c = 0;
 			foreach ( $this->settings as $section => $data ) {
 
 				// Set tab class.
 				$class = 'nav-tab';
-				if ( ! isset( $_GET['tab'] ) ) { //phpcs:ignore
+				if ( ! isset( $_GET['tab'] ) ) {
 					if ( 0 === $c ) {
 						$class .= ' nav-tab-active';
 					}
 				} else {
-					if ( $section == $_GET['tab'] ) { //phpcs:ignore
+					if ( $section == $_GET['tab'] ) {
 						$class .= ' nav-tab-active';
 					}
 				}
 
 				// Set tab link.
 				$tab_link = add_query_arg( [ 'tab' => $section ] );
-				if ( isset( $_GET['settings-updated'] ) ) { //phpcs:ignore
+				if ( isset( $_GET['settings-updated'] ) ) {
 					$tab_link = remove_query_arg( 'settings-updated', $tab_link );
 				}
 
 				// Output tab.
-				$html .= '<a href="' . $tab_link . '" class="' . esc_attr( $class ) . '">' . esc_html( $data['title'] ) . '</a>' . "\n";
+				echo '<a href="' . $tab_link . '" class="' . esc_attr( $class ) . '">' . esc_html( $data['title'] ) . '</a>' . PHP_EOL;
 
 				++ $c;
 			}
 
-			$html .= '</h2>' . "\n";
+			echo '</h2>' . PHP_EOL;
 		}
 
 		/** @noinspection HtmlUnknownTarget */
-		$html .= '<form method="post" action="options.php" enctype="multipart/form-data">' . "\n";
+		echo '<form method="post" action="options.php" enctype="multipart/form-data">' . PHP_EOL;
 
 		// Get settings fields.
-		ob_start();
 		settings_fields( $this->parent->_token . '_settings' );
 		do_settings_sections( $this->parent->_token . '_settings' );
-		$html .= ob_get_clean();
 
-		$html .= '<p class="submit">' . "\n";
-		$html .= '<input type="hidden" name="tab" value="' . esc_attr( $tab ) . '" />' . "\n";
-		$html .= '<input name="Submit" type="submit" class="button-primary" value="' . esc_attr( __( 'Save Settings', 'sqlite-object-cache' ) ) . '" />' . "\n";
-		$html .= '</p>' . "\n";
-		$html .= '</form>' . "\n";
-		$html .= '</div>' . "\n";
-
-		echo $html; //phpcs:ignore
+		echo '<p class="submit">' . PHP_EOL;
+		echo '<input type="hidden" name="tab" value="' . esc_attr( $tab ) . '" />' . PHP_EOL;
+		echo '<input name="Submit" type="submit" class="button-primary" value="' . esc_attr( __( 'Save Settings', 'sqlite-object-cache' ) ) . '" />' . PHP_EOL;
+		echo '</p>' . PHP_EOL;
+		echo '</form>' . PHP_EOL;
+		echo '</div>' . PHP_EOL;
 	}
 
 	/**

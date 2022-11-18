@@ -62,7 +62,7 @@ class SQLite_Object_Cache_Admin_API {
 			return;
 		}
 
-		echo '<div class="custom-field-panel">' . "\n";
+		echo '<div class="custom-field-panel">' . PHP_EOL;
 
 		foreach ( $fields as $field ) {
 
@@ -79,7 +79,7 @@ class SQLite_Object_Cache_Admin_API {
 			}
 		}
 
-		echo '</div>' . "\n";
+		echo '</div>' . PHP_EOL;
 	}
 
 	/**
@@ -95,22 +95,22 @@ class SQLite_Object_Cache_Admin_API {
 		if ( ! is_array( $field ) || 0 === count( $field ) ) {
 			return;
 		}
-
-		$field = '<p class="form-field"><label for="' . $field['id'] . '">' . $field['label'] . '</label>' . $this->display_field( $field, $post, false ) . '</p>' . "\n";
-
-		echo $field; //phpcs:ignore
+		$id    = esc_attr( $field['id'] );
+		$label = esc_html( $field['label'] );
+		echo "<p class='form-field'><label for='$id'>$label</label>";
+		$this->display_field( $field, $post );
+		echo "</p>" . PHP_EOL;
 	}
 
 	/**
 	 * Generate HTML for displaying fields.
 	 *
-	 * @param array   $data Data array.
-	 * @param object  $post Post object.
-	 * @param boolean $echo Whether to echo the field HTML or return it.
+	 * @param array  $data Data array.
+	 * @param object $post Post object.
 	 *
-	 * @return string
+	 * @throws Exception If we try to use an unimplemented field type.
 	 */
-	public function display_field( $data = [], $post = null, $echo = true ) {
+	public function display_field( $data = [], $post = null ) {
 
 		// Get field info.
 		if ( isset( $data['field'] ) ) {
@@ -125,9 +125,8 @@ class SQLite_Object_Cache_Admin_API {
 		}
 
 		/* Get saved data. */
-		$field_id   = $field['id'];
-		$field_name = $option_name . "[$field_id]";
-		$data       = null;
+		$field_id = $field['id'];
+		$data     = null;
 
 		/* Data to display, if set */
 		$option = get_option( $option_name, [] );
@@ -147,22 +146,22 @@ class SQLite_Object_Cache_Admin_API {
 			$data = '';
 		}
 
-        /* CSS class */
-        $cssclass = '';
-        if ( array_key_exists('cssclass', $field)) {
-            $classes = is_array ($field['cssclass']) ?  $field['cssclass'] : [$field['cssclass']];
-            $cssclass = 'class = "' . implode (' ', $classes) . '"';
-        }
+		/* CSS class */
+		$cssclass = '';
+		if ( array_key_exists( 'cssclass', $field ) ) {
+			$classes  = is_array( $field['cssclass'] ) ? $field['cssclass'] : [ $field['cssclass'] ];
+			$classes  = array_map( 'esc_attr', $classes );
+			$cssclass = 'class = "' . implode( ' ', $classes ) . '"';
+		}
 
-
-		$html = '';
-
+		/* Field name attribute like my_option[my_field] */
+		$field_name_attribute  = esc_attr( $option_name ) . '[' . esc_attr( $field_id ) . ']';
 		switch ( $field['type'] ) {
 
 			case 'text':
 			case 'url':
 			case 'email':
-				$html .= '<input id="' . esc_attr( $field['id'] ) . '"' . $cssclass . ' type="text" name="' . esc_attr( $field_name ) . '" placeholder="' . esc_attr( $field['placeholder'] ) . '" value="' . esc_attr( $data ) . '" />' . "\n";
+				echo '<input id="' . esc_attr( $field['id'] ) . '"' . $cssclass . ' type="text" name="' . esc_attr( $field_name_attribute ) . '" placeholder="' . esc_attr( $field['placeholder'] ) . '" value="' . esc_attr( $data ) . '" />' . PHP_EOL;
 				break;
 
 			case 'password':
@@ -180,23 +179,23 @@ class SQLite_Object_Cache_Admin_API {
 				if ( isset( $field['step'] ) ) {
 					$step = ' step="' . esc_attr( $field['step'] ) . '"';
 				}
-				$html .= '<input id="' . esc_attr( $field['id'] ) . '"' . $cssclass . ' type="' . esc_attr( $field['type'] ) . '" name="' . esc_attr( $field_name ) . '" placeholder="' . esc_attr( $field['placeholder'] ) . '" value="' . esc_attr( $data ) . '"' . $min . ' ' . $max . ' ' . $step . '/>' . "\n";
+				echo '<input id="' . esc_attr( $field['id'] ) . '"' . $cssclass . ' type="' . esc_attr( $field['type'] ) . '" name="' . esc_attr( $field_name_attribute ) . '" placeholder="' . esc_attr( $field['placeholder'] ) . '" value="' . esc_attr( $data ) . '"' . $min . ' ' . $max . ' ' . $step . '/>' . PHP_EOL;
 				break;
 
 			case 'text_secret':
-				$html .= '<input id="' . esc_attr( $field['id'] ) . '"' . $cssclass . '  type="text" name="' . esc_attr( $field_name ) . '" placeholder="' . esc_attr( $field['placeholder'] ) . '" value="" />' . "\n";
+				echo '<input id="' . esc_attr( $field['id'] ) . '"' . $cssclass . '  type="text" name="' . esc_attr( $field_name_attribute ) . '" placeholder="' . esc_attr( $field['placeholder'] ) . '" value="" />' . PHP_EOL;
 				break;
 
 			case 'textarea':
-				$html .= '<textarea id="' . esc_attr( $field['id'] )  . '"' . $cssclass . '  rows="5" cols="50" name="' . esc_attr( $field_name ) . '" placeholder="' . esc_attr( $field['placeholder'] ) . '">' . $data . '</textarea><br/>' . "\n";
+				echo '<textarea id="' . esc_attr( $field['id'] ) . '"' . $cssclass . '  rows="5" cols="50" name="' . esc_attr( $field_name_attribute ) . '" placeholder="' . esc_attr( $field['placeholder'] ) . '">' . $data . '</textarea><br/>' . PHP_EOL;
 				break;
 
 			case 'checkbox':
 				$checked = '';
-				if ( $data && 'on' === $data ) {
+				if ( 'on' === $data ) {
 					$checked = 'checked="checked"';
 				}
-				$html .= '<input id="' . esc_attr( $field['id'] ) . '"' . $cssclass . '  type="' . esc_attr( $field['type'] ) . '" name="' . esc_attr( $field_name ) . '" ' . $checked . '/>' . "\n";
+				echo '<input id="' . esc_attr( $field['id'] ) . '"' . $cssclass . '  type="' . esc_attr( $field['type'] ) . '" name="' . esc_attr( $field_name_attribute ) . '" ' . $checked . '/>' . PHP_EOL;
 				break;
 
 			case 'checkbox_multi':
@@ -205,7 +204,7 @@ class SQLite_Object_Cache_Admin_API {
 					if ( in_array( $k, (array) $data, true ) ) {
 						$checked = true;
 					}
-					$html .= '<p><label for="' . esc_attr( $field['id'] . '_' . $k ) . '" class="checkbox_multi"><input type="checkbox" ' . checked( $checked, true, false ) . ' name="' . esc_attr( $field_name ) . '[]" value="' . esc_attr( $k ) . '" id="' . esc_attr( $field['id'] . '_' . $k ) . '" /> ' . $v . '</label></p> ';
+					echo '<p><label for="' . esc_attr( $field['id'] . '_' . $k ) . '" class="checkbox_multi"><input type="checkbox" ' . checked( $checked, true, false ) . ' name="' . esc_attr( $field_name_attribute ) . '[]" value="' . esc_attr( $k ) . '" id="' . esc_attr( $field['id'] . '_' . $k ) . '" /> ' . $v . '</label></p> ';
 				}
 				break;
 
@@ -215,67 +214,35 @@ class SQLite_Object_Cache_Admin_API {
 					if ( $k === $data ) {
 						$checked = true;
 					}
-					$html .= '<label for="' . esc_attr( $field['id'] . '_' . $k ) . '"><input type="radio" ' . checked( $checked, true, false ) . ' name="' . esc_attr( $field_name ) . '" value="' . esc_attr( $k ) . '" id="' . esc_attr( $field['id'] . '_' . $k ) . '" /> ' . $v . '</label> ';
+					echo '<label for="' . esc_attr( $field['id'] . '_' . $k ) . '"><input type="radio" ' . checked( $checked, true, false ) . ' name="' . esc_attr( $field_name_attribute ) . '" value="' . esc_attr( $k ) . '" id="' . esc_attr( $field['id'] . '_' . $k ) . '" /> ' . $v . '</label> ';
 				}
 				break;
 
 			case 'select':
-				$html .= '<select name="' . esc_attr( $field_name ) . '" id="' . esc_attr( $field['id'] ) . '">';
+				echo '<select name="' . esc_attr( $field_name_attribute ) . '" id="' . esc_attr( $field['id'] ) . '">';
 				foreach ( $field['options'] as $k => $v ) {
 					$selected = false;
 					if ( $k === $data ) {
 						$selected = true;
 					}
-					$html .= '<option ' . selected( $selected, true, false ) . ' value="' . esc_attr( $k ) . '">' . $v . '</option>';
+					echo '<option ' . selected( $selected, true, false ) . ' value="' . esc_attr( $k ) . '">' . $v . '</option>';
 				}
-				$html .= '</select> ';
+				echo '</select> ';
 				break;
 
 			case 'select_multi':
-				$html .= '<select name="' . esc_attr( $field_name ) . '[]" id="' . esc_attr( $field['id'] ) . '" multiple="multiple">';
+				echo '<select name="' . esc_attr( $field_name_attribute ) . '[]" id="' . esc_attr( $field['id'] ) . '" multiple="multiple">';
 				foreach ( $field['options'] as $k => $v ) {
 					$selected = false;
 					if ( in_array( $k, (array) $data, true ) ) {
 						$selected = true;
 					}
-					$html .= '<option ' . selected( $selected, true, false ) . ' value="' . esc_attr( $k ) . '">' . $v . '</option>';
+					echo '<option ' . selected( $selected, true, false ) . ' value="' . esc_attr( $k ) . '">' . $v . '</option>';
 				}
-				$html .= '</select> ';
+				echo '</select> ';
 				break;
-
-			case 'image':
-				$image_thumb = '';
-				if ( $data ) {
-					$image_thumb = wp_get_attachment_thumb_url( $data );
-				}
-				$html .= '<img alt="Image to upload." id="' . $option_name . '_preview" class="image_preview" src="' . $image_thumb . '" /><br/>' . "\n";
-				$html .= '<input id="' . $option_name . '_button" type="button" data-uploader_title="' . __( 'Upload an image', 'sqlite-object-cache' ) . '" data-uploader_button_text="' . __( 'Use image', 'sqlite-object-cache' ) . '" class="image_upload_button button" value="' . __( 'Upload new image', 'sqlite-object-cache' ) . '" />' . "\n";
-				$html .= '<input id="' . $option_name . '_delete" type="button" class="image_delete_button button" value="' . __( 'Remove image', 'sqlite-object-cache' ) . '" />' . "\n";
-				$html .= '<input id="' . $option_name . '" class="image_data_field" type="hidden" name="' . $field_name . '" value="' . $data . '"/><br/>' . "\n";
-				break;
-
-			case 'color':
-				//phpcs:disable
-				?>
-                <div class="color-picker" style="position:relative;">
-                    <input type="text" name="<?php esc_attr_e( $field_name ); ?>" class="color"
-                           value="<?php esc_attr_e( $data ); ?>"/>
-                    <div style="position:absolute;background:#FFF;z-index:99;border-radius:100%;"
-                         class="colorpicker"></div>
-                </div>
-				<?php
-				//phpcs:enable
-				break;
-
-			case 'editor':
-				wp_editor(
-					$data,
-					$option_name,
-					[
-						'textarea_name' => $field_name,
-					]
-				);
-				break;
+			default:
+				throw new Exception ( "Bogus field type " . $field['type'] );
 		}
 
 		switch ( $field['type'] ) {
@@ -283,29 +250,21 @@ class SQLite_Object_Cache_Admin_API {
 			case 'checkbox_multi':
 			case 'radio':
 			case 'select_multi':
-				$html .= '<br/><span class="description">' . $field['description'] . '</span>';
+				echo '<br/><span class="description">' . $field['description'] . '</span>';
 				break;
 
 			default:
 				if ( ! $post ) {
-					$html .= '<label for="' . esc_attr( $field['id'] ) . '">' . "\n";
+					echo '<label for="' . esc_attr( $field['id'] ) . '">' . PHP_EOL;
 				}
 
-				$html .= '<span class="description">' . $field['description'] . '</span>' . "\n";
+				echo '<span class="description">' . $field['description'] . '</span>' . PHP_EOL;
 
 				if ( ! $post ) {
-					$html .= '</label>' . "\n";
+					echo '</label>' . PHP_EOL;
 				}
 				break;
 		}
-
-		if ( ! $echo ) {
-			return $html;
-		}
-
-		echo $html; //phpcs:ignore
-        return '';
-
 	}
 
 	/**
@@ -330,8 +289,8 @@ class SQLite_Object_Cache_Admin_API {
 		}
 
 		foreach ( $fields as $field ) {
-			if ( isset( $_REQUEST[ $field['id'] ] ) ) { //phpcs:ignore
-				update_post_meta( $post_id, $field['id'], $this->validate_field( $_REQUEST[ $field['id'] ], $field['type'] ) ); //phpcs:ignore
+			if ( isset( $_REQUEST[ $field['id'] ] ) ) {
+				update_post_meta( $post_id, $field['id'], $this->validate_field( $_REQUEST[ $field['id'] ], $field['type'] ) );
 			} else {
 				update_post_meta( $post_id, $field['id'], '' );
 			}

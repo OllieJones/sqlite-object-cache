@@ -301,77 +301,68 @@ class SQLite_Object_Cache_Statistics {
 	/**
 	 * Render the statistics display.
 	 *
-	 * @return string
+	 * @return void
 	 */
 	public function render() {
 
-		$html = '';
-
-		$html .= '<h3>' . esc_html__( 'Cache performance statistics', 'sqlite-object-cache' ) . '</h3>';
+		echo '<h3>' . esc_html__( 'Cache performance statistics', 'sqlite-object-cache' ) . '</h3>';
 		if ( is_array( $this->descriptions ) ) {
-			$html  .= '<p>' . sprintf(
-				/* translators:  1 start time   2 end time both in localized format */
-					esc_html__( 'From %1$s to %2$s.', 'sqlite-object-cache' ),
-					esc_html( $this->start_time ), esc_html( $this->end_time ) ) . ' ' . esc_html__( 'Times in microseconds.', 'sqlite-object-cache' ) . '</p>';
-			$html  .= '<table class="sql-object-cache-stats">';
+			echo '<p>' . esc_html( sprintf(
+			                        /* translators:  1 start time   2 end time both in localized format */
+				                    __( 'From %1$s to %2$s.', 'sqlite-object-cache' ),
+				                    $this->start_time, $this->end_time ) . ' ' . __( 'Times in microseconds.', 'sqlite-object-cache' ) ) . '</p>';
+			echo '<table class="sql-object-cache-stats">';
 			$first = true;
 			foreach ( $this->descriptions as $stat => $description ) {
 				if ( $first ) {
-					$html .= '<thead><tr>';
-					$html .= '<th>' . esc_html__( 'Item', 'sqlite-object-cache' ) . '</th>';
+					echo '<thead><tr>';
+					echo '<th>' . esc_html__( 'Item', 'sqlite-object-cache' ) . '</th>';
 					foreach ( $description as $item => $value ) {
-						$item = esc_html( $item );
-						$html .= "<th>$item</th>";
+						echo '<th>' . esc_html( $item ) . '</th>';
 					}
-					$html  .= '</tr></thead><tbody>';
+					echo '</tr></thead><tbody>';
 					$first = false;
 				}
-				$html .= '<tr>';
+				echo '<tr>';
 				$stat = esc_html( $stat );
-				$html .= "<th scope='row'>$stat</th>";
+				echo "<th scope='row'>$stat</th>";
 				foreach ( $description as $item => $value ) {
-					$value = esc_html( round( $value, 2 ) );
-					$html  .= "<td>$value</td>";
+					echo '<td>' . esc_html( round( $value, 2 ) ) . '</td>';
 				}
-				$html .= '</tr>';
+				echo '</tr>';
 			}
-			$html .= '</tr></tbody></table>';
+			echo '</tr></tbody></table>';
 		} else {
-			$html .= '<p>' . esc_html__( 'No cache statistics recorded yet.', 'sqlite-object-cache' ) . '</p>';
+			echo '<p>' . esc_html__( 'No cache statistics recorded yet.', 'sqlite-object-cache' ) . '</p>';
 		}
 
-		if ( is_array($this->selected_names) && count( $this->selected_names ) > 0 ) {
-			$html .= '<h3>' . esc_html__( 'Most frequently looked up cache items' ) . '</h3>';
+		if ( is_array( $this->selected_names ) && count( $this->selected_names ) > 0 ) {
+			echo '<h3>' . esc_html__( 'Most frequently looked up cache items' ) . '</h3>';
 
-			$html            .= '<table class="sql-object-cache-items">';
+			echo '<table class="sql-object-cache-items">';
 			$count_threshold = - 1;
 			$first           = true;
 			foreach ( $this->selected_names as $name => $count ) {
-				$splits = explode( '|', $name );
-				$group  = esc_html( $splits[0] );
-				$key    = esc_html( $splits[1] );
-				$count  = esc_html( $count );
 				if ( $first ) {
-					$html            .= '<thead><tr>';
-					$group_name = esc_html__("Cache Group", 'sqlite-object-cache' );
-					$key_name = esc_html__("Cache Key", 'sqlite-object-cache' );
-					$count_name = esc_html__("Count", 'sqlite-object-cache' );
-					$html            .= "<th>$group_name</th><th>$key_name</th><th>$count_name</th>";
-					$html            .= '</tr></thead><tbody>';
+					echo '<thead><tr>';
+					$group_name = esc_html__( "Cache Group", 'sqlite-object-cache' );
+					$key_name   = esc_html__( "Cache Key", 'sqlite-object-cache' );
+					$count_name = esc_html__( "Count", 'sqlite-object-cache' );
+					echo "<th>$group_name</th><th>$key_name</th><th>$count_name</th>";
+					echo '</tr></thead><tbody>';
 					$count_threshold = intval( $count * 0.7 );
 					$first           = false;
 				}
 				if ( $count < $count_threshold ) {
 					break;
 				}
-				$html .= '<tr>';
-				$html .= "<td>$group</td>";
-				$html .= "<td>$key</td>";
-				$html .= "<td>$count</td>";
+				$splits = explode( '|', $name, 2 );
+				$group  = esc_html( $splits[0] );
+				$key    = esc_html( $splits[1] );
+				$count  = esc_html( $count );
+				echo "<tr><td>$group</td><td>$key</td><td>$count</td></tr>";
 			}
 		}
-		$html .= '</tr></tbody></table>';
-
-		return $html;
+		echo '</tbody></table>';
 	}
 }
