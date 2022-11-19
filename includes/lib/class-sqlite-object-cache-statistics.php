@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Settings class.
+ * statistics class.
  */
 class SQLite_Object_Cache_Statistics {
 
@@ -58,6 +58,7 @@ class SQLite_Object_Cache_Statistics {
 	 * Initialize and load data.
 	 *
 	 * @return void
+	 * @throws Exception Announce database failure.
 	 */
 	public function init() {
 		$first = PHP_INT_MAX;
@@ -128,6 +129,7 @@ class SQLite_Object_Cache_Statistics {
 	 *
 	 * @return Generator
 	 * @throws Exception Announce SQLite failure.
+	 * @noinspection SqlResolve
 	 */
 	private function load_measurements() {
 		global $wp_object_cache;
@@ -142,9 +144,8 @@ class SQLite_Object_Cache_Statistics {
 				if ( ! $row ) {
 					break;
 				}
-				$splits = explode( '|', $row[0], 3 );
-				$time   = $splits[2];
-				$value  = $this->has_igbinary ? igbinary_unserialize( $row[1] ) : unserialize( $row[1] );
+				/* the name in row [0] is sqlite_object_cache|mon|1666930243, with a timestamp baked in */
+				$value = $this->has_igbinary ? igbinary_unserialize( $row[1] ) : unserialize( $row[1] );
 				yield (object) $value;
 			}
 			$resultset->finalize();
@@ -308,7 +309,7 @@ class SQLite_Object_Cache_Statistics {
 		echo '<h3>' . esc_html__( 'Cache performance statistics', 'sqlite-object-cache' ) . '</h3>';
 		if ( is_array( $this->descriptions ) ) {
 			echo '<p>' . esc_html( sprintf(
-			                        /* translators:  1 start time   2 end time both in localized format */
+			                    /* translators:  1 start time   2 end time both in localized format */
 				                    __( 'From %1$s to %2$s.', 'sqlite-object-cache' ),
 				                    $this->start_time, $this->end_time ) . ' ' . __( 'Times in microseconds.', 'sqlite-object-cache' ) ) . '</p>';
 			echo '<table class="sql-object-cache-stats">';
@@ -326,7 +327,7 @@ class SQLite_Object_Cache_Statistics {
 				echo '<tr>';
 				$stat = esc_html( $stat );
 				echo "<th scope='row'>$stat</th>";
-				foreach ( $description as $item => $value ) {
+				foreach ( $description as $value ) {
 					echo '<td>' . esc_html( round( $value, 2 ) ) . '</td>';
 				}
 				echo '</tr>';

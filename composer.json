@@ -14,7 +14,8 @@
     "php": ">=5.6",
     "squizlabs/php_codesniffer": "^3.3.1",
     "ext-sqlite3": "*",
-    "ext-igbinary": "*"
+    "ext-igbinary": "*",
+    "ext-sqlite": "*"
   },
   "require-dev": {
     "wp-coding-standards/wpcs": "2.1.*"

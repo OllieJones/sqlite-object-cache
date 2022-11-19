@@ -45,7 +45,7 @@ class SQLite_Object_Cache_Settings {
 	/**
 	 * SQLite3 is available.
 	 *
-	 * @var     string|bool  If true, we're good. If string, an explanation.
+	 * @var     string|bool  If it's true, we're good. If it's a string, an explanation.
 	 */
 	public $has = '';
 
@@ -293,7 +293,7 @@ class SQLite_Object_Cache_Settings {
 	 * @return mixed|void
 	 */
 	private function menu_settings() {
-		echo $this->complain_if_sqlite3_unavailable();
+		$this->complain_if_sqlite3_unavailable();
 
 		return apply_filters(
 			$this->base . 'menu_settings',
@@ -316,7 +316,7 @@ class SQLite_Object_Cache_Settings {
 	 *
 	 * @param bool $verbose False means emit a notice.  True means emit a longer explanation.
 	 *
-	 * @return string
+	 * @return void
 	 */
 	private function complain_if_sqlite3_unavailable( $verbose = false ) {
 		if ( true !== $this->has ) {
@@ -469,6 +469,7 @@ class SQLite_Object_Cache_Settings {
 	 * @param array $section Array of section ids.
 	 *
 	 * @return void
+	 * @throws Exception Announce Database Failure.
 	 */
 	public function settings_section( $section ) {
 		/** @noinspection HtmlUnknownTarget */
@@ -523,7 +524,7 @@ class SQLite_Object_Cache_Settings {
 			$tab .= $_GET['tab'];
 		}
 
-		echo $this->complain_if_sqlite3_unavailable( true );
+		$this->complain_if_sqlite3_unavailable( true );
 
 		// Show page tabs.
 		if ( is_array( $this->settings ) && 1 < count( $this->settings ) ) {

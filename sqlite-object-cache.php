@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache
- * Version: 0.1.0
+ * Version: 0.1.1
  * Plugin URI: https://github.com/OllieJones/sqlite-object-cache
  * Description: A persistent object cache backend powered by SQLite3.
  * Author: Oliver Jones
@@ -37,7 +37,7 @@ require_once 'includes/lib/class-sqlite-object-cache-statistics.php';
  * @since  1.0.0
  */
 function sqlite_object_cache() {
-	$instance = SQLite_Object_Cache::instance( __FILE__, '0.1.0' );
+	$instance = SQLite_Object_Cache::instance( __FILE__, '0.1.1' );
 
 	if ( is_null( $instance->settings ) ) {
 		$instance->settings = SQLite_Object_Cache_Settings::instance( $instance );

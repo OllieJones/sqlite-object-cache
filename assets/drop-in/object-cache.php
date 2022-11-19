@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache Drop-In
- * Version: 0.1.0
- * Note: This Version must match the one in the ctor for SQLite_Object_Cache.
+ * Version: 0.1.1
+ * Note: This Version number must match the one in the ctor for SQLite_Object_Cache.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
  * Author:  Oliver Jones
@@ -43,6 +43,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	 * @since 0.1.0
 	 */
 	class WP_Object_Cache extends SQLite3 {
+		const SQLITE_CONSTRAINT_VIOLATION_ERROR_CODE = 19;
 
 		/**
 		 * The amount of times the cache data was already stored in the cache.
@@ -164,11 +165,17 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 */
 		private $queue = [];
 		/**
-		 * Associative array of items we know aren't in SQLite.
+		 * Associative array of items we know ARE NOT in SQLite.
 		 *
 		 * @var array Keys are names, values don't matter.
 		 */
 		private $not_in_persistent_cache = [];
+		/**
+		 * Associative array of items we know ARE in SQLite.
+		 *
+		 * @var array Keys are names, values don't matter.
+		 */
+		private $in_persistent_cache = [];
 		/**
 		 * Cache table name.
 		 *
@@ -434,6 +441,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$getone      = "SELECT value FROM $tbl WHERE name = :name AND expires >= $now;";
 			$deleteone   = "DELETE FROM $tbl WHERE name = :name;";
 			$deletegroup = "DELETE FROM $tbl WHERE name LIKE :group || '.%';";
+			$is_it_there = "SELECT expires FROM $tbl WHERE name = :name;";
 
 			/* prepare the statements for later use */
 			$this->statements = [
@@ -442,6 +450,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				'getone'      => $this->prepare( $getone ),
 				'deleteone'   => $this->prepare( $deleteone ),
 				'deletegroup' => $this->prepare( $deletegroup ),
+				'is_it_there' => $this->prepare( $is_it_there ),
 			];
 		}
 
@@ -611,34 +620,52 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @throws Exception Announce database failure.
 		 */
 		private function putone( $name, $item ) {
-			$start   = $this->time_usec();
-			$value   = $this->maybe_serialize( $item[0] );
-			$expires = $item[1] ?: 500000000000;
-			$stmt    = $this->statements['updateone'];
+
+			$start                = $this->time_usec();
+			$value                = $this->maybe_serialize( $item[0] );
+			$expires              = $item[1] ?: 500000000000;
+			$successfully_updated = false;
+			/* Skip this if we know the item isn't already in the cache */
+			$stmt = $this->statements['updateone'];
 			$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
 			$stmt->bindValue( ':value', $value, SQLITE3_BLOB );
 			$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
 			$changes_before = $this->changes();
 			$result         = $stmt->execute();
-			$changes_after  = $this->changes();
-			$update_failed  = ( false === $result ) || ( $changes_before === $changes_after );
-			if ( $update_failed ) {
-				if ( false !== $result ) {
-					$result->finalize();
-				}
-				/* Update failed, no such row, need insert */
+			if ( false === $result ) {
+				$code = $this->lastErrorCode();
+				throw new Exception( "putone: $name failed update: ($code): " . $this->lastErrorMsg() );
+			}
+			$result->finalize();
+			$changes_after = $this->changes();
+			if ( $changes_after <= $changes_before ) {
+				/*
+				 * Update failed:  need insert.
+				 * Sometimes this is true even when the update succeeded.
+				 * Therefore, we must work around this problem
+				 * by ignoring any constraint violation error
+				 * received from the INSERT statement.
+				 * We deal with other errors by throwing an exception.
+				 * Do we like this situation? No.
+				 */
 				$stmt = $this->statements['insertone'];
 				$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
 				$stmt->bindValue( ':value', $value, SQLITE3_BLOB );
 				$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
-				$result = $stmt->execute();
+				$result = @$stmt->execute();
 				if ( false === $result ) {
-					throw new Exception( 'SQLite3 insertone: name: ' . $name . ' ' . $this->lastErrorMsg(), $this->lastErrorCode() );
+					$code = $this->lastErrorCode();
+					if ( self::SQLITE_CONSTRAINT_VIOLATION_ERROR_CODE !== $code ) {
+						throw new Exception( "putone: $name failed insert: ($code): " . $this->lastErrorMsg() );
+					}
+				} else {
+					$result->finalize();
 				}
 			}
-			$result->finalize();
-			$this->insert_times[] = $this->time_usec() - $start;
-			$this->insert_names[] = $name;
+			unset( $this->not_in_persistent_cache[ $name ] );
+			$this->in_persistent_cache[ $name ] = true;
+			$this->insert_times[]               = $this->time_usec() - $start;
+			$this->insert_names[]               = $name;
 		}
 
 		/** Delete one item from the persistent cache.
@@ -657,7 +684,36 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				throw new Exception( 'SQLite3 deleteone: ' . $this->lastErrorMsg(), $this->lastErrorCode() );
 			}
 			$result->finalize();
-			$this->delete_times[] = $this->time_usec() - $start;
+			unset( $this->in_persistent_cache[ $name ] );
+			$this->not_in_persistent_cache[ $name ] = true;
+			$this->delete_times[]                   = $this->time_usec() - $start;
+		}
+
+		/**
+		 *  Get a cache item's expire or a missing message if it is not present.
+		 *
+		 * @param string $name The name of the item to retrieve.
+		 *
+		 * @return string
+		 */
+		private function is_item_present( $name ) {
+			$stmt = $this->statements['is_it_there'];
+			$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
+			$expires = null;
+			$result  = $stmt->execute();
+			if ( $result ) {
+				$done = false;
+				while ( ! $done ) {
+					$row = $result->fetchArray( SQLITE3_NUM );
+					if ( ! $row ) {
+						break;
+					}
+					$expires = $row[0];
+				}
+			}
+			$result->finalize();
+
+			return $expires ? "exp $expires" : 'missing';
 		}
 
 		/**
@@ -668,7 +724,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 *
 		 * @return string The name.
 		 */
-		private function getName( $key, $group ) {
+		private function name_from_key_group( $key, $group ) {
 			return $group . '|' . $key;
 		}
 
@@ -761,50 +817,49 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			if ( ! array_key_exists( 'capture', $options ) || ! $options['capture'] ) {
 				return;
 			}
-			try {
-				$now    = microtime( true );
-				$record = [
-					'time'       => $now,
-					'RAMhits'    => $this->cache_hits,
-					'RAMmisses'  => $this->cache_misses,
-					'DISKhits'   => $this->persistent_hits,
-					'DISKmisses' => $this->persistent_misses,
-					'open'       => $this->open_time,
-					'selects'    => $this->select_times,
-					'inserts'    => $this->insert_times,
-					'deletes'    => $this->delete_times,
-					'update'     => $this->update_time,
-				];
-				if ( $options['verbose'] ) {
-					$record ['select_names'] = $this->select_names;
-					$record ['delete_names'] = $this->insert_names;
-				}
-
-				/* make ourselves a clean timestamp number applying desired resolution */
-				$resolution = $options['resolution'] ?: 60.0;
-				$resolution = round( $resolution, 3 );
-				$resolution = $resolution >= 1.0 ? round( $resolution, 0 ) : $resolution;
-				$timestamp  = $now - ( fmod( $now, $resolution ) );
-				$timestamp  = round( $timestamp, 3 );
-				$timestamp  = $resolution >= 1.0 ? intval( $timestamp ) : $timestamp;
-
-				/* get the lifetime */
-				$lifetime = $options['lifetime'] ? intval( $options['lifetime'] ) : HOUR_IN_SECONDS;
-
-				$name = 'sqlite_object_cache|mon|' . str_pad( $timestamp, 12, '0', STR_PAD_LEFT );
-				$sql  =
-					"INSERT INTO $this->cache_table_name (name, value, expires) VALUES (:name, :value, :expires);";
-				$stmt = $this->prepare( $sql );
-				$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
-				$stmt->bindValue( ':value', $this->maybe_serialize( $record ), SQLITE3_BLOB );
-				$stmt->bindValue( ':expires', intval( $lifetime + $now ), SQLITE3_INTEGER );
-				$result = $stmt->execute();
-				$result->finalize();
-				unset( $record );
-				unset( $stmt );
-			} catch ( Exception $e ) {
-				/* Empty, intentionally. Ignore problems putting capture data into the table. */
+			$now    = microtime( true );
+			$record = [
+				'time'       => $now,
+				'RAMhits'    => $this->cache_hits,
+				'RAMmisses'  => $this->cache_misses,
+				'DISKhits'   => $this->persistent_hits,
+				'DISKmisses' => $this->persistent_misses,
+				'open'       => $this->open_time,
+				'selects'    => $this->select_times,
+				'inserts'    => $this->insert_times,
+				'deletes'    => $this->delete_times,
+				'update'     => $this->update_time,
+			];
+			if ( $options['verbose'] ) {
+				$record ['select_names'] = $this->select_names;
+				$record ['delete_names'] = $this->insert_names;
 			}
+
+			/* make ourselves a clean timestamp number applying desired resolution */
+			$resolution = $options['resolution'] ?: 60.0;
+			$resolution = round( $resolution, 3 );
+			$resolution = $resolution >= 1.0 ? round( $resolution, 0 ) : $resolution;
+			$timestamp  = $now - ( fmod( $now, $resolution ) );
+			$timestamp  = round( $timestamp, 3 );
+			$timestamp  = $resolution >= 1.0 ? intval( $timestamp ) : $timestamp;
+
+			/* get the lifetime */
+			$lifetime = $options['lifetime'] ? intval( $options['lifetime'] ) : HOUR_IN_SECONDS;
+
+			$name = 'sqlite_object_cache|mon|' . str_pad( $timestamp, 12, '0', STR_PAD_LEFT );
+			$sql  =
+				"INSERT INTO $this->cache_table_name (name, value, expires) VALUES (:name, :value, :expires);";
+			$stmt = $this->prepare( $sql );
+			$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
+			$stmt->bindValue( ':value', $this->maybe_serialize( $record ), SQLITE3_BLOB );
+			$stmt->bindValue( ':expires', intval( $lifetime + $now ), SQLITE3_INTEGER );
+			$result = @$stmt->execute();
+			if ( false !== $result ) {
+				/* this statement might hit "UNIQUE constraint failed". We can ignore that. */
+				$result->finalize();
+			}
+			unset( $record );
+			unset( $stmt );
 		}
 
 		/**
@@ -1024,7 +1079,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 */
 		private function getone( $key, $group ) {
 			$start = $this->time_usec();
-			$name  = $this->getName( $key, $group );
+			$name  = $this->name_from_key_group( $key, $group );
 			if ( array_key_exists( $name, $this->not_in_persistent_cache ) ) {
 				return null;
 			}
@@ -1032,13 +1087,15 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
 			$result = $stmt->execute();
 			if ( false === $result ) {
+				unset( $this->in_persistent_cache[ $name ] );
 				$this->not_in_persistent_cache [ $name ] = true;
 				throw new Exception( 'SQLite3 stmt->execute: ' . $this->lastErrorMsg(), $this->lastErrorCode() );
 			}
 			$row  = $result->fetchArray( SQLITE3_NUM );
 			$data = false !== $row && is_array( $row ) && 1 === count( $row ) ? $row[0] : null;
 			if ( null !== $data ) {
-				$data = $this->maybe_unserialize( $data );
+				$data                                = $this->maybe_unserialize( $data );
+				$this->in_persistent_cache [ $name ] = true;
 			} else {
 				$this->not_in_persistent_cache [ $name ] = true;
 			}
@@ -1115,7 +1172,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				return;
 			}
 
-			$name                  = $this->getName( $key, $group );
+			$name                  = $this->name_from_key_group( $key, $group );
 			$this->queue [ $name ] = [ 'put', [ $data, $expire ] ];
 			unset( $this->not_in_persistent_cache[ $group . '.' . $key ] );
 		}
@@ -1318,7 +1375,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @return void
 		 */
 		private function enqueue_delete( $key, $group ) {
-			$name                  = $this->getName( $key, $group );
+			$name                  = $this->name_from_key_group( $key, $group );
 			$this->queue [ $name ] = [ 'delete', [] ];
 
 			$this->not_in_persistent_cache[ $group . '.' . $key ] = true;
