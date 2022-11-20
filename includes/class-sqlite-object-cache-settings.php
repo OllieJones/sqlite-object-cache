@@ -63,7 +63,7 @@ class SQLite_Object_Cache_Settings {
 		add_action( 'init', [ $this, 'init_settings' ], 11 );
 
 		// Register plugin settings.
-		add_action( 'admin_init', [ $this, 'register_settings' ] );
+		add_action( 'admin_init', [ $this, 'register_my_settings' ] );
 
 		// Add settings page to menu.
 		add_action( 'admin_menu', [ $this, 'add_menu_item' ] );
@@ -120,10 +120,12 @@ class SQLite_Object_Cache_Settings {
 	private function settings_fields() {
 
 		$settings['standard'] = [
-			'title'       => __( 'SQLite Object Cache', 'sqlite-object-cache' ),
-			'description' => '',
-			'callback'    => [ $this, 'validate' ],
-			'fields'      => [
+			'title'                 => __( 'Settings', 'sqlite-object-cache' ),
+			'submit'                => __( 'Save Settings', 'sqlite-object-cache' ),
+			'description'           => '',
+			'render_section_header' => [ $this, 'settings_section_header' ],
+			'form_post_callback'    => [ $this, 'validate_settings' ],
+			'fields'                => [
 				[
 					'id'          => 'flush',
 					'label'       => __( 'Flush now', 'sqlite-object-cache' ),
@@ -187,14 +189,19 @@ class SQLite_Object_Cache_Settings {
 		];
 
 		$settings['stats'] = [
-			'title' => __( 'Statistics', 'sqlite-object-cache' ),
+			'title'                 => __( 'Statistics', 'sqlite-object-cache' ),
+			'submit'                => __( 'Reset Statistics', 'sqlite-object-cache' ),
+			'render_section_header' => [ $this, 'stats_section_header' ],
+			'form_post_callback'    => [ $this, 'validate_reset_stats' ],
 		];
 
 		return apply_filters( $this->parent->_token . '_settings_fields', $settings );
 	}
 
 	/**
-	 * Filters an option value following sanitization.
+	 * Validate the options presented to the Settings tab.
+	 *
+	 * This is an options update filter. It filters an option value following sanitization.
 	 *
 	 * @param string $option The sanitized option value.
 	 * @param string $name The option name.
@@ -206,7 +213,7 @@ class SQLite_Object_Cache_Settings {
 	 *
 	 * @noinspection PhpUnusedParameterInspection
 	 */
-	public function validate( $option, $name, $original_value ) {
+	public function validate_settings( $option, $name, $original_value ) {
 		if ( ! is_array( $option ) ) {
 			/* weird. not an option array */
 			return $option;
@@ -260,6 +267,32 @@ class SQLite_Object_Cache_Settings {
 	}
 
 	/**
+	 * Filters an option value following sanitization.
+	 *
+	 * @param string $option The sanitized option value.
+	 * @param string $name The option name.
+	 * @param string $original_value The original value passed to the function.
+	 *
+	 * @throws Exception Announce SQLite failure.
+	 * @since 2.3.0
+	 * @since 4.3.0 Added the `$original_value` parameter.
+	 *
+	 * @noinspection PhpUnusedParameterInspection
+	 */
+	public function validate_reset_stats( $option, $name, $original_value ) {
+
+		global $wp_object_cache;
+		if ( method_exists( $wp_object_cache, 'sqlite_reset_statistics' ) ) {
+			$wp_object_cache->sqlite_reset_statistics();
+		}
+
+
+			/* for this post operation, we don't want to change any plugin options. */
+		return get_option( $name );
+
+	}
+
+	/**
 	 * Add settings page to admin menu
 	 *
 	 * @return void
@@ -300,7 +333,7 @@ class SQLite_Object_Cache_Settings {
 			[
 				'location'    => 'options', // Possible settings: options, menu, submenu.
 				'parent_slug' => 'options-general.php',
-				'page_title'  => __( 'SQLite Persistent Object Cache Settings', 'sqlite-object-cache' ),
+				'page_title'  => __( 'SQLite Persistent Object Cache', 'sqlite-object-cache' ),
 				'menu_title'  => __( 'Object Cache', 'sqlite-object-cache' ),
 				'capability'  => 'manage_options',
 				'menu_slug'   => $this->parent->_token . '_settings',
@@ -395,50 +428,47 @@ class SQLite_Object_Cache_Settings {
 	 *
 	 * @return void
 	 */
-	public function register_settings() {
+	public function register_my_settings() {
 		if ( is_array( $this->settings ) ) {
 
 			// Check posted/selected tab.
-			$current_section = '';
+			$selected_section = '';
 			if ( isset( $_POST['tab'] ) && $_POST['tab'] ) {
-				$current_section = $_POST['tab'];
+				$selected_section = $_POST['tab'];
 			} else {
 				if ( isset( $_GET['tab'] ) && $_GET['tab'] ) {
-					$current_section = $_GET['tab'];
+					$selected_section = $_GET['tab'];
 				}
 			}
 
+			$default_option = [];
+			$option_name    = $this->base . 'settings';
+
 			foreach ( $this->settings as $section => $data ) {
 
-				if ( $current_section && $current_section !== $section ) {
+				if ( $selected_section && $selected_section !== $section ) {
 					continue;
 				}
 
-				// Add section to page.
-				add_settings_section( $section, $data['title'],
-					[ $this, 'settings_section' ],
-					$this->parent->_token . '_settings' );
+				$setting_args = [
+					'description' => $data['title'],
+					'default'     => $default_option,
+				];
 
-				$default_option = [];
+				// Validation callback for section.
+				if ( isset( $data['form_post_callback'] ) ) {
+					add_filter( "sanitize_option_$option_name", $data['form_post_callback'], 10, 3 );
+				}
+
+				// Add section to page.
+				add_settings_section( $section, '',
+					$data ['render_section_header'],
+					$this->parent->_token . '_settings' );
 
 				if ( array_key_exists( 'fields', $data ) && is_array( $data['fields'] ) ) {
 					foreach ( $data['fields'] as $field ) {
 						$default_option [ $field['id'] ] = $field['default'];
 					}
-
-					$setting_args = [
-						'description' => $data['title'],
-						'default'     => $default_option,
-					];
-
-					// Validation callback for section.
-					$option_name = $this->base . 'settings';
-					if ( isset( $data['callback'] ) ) {
-						add_filter( "sanitize_option_$option_name", $data['callback'], 10, 3 );
-					}
-
-					/* register the settings object */
-					register_setting( $this->parent->_token . '_settings', $option_name, $setting_args );
 
 					foreach ( $data['fields'] as $field ) {
 						// Add field to page.
@@ -455,10 +485,12 @@ class SQLite_Object_Cache_Settings {
 						);
 					}
 
-					if ( ! $current_section ) {
+					if ( ! $selected_section ) {
 						break;
 					}
 				}
+				/* register the settings object */
+				register_setting( $this->parent->_token . '_settings', $option_name, $setting_args );
 			}
 		}
 	}
@@ -471,7 +503,22 @@ class SQLite_Object_Cache_Settings {
 	 * @return void
 	 * @throws Exception Announce Database Failure.
 	 */
-	public function settings_section( $section ) {
+	public function settings_section_header( $section ) {
+
+		$this->support_links();
+		$this->versions();
+
+		if ( array_key_exists( 'description', $this->settings[ $section['id'] ] ) ) {
+			echo '<p> ' . esc_html( $this->settings[ $section['id'] ]['description'] ) . '</p>' . PHP_EOL;
+		}
+	}
+
+	/**
+	 * Display support and rating links.
+	 *
+	 * @return void
+	 */
+	private function support_links() {
 		/** @noinspection HtmlUnknownTarget */
 		$hyperlink     = '<a href="%s" target="_blank">%s</a>';
 		$supportUrl    = "https://wordpress.org/support/plugin/sqlite-object-cache/";
@@ -485,7 +532,15 @@ class SQLite_Object_Cache_Settings {
 		$supportString = sprintf( $supportString, $support, $review );
 
 		echo $supportString;
+	}
 
+	/**
+	 * Display versions.
+	 *
+	 * @return void
+	 * @throws Exception Announce database failure.
+	 */
+	private function versions() {
 		global $wp_object_cache;
 		if ( method_exists( $wp_object_cache, 'sqlite_get_version' ) ) {
 			echo '<p>' . esc_html( sprintf(
@@ -495,17 +550,25 @@ class SQLite_Object_Cache_Settings {
 					phpversion(),
 					$this->parent->_version ) ) . '</p>';
 		}
-		if ( array_key_exists( 'description', $this->settings[ $section['id'] ] ) ) {
-			echo '<p> ' . esc_html( $this->settings[ $section['id'] ]['description'] ) . '</p>' . PHP_EOL;
-		}
+	}
 
-		if ( 'stats' === $section['id'] ) {
+	/**
+	 * Statistics tab section.
+	 *
+	 * @param array $section Array of section ids.
+	 *
+	 * @return void
+	 * @throws Exception Announce Database Failure.
+	 */
+	public function stats_section_header( $section ) {
 
-			$stats = new SQLite_Object_Cache_Statistics ();
-			$stats->init();
+		$this->support_links();
+		$this->versions();
 
-			$stats->render();
-		}
+		$stats = new SQLite_Object_Cache_Statistics ();
+		$stats->init();
+
+		$stats->render();
 	}
 
 	/**
@@ -517,13 +580,14 @@ class SQLite_Object_Cache_Settings {
 
 		// Build page HTML.
 		echo '<div class="wrap" id="' . esc_attr( $this->parent->_token . '_settings' ) . '">' . PHP_EOL;
-		echo '<h2>' . esc_html__( 'SQLite Persistent Object Cache Settings', 'sqlite-object-cache' ) . '</h2>' . PHP_EOL;
+		echo '<h2>' . esc_html__( 'SQLite Persistent Object Cache', 'sqlite-object-cache' ) . '</h2>' . PHP_EOL;
 
-		$tab = '';
+		$selected_section = null;
 		if ( isset( $_GET['tab'] ) && $_GET['tab'] ) {
-			$tab .= $_GET['tab'];
+			$selected_section .= $_GET['tab'];
 		}
 
+		$submit_caption = __( 'Save Settings', 'sqlite-object-cache' );
 		$this->complain_if_sqlite3_unavailable( true );
 
 		// Show page tabs.
@@ -536,13 +600,14 @@ class SQLite_Object_Cache_Settings {
 
 				// Set tab class.
 				$class = 'nav-tab';
-				if ( ! isset( $_GET['tab'] ) ) {
+				if ( ! isset( $selected_section ) ) {
 					if ( 0 === $c ) {
 						$class .= ' nav-tab-active';
 					}
 				} else {
-					if ( $section == $_GET['tab'] ) {
-						$class .= ' nav-tab-active';
+					if ( $section == $selected_section ) {
+						$class          .= ' nav-tab-active';
+						$submit_caption = $data['submit'];
 					}
 				}
 
@@ -569,8 +634,8 @@ class SQLite_Object_Cache_Settings {
 		do_settings_sections( $this->parent->_token . '_settings' );
 
 		echo '<p class="submit">' . PHP_EOL;
-		echo '<input type="hidden" name="tab" value="' . esc_attr( $tab ) . '" />' . PHP_EOL;
-		echo '<input name="Submit" type="submit" class="button-primary" value="' . esc_attr( __( 'Save Settings', 'sqlite-object-cache' ) ) . '" />' . PHP_EOL;
+		echo '<input type="hidden" name="tab" value="' . esc_attr( $selected_section ) . '" />' . PHP_EOL;
+		echo '<input name="Submit" type="submit" class="button-primary" value="' . $submit_caption . '" />' . PHP_EOL;
 		echo '</p>' . PHP_EOL;
 		echo '</form>' . PHP_EOL;
 		echo '</div>' . PHP_EOL;
