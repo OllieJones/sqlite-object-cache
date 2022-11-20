@@ -76,15 +76,16 @@ This plugin uses a WordPress drop-in to extend the functionality of the WP_Cache
 
 Q: What are the two hardest things to get right in computer science?
 
-A: Caching things, naming things, and coping with off-by-one errors.
+1. Caching things.
+2. Naming things.
+3. Coping with off-by-one errors.
 
-Seriously, the core of WordPress has already worked out, over years of development and millions of sites, how to cache things and name them. This plugin simply extends that mechanism.
+Seriously, the core of WordPress has already worked out, over years of development and millions of sites, how to cache things and name them. This plugin simply extends that mechanism to make those things persistent.
 
 == Screenshots ==
 
-1. Description of first screenshot named screenshot-1
-2. Description of second screenshot named screenshot-2
-3. Description of third screenshot named screenshot-3
+1. Settings panel. Access it with Settings > Object Cache.
+2. Performance statistics panel.
 
 
 == Changelog ==
