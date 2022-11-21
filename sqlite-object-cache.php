@@ -22,14 +22,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// Load plugin class files.
 require_once 'includes/class-sqlite-object-cache.php';
-require_once 'includes/class-sqlite-object-cache-settings.php';
-
-// Load plugin libraries.
-require_once 'includes/lib/class-sqlite-object-cache-admin-api.php';
-require_once 'includes/lib/class-sqlite-object-cache-statistics.php';
-
+if ( is_admin() ) {
+	require_once 'includes/class-sqlite-object-cache-settings.php';
+	require_once 'includes/lib/class-sqlite-object-cache-admin-api.php';
+	require_once 'includes/lib/class-sqlite-object-cache-statistics.php';
+}
 /**
  * Returns the main instance of SQLite_Object_Cache to prevent the need to use globals.
  *
@@ -37,10 +35,10 @@ require_once 'includes/lib/class-sqlite-object-cache-statistics.php';
  * @since  1.0.0
  */
 function sqlite_object_cache() {
-	$instance = SQLite_Object_Cache::instance( __FILE__, '0.1.1' );
+	$instance = new SQLite_Object_Cache( __FILE__, '0.1.2' );
 
-	if ( is_null( $instance->settings ) ) {
-		$instance->settings = SQLite_Object_Cache_Settings::instance( $instance );
+	if ( is_admin() ) {
+		$instance->settings = new SQLite_Object_Cache_Settings( $instance );
 	}
 
 	return $instance;

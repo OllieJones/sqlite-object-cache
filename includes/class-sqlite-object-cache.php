@@ -11,17 +11,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Main plugin class.
+ *
+ * Only make one instance of this, please.
  */
 class SQLite_Object_Cache {
-
-	/**
-	 * The single instance of SQLite_Object_Cache.
-	 *
-	 * @var     object
-	 * @access  private
-	 * @since   1.0.0
-	 */
-	private static $_instance = null;
 
 	/**
 	 * Local instance of SQLite_Object_Cache_Admin_API
@@ -178,27 +171,6 @@ class SQLite_Object_Cache {
 		load_textdomain( $domain, WP_LANG_DIR . '/' . $domain . '/' . $domain . '-' . $locale . '.mo' );
 		load_plugin_textdomain( $domain, false, dirname( plugin_basename( $this->file ) ) . '/languages/' );
 	} // End enqueue_styles ()
-
-	/**
-	 * Main SQLite_Object_Cache Instance
-	 *
-	 * Ensures only one instance of SQLite_Object_Cache is loaded or can be loaded.
-	 *
-	 * @param string $file File instance.
-	 * @param string $version Version parameter.
-	 *
-	 * @return Object SQLite_Object_Cache instance
-	 * @see SQLite_Object_Cache()
-	 * @since 1.0.0
-	 * @static
-	 */
-	public static function instance( $file = '', $version = '1.0.0' ) {
-		if ( is_null( self::$_instance ) ) {
-			self::$_instance = new self( $file, $version );
-		}
-
-		return self::$_instance;
-	} // End enqueue_scripts ()
 
 	/**
 	 * Plugin activation hook
@@ -537,24 +509,5 @@ class SQLite_Object_Cache {
 			$dropin['PluginURI'],
 			$plugin['PluginURI']
 		);
-	} // End __clone ()
-
-	/**
-	 * Cloning is forbidden.
-	 *
-	 * @since 1.0.0
-	 */
-	public function __clone() {
-		_doing_it_wrong( __FUNCTION__, esc_html( __( 'Cloning of SQLite_Object_Cache is forbidden' ) ), esc_attr( $this->_version ) );
-	} // End __wakeup ()
-
-	/**
-	 * Unserializing instances of this class is forbidden.
-	 *
-	 * @since 1.0.0
-	 */
-	public function __wakeup() {
-		_doing_it_wrong( __FUNCTION__, esc_html( __( 'Unserializing instances of SQLite_Object_Cache is forbidden' ) ), esc_attr( $this->_version ) );
-	} // End _log_version_number ()
-
+	}
 }

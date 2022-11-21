@@ -10,16 +10,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * Only make one instance of this, please.
+ *
  * Settings class.
  */
 class SQLite_Object_Cache_Settings {
-
-	/**
-	 * The single instance of SQLite_Object_Cache_Settings.
-	 *
-	 * @var     object
-	 */
-	private static $_instance = null;
 
 	/**
 	 * The main plugin object.
@@ -82,25 +77,6 @@ class SQLite_Object_Cache_Settings {
 
 		// Load admin JS & CSS.
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_assets' ], 10, 1 );
-	}
-
-	/**
-	 * Main SQLite_Object_Cache_Settings Instance
-	 *
-	 * Ensures only one instance of SQLite_Object_Cache_Settings is loaded or can be loaded.
-	 *
-	 * @param object $parent Object instance.
-	 *
-	 * @return object SQLite_Object_Cache_Settings instance
-	 * @static
-	 * @see SQLite_Object_Cache()
-	 */
-	public static function instance( $parent ) {
-		if ( is_null( self::$_instance ) ) {
-			self::$_instance = new self( $parent );
-		}
-
-		return self::$_instance;
 	}
 
 	/**
@@ -561,7 +537,6 @@ class SQLite_Object_Cache_Settings {
 	 * @throws Exception Announce Database Failure.
 	 */
 	public function stats_section_header( $section ) {
-
 		$this->support_links();
 		$this->versions();
 
@@ -654,23 +629,5 @@ class SQLite_Object_Cache_Settings {
 			esc_url( $this->parent->assets_url ) . 'css/admin.css',
 			[], $this->parent->_version );
 		wp_enqueue_style( $this->parent->_token . '-admin' );
-	}
-
-	/**
-	 * Cloning is forbidden.
-	 *
-	 * @since 1.0.0
-	 */
-	public function __clone() {
-		_doing_it_wrong( __FUNCTION__, esc_html( __( 'Cloning of SQLite_Object_Cache_API is forbidden.' ) ), esc_attr( $this->parent->_version ) );
-	}
-
-	/**
-	 * Unserializing instances of this class is forbidden.
-	 *
-	 * @since 1.0.0
-	 */
-	public function __wakeup() {
-		_doing_it_wrong( __FUNCTION__, esc_html( __( 'Unserializing instances of SQLite_Object_Cache_API is forbidden.' ) ), esc_attr( $this->parent->_version ) );
 	}
 }

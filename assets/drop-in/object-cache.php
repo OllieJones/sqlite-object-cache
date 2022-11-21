@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache Drop-In
- * Version: 0.1.1
+ * Version: 0.1.2
  * Note: This Version number must match the one in the ctor for SQLite_Object_Cache.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -725,7 +725,8 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @throws Exception Announce database failure.
 		 */
 		private function maybe_clean_up_cache( $retention_time = null, $inverse_probability = 1000 ) {
-			$random = wp_rand( 1, $inverse_probability );
+			/* wp_rand is better, but it isn't always loaded when we need it. */
+			$random = rand( 1, $inverse_probability );
 			if ( 1 !== $random ) {
 				return;
 			}
