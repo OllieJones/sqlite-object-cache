@@ -80,10 +80,10 @@ class SQLite_Object_Cache_Statistics {
 		foreach ( $this->load_measurements() as $data ) {
 			$first        = min( $data->time, $first );
 			$last         = max( $data->time, $last );
-			$RAMhits      = $RAMhits + $data->RAMhits;
-			$RAMmisses    = $RAMmisses + $data->RAMmisses;
-			$DISKhits     = $DISKhits + $data->RAMhits;
-			$DISKmisses   = $DISKmisses + $data->RAMmisses;
+			$RAMhits      += $data->RAMhits;
+			$RAMmisses    += $data->RAMmisses;
+			$DISKhits     += $data->RAMhits;
+			$DISKmisses   += $data->RAMmisses;
 			$RAMratio     = $data->RAMhits / ( $data->RAMhits + $data->RAMmisses );
 			$RAMratios[]  = $RAMratio;
 			$DISKratio    = $data->DISKhits / ( $data->DISKhits + $data->DISKmisses );
@@ -119,8 +119,8 @@ class SQLite_Object_Cache_Statistics {
 			$this->descriptions   = $descriptions;
 			$this->selected_names = $selected_names;
 			$date_format          = get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
-			$this->start_time     = wp_date( $date_format, intval( $first ) );
-			$this->end_time       = wp_date( $date_format, intval( $last ) );
+			$this->start_time     = wp_date( $date_format, (int) $first );
+			$this->end_time       = wp_date( $date_format, (int) $last );
 		}
 	}
 
@@ -136,7 +136,7 @@ class SQLite_Object_Cache_Statistics {
 
 		if ( method_exists( $wp_object_cache, 'prepare' ) ) {
 			$sql       =
-				"SELECT name, value FROM object_cache WHERE name LIKE 'sqlite_object_cache|mon|%' ORDER BY name;";
+				"SELECT value FROM object_stats ORDER BY timestamp;";
 			$stmt      = $wp_object_cache->prepare( $sql );
 			$resultset = $stmt->execute();
 			while ( true ) {
@@ -145,7 +145,7 @@ class SQLite_Object_Cache_Statistics {
 					break;
 				}
 				/* the name in row [0] is sqlite_object_cache|mon|1666930243, with a timestamp baked in */
-				$value = $this->has_igbinary ? igbinary_unserialize( $row[1] ) : unserialize( $row[1] );
+				$value = $this->has_igbinary ? igbinary_unserialize( $row[0] ) : unserialize( $row[1] );
 				yield (object) $value;
 			}
 			$resultset->finalize();
@@ -201,7 +201,7 @@ class SQLite_Object_Cache_Statistics {
 			return null;
 		}
 		sort( $a );
-		$i = intval( floor( $n * $p ) );
+		$i = (int) floor( $n * $p );
 		if ( $i >= $n ) {
 			$i = $n - 1;
 		}
@@ -309,7 +309,7 @@ class SQLite_Object_Cache_Statistics {
 		echo '<h3>' . esc_html__( 'Cache performance statistics', 'sqlite-object-cache' ) . '</h3>';
 		if ( is_array( $this->descriptions ) ) {
 			echo '<p>' . esc_html( sprintf(
-			                    /* translators:  1 start time   2 end time both in localized format */
+									/* translators:  1 start time   2 end time both in localized format */
 				                    __( 'From %1$s to %2$s.', 'sqlite-object-cache' ),
 				                    $this->start_time, $this->end_time ) . ' ' . __( 'Times in microseconds.', 'sqlite-object-cache' ) ) . '</p>';
 			echo '<table class="sql-object-cache-stats">';
@@ -351,7 +351,7 @@ class SQLite_Object_Cache_Statistics {
 					$count_name = esc_html__( "Count", 'sqlite-object-cache' );
 					echo "<th>$group_name</th><th>$key_name</th><th>$count_name</th>";
 					echo '</tr></thead><tbody>';
-					$count_threshold = intval( $count * 0.7 );
+					$count_threshold = (int) ( $count * 0.7 );
 					$first           = false;
 				}
 				if ( $count < $count_threshold ) {

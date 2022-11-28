@@ -14,7 +14,7 @@ Primary Branch: trunk
 Text Domain: sqlite-object-cache
 Domain Path: /languages/
 
-A persistent object cache backend powered by SQLite.
+A persistent object cache backend for the rest of us, powered by SQLite.
 
 == Description ==
 

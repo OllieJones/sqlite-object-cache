@@ -227,7 +227,7 @@ class SQLite_Object_Cache {
 		$result = false;
 
 		try {
-			if ( extension_loaded( 'sqlite3' ) && class_exists( 'SQLite3' ) ) {
+			if (  class_exists( 'SQLite3' ) && extension_loaded( 'sqlite3' ) ) {
 				$v      = SQLite3::version();
 				$result = $v['versionString'];
 			}

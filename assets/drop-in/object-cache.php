@@ -43,6 +43,8 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	 * @since 0.1.0
 	 */
 	class WP_Object_Cache extends SQLite3 {
+		const OBJECT_STATS_TABLE = 'object_stats';
+		const OBJECT_CACHE_TABLE = 'object_cache';
 		/**
 		 * The amount of times the cache data was already stored in the cache.
 		 *
@@ -146,11 +148,53 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		private $multisite;
 
 		/**
-		 * An associative array of prepared SQLite3 Statements.
+		 * True if the present sqlite3 instance can do upserts.
 		 *
-		 * @var array Statements.
+		 * @var bool
 		 */
-		private $statements;
+		private $has_upsert;
+
+		/**
+		 * Prepared statement to get one cache element.
+		 *
+		 * @var SQLite3Stmt
+		 */
+		private $getone;
+
+		/**
+		 * Prepared statement to delete one cache element.
+		 *
+		 * @var SQLite3Stmt
+		 */
+		private $deleteone;
+
+		/**
+		 * Prepared statement to delete a group of cache elements.
+		 *
+		 * @var SQLite3Stmt
+		 */
+		private $deletegroup;
+
+		/**
+		 * Prepared statement to upsert one cache element.
+		 *
+		 * @var SQLite3Stmt
+		 */
+		private $upsertone;
+
+		/**
+		 * Prepared statement to insert one cache element.
+		 *
+		 * @var SQLite3Stmt
+		 */
+		private $insertone;
+
+		/**
+		 * Prepared statement to update one cache element.
+		 *
+		 * @var SQLite3Stmt
+		 */
+		private $updateone;
 
 		/**
 		 * A queue of put operations.
@@ -335,10 +379,18 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @return void
 		 * @throws Exception Database failure.
 		 */
-		private function initialize_connection( $tbl = 'object_cache', $noexpire_timestamp_offset = 500000000000, $max_lifetime = DAY_IN_SECONDS ) {
+		private function initialize_connection( $tbl = self::OBJECT_CACHE_TABLE, $noexpire_timestamp_offset = 500000000000, $max_lifetime = DAY_IN_SECONDS ) {
 			$this->cache_table_name          = $tbl;
 			$this->noexpire_timestamp_offset = $noexpire_timestamp_offset;
 			$this->max_lifetime              = $max_lifetime;
+
+			/*
+			 * Some versions of SQLite3 built into php predate the 3.38 advent of unixepoch() (2022-02-22).
+			 * And, others predate the 3.24 advent of UPSERT (that is, ON CONFLICT) syntax.
+			 * In that case we have to do attempt-update then insert to get updates to work. Sigh.
+			 */
+			$this->has_upsert = version_compare( $this->sqlite_get_version(), '3.24', 'ge' );
+
 			/* set some initial pragma stuff */
 
 			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
@@ -348,7 +400,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			// TODO detect corruption and rebuild the cache db.
 			$this->exec( 'PRAGMA journal_mode = MEMORY' );
 
-			$this->do_ddl( $tbl, $noexpire_timestamp_offset );
+			$this->create_object_cache_table( $tbl, $noexpire_timestamp_offset );
 			$this->prepare_statements( $tbl );
 			$this->preload( $tbl );
 		}
@@ -379,15 +431,16 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @return void
 		 * @throws Exception If something fails.
 		 */
-		private function do_ddl( $tbl, $noexpire_timestamp_offset ) {
+		private function create_object_cache_table( $tbl, $noexpire_timestamp_offset ) {
 			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
 			$now = time();
-			try {
-				$this->exec( 'BEGIN;' );
-				/* does our table exist?  */
-				$q = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND tbl_name = '$tbl';";
-				$r = $this->querySingle( $q );
-				if ( 0 === $r ) {
+			$this->exec( 'BEGIN;' );
+			/* does our table exist?  */
+			$q = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND tbl_name = '$tbl';";
+			$r = $this->querySingle( $q );
+			if ( 0 === $r ) {
+				/* later versions of SQLite3 have clustered primary keys, "WITHOUT ROWID" */
+				if ( version_compare( $this->sqlite_get_version(), '3.8.2' ) < 0 ) {
 					/* @noinspection SqlIdentifier */
 					$t = "
 						CREATE TABLE IF NOT EXISTS $tbl (
@@ -397,13 +450,49 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 						);
 						CREATE UNIQUE INDEX IF NOT EXISTS name ON $tbl (name);
 						CREATE INDEX IF NOT EXISTS expires ON $tbl (expires);";
-					$this->exec( $t );
-					/* @noinspection SqlResolve */
-					$this->exec( "INSERT INTO $tbl (name, value, expires) VALUES ('sqlite_object_cache|created', datetime(), $now + $noexpire_timestamp_offset);" );
+				} else {
+					/* @noinspection SqlIdentifier */
+					$t = "
+						CREATE TABLE IF NOT EXISTS $tbl (
+						   name TEXT NOT NULL PRIMARY KEY COLLATE BINARY,
+						   value BLOB,
+						   expires INT
+						) WITHOUT ROWID;
+						CREATE INDEX IF NOT EXISTS expires ON $tbl (expires);";
 				}
-			} finally {
-				$this->exec( 'COMMIT;' );
+
+				$this->exec( $t );
+				/* @noinspection SqlResolve */
+				$this->exec( "INSERT INTO $tbl (name, value, expires) VALUES ('sqlite_object_cache|created', datetime(), $now + $noexpire_timestamp_offset);" );
 			}
+			$this->exec( 'COMMIT;' );
+		}
+
+		/**
+		 * Do the necessary Data Definition Language work.
+		 *
+		 * @param string $tbl The name of the table.
+		 *
+		 * @return void
+		 * @throws Exception If something fails.
+		 */
+		private function create_stats_table( $tbl ) {
+			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
+			$this->exec( 'BEGIN;' );
+			/* does our table exist?  */
+			$q = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND tbl_name = '$tbl';";
+			$r = $this->querySingle( $q );
+			if ( 0 === $r ) {
+				/* @noinspection SqlIdentifier */
+				$t = "
+						CREATE TABLE IF NOT EXISTS $tbl (
+						   value BLOB,
+						   timestamp INT
+						);
+						CREATE INDEX IF NOT EXISTS expires ON $tbl (timestamp);";
+				$this->exec( $t );
+			}
+			$this->exec( 'COMMIT;' );
 		}
 
 		/**
@@ -431,31 +520,34 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @param string $tbl Table name.
 		 *
 		 * @return void
-		 * @throws Exception Announce failure.
+		 * throws Exception Announce failure.
 		 */
 		private function prepare_statements( $tbl ) {
 			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
 
-			/*
-			 * Some versions of SQLite3 built into php predate the 3.38 advent of unixepoch() (2022-02-22).
-			 * And, others predate the 3.24 advent of UPSERT (that is, ON CONFLICT) syntax.
-			 * So, we have to do attempt-update then insert to get updates to work. Sigh.
-			 */
-			$now         = time();
-			$updateone   = "UPDATE $tbl SET value = :value, expires = $now + :expires WHERE name = :name;";
-			$insertone   = "INSERT INTO $tbl (name, value, expires) VALUES (:name, :value, $now + :expires);";
+			$now       = time();
+			$updateone = "UPDATE $tbl SET value = :value, expires = $now + :expires WHERE name = :name;";
+			$insertone = "INSERT INTO $tbl (name, value, expires) VALUES (:name, :value, $now + :expires);";
+			/* @noinspection SqlResolve */
+			$upsertone   = "
+INSERT INTO $tbl (name, value, expires) 
+VALUES (:name, :value, $now + :expires) 
+ON CONFLICT(name) DO UPDATE
+SET value=excluded.value, expires=excluded.expires;";
 			$getone      = "SELECT value FROM $tbl WHERE name = :name AND expires >= $now;";
 			$deleteone   = "DELETE FROM $tbl WHERE name = :name;";
 			$deletegroup = "DELETE FROM $tbl WHERE name LIKE :group || '.%';";
 
-			/* prepare the statements for later use */
-			$this->statements = [
-				'updateone'   => $this->prepare( $updateone ),
-				'insertone'   => $this->prepare( $insertone ),
-				'getone'      => $this->prepare( $getone ),
-				'deleteone'   => $this->prepare( $deleteone ),
-				'deletegroup' => $this->prepare( $deletegroup ),
-			];
+			$this->getone      = $this->prepare( $getone );
+			$this->deleteone   = $this->prepare( $deleteone );
+			$this->deletegroup = $this->prepare( $deletegroup );
+
+			if ( $this->has_upsert ) {
+				$this->upsertone = $this->prepare( $upsertone );
+			} else {
+				$this->insertone = $this->prepare( $insertone );
+				$this->updateone = $this->prepare( $updateone );
+			}
 		}
 
 		/**
@@ -634,28 +726,41 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$start   = $this->time_usec();
 			$value   = $this->maybe_serialize( $item[0] );
 			$expires = $item[1] ?: $this->noexpire_timestamp_offset;
-			$stmt    = $this->statements['updateone'];
-			$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
-			$stmt->bindValue( ':value', $value, SQLITE3_BLOB );
-			$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
-			$result = $stmt->execute();
-			if ( false === $result ) {
-				$code = $this->lastErrorCode();
-				throw new Exception( "putone: $name failed update: ($code): " . $this->lastErrorMsg() );
-			}
-			$result->finalize();
-			if ( 0 === $this->changes() ) {
-				/* Updated no rows:  need insert. */
-				$stmt = $this->statements['insertone'];
+			if ( $this->has_upsert ) {
+				$stmt = $this->upsertone;
 				$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
 				$stmt->bindValue( ':value', $value, SQLITE3_BLOB );
 				$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
 				$result = $stmt->execute();
 				if ( false === $result ) {
 					$code = $this->lastErrorCode();
-					throw new Exception( "putone: $name failed insert: ($code): " . $this->lastErrorMsg() );
+					throw new Exception( "putone: $name failed upsert: ($code): " . $this->lastErrorMsg() );
 				}
 				$result->finalize();
+			} else {
+				$stmt = $this->updateone;
+				$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
+				$stmt->bindValue( ':value', $value, SQLITE3_BLOB );
+				$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
+				$result = $stmt->execute();
+				if ( false === $result ) {
+					$code = $this->lastErrorCode();
+					throw new Exception( "putone: $name failed update: ($code): " . $this->lastErrorMsg() );
+				}
+				$result->finalize();
+				if ( 0 === $this->changes() ) {
+					/* Updated no rows:  need insert. */
+					$stmt = $this->insertone;
+					$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
+					$stmt->bindValue( ':value', $value, SQLITE3_BLOB );
+					$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
+					$result = $stmt->execute();
+					if ( false === $result ) {
+						$code = $this->lastErrorCode();
+						throw new Exception( "putone: $name failed insert: ($code): " . $this->lastErrorMsg() );
+					}
+					$result->finalize();
+				}
 			}
 			unset( $this->not_in_persistent_cache[ $name ] );
 			$this->in_persistent_cache[ $name ] = true;
@@ -673,7 +778,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 */
 		private function deleteone( $name ) {
 			$start = $this->time_usec();
-			$stmt  = $this->statements['deleteone'];
+			$stmt  = $this->deleteone;
 			$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
 			$result = $stmt->execute();
 			if ( false === $result ) {
@@ -741,13 +846,15 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @throws Exception Announce database error.
 		 */
 		public function sqlite_reset_statistics( $age = null ) {
+			$object_stats = self::OBJECT_STATS_TABLE;
 			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
 			if ( ! is_numeric( $age ) ) {
-				$sql = "DELETE FROM $this->cache_table_name WHERE name LIKE 'sqlite_object_cache|mon|%';";
+				$sql = "DELETE FROM $object_stats;";
 			} else {
 				$expires = (int) ( time() - $age );
 				/* @noinspection SqlResolve */
-				$sql = "DELETE FROM $this->cache_table_name WHERE name LIKE 'sqlite_object_cache|mon|%' AND expires < $expires;";
+				$sql =
+					"DELETE FROM $object_stats WHERE timestamp < $expires;";
 			}
 			$this->exec( $sql );
 		}
@@ -806,6 +913,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @return void
 		 */
 		private function capture( $options ) {
+			$object_stats = self::OBJECT_STATS_TABLE;
 			if ( ! array_key_exists( 'capture', $options ) || ! $options['capture'] ) {
 				return;
 			}
@@ -838,18 +946,14 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			/* get the lifetime */
 			$lifetime = $options['lifetime'] ? (int) $options['lifetime'] : HOUR_IN_SECONDS;
 
-			$name = 'sqlite_object_cache|mon|' . str_pad( $timestamp, 12, '0', STR_PAD_LEFT );
+			$this->create_stats_table( $object_stats );
 			$sql  =
-				"INSERT INTO $this->cache_table_name (name, value, expires) VALUES (:name, :value, :expires);";
+				"INSERT INTO $object_stats (value, timestamp) VALUES (:value, :timestamp);";
 			$stmt = $this->prepare( $sql );
-			$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
 			$stmt->bindValue( ':value', $this->maybe_serialize( $record ), SQLITE3_BLOB );
-			$stmt->bindValue( ':expires', (int) ( $lifetime + $now ), SQLITE3_INTEGER );
-			$result = @$stmt->execute();
-			if ( false !== $result ) {
-				/* this statement might hit "UNIQUE constraint failed". We ignore that in this case. */
-				$result->finalize();
-			}
+			$stmt->bindValue( ':timestamp', time(), SQLITE3_INTEGER );
+			$result = $stmt->execute();
+			$result->finalize();
 			unset( $record, $stmt );
 		}
 
@@ -860,8 +964,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @throws Exception Announce database failure.
 		 */
 		public function sqlite_get_version() {
+			$v = SQLite3::version();
 
-			return $this->querySingle( 'SELECT sqlite_version();' );
+			return $v['versionString'];
 		}
 
 		/**
@@ -1074,7 +1179,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			if ( array_key_exists( $name, $this->not_in_persistent_cache ) ) {
 				return null;
 			}
-			$stmt = $this->statements['getone'];
+			$stmt = $this->getone;
 			$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
 			$result = $stmt->execute();
 			if ( false === $result ) {
@@ -1513,7 +1618,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		public function flush_group( $group ) {
 			unset( $this->cache[ $group ] );
 
-			$stmt = $this->statements ['deletegroup'];
+			$stmt = $this->deletegroup;
 			$stmt->bindValue( ':group', $group, SQLITE3_TEXT );
 			$result = $stmt->execute();
 			if ( false === $result ) {
@@ -1675,11 +1780,11 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	/**
 	 * Adds data to the cache, if the cache key doesn't already exist.
 	 *
-	 * @param int|string $key The cache key to use for retrieval later.
-	 * @param mixed      $data The data to add to the cache.
-	 * @param string     $group Optional. The group to add the cache to. Enables the same key
+	 * @param int|string       $key The cache key to use for retrieval later.
+	 * @param mixed            $data The data to add to the cache.
+	 * @param string           $group Optional. The group to add the cache to. Enables the same key
 	 *                           to be used across groups. Default empty.
-	 * @param int        $expire Optional. When the cache data should expire, in seconds.
+	 * @param int              $expire Optional. When the cache data should expire, in seconds.
 	 *                           Default 0 (no expiration).
 	 *
 	 * @return bool True on success, false if cache key and group already exist.
@@ -1709,7 +1814,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	 * @global WP_Object_Cache $wp_object_cache Object cache global instance.
 	 *
 	 * @since 6.0.0
-	 *
 	 */
 	function wp_cache_add_multiple( array $data, $group = '', $expire = 0 ) {
 		global $wp_object_cache;
@@ -1768,10 +1872,10 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	/**
 	 * Sets multiple values to the cache in one call.
 	 *
-	 * @param array  $data Array of keys and values to be set.
-	 * @param string $group Optional. Where the cache contents are grouped. Default empty.
-	 * @param int    $expire Optional. When to expire the cache contents, in seconds.
-	 *                       Default 0 (no expiration).
+	 * @param array            $data Array of keys and values to be set.
+	 * @param string           $group Optional. Where the cache contents are grouped. Default empty.
+	 * @param int              $expire Optional. When to expire the cache contents, in seconds.
+	 *                            Default 0 (no expiration).
 	 *
 	 * @return bool[] Array of return values, grouped by key. Each value is either
 	 *                true on success, or false on failure.
@@ -1789,11 +1893,11 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	/**
 	 * Retrieves the cache contents from the cache by key and group.
 	 *
-	 * @param int|string $key The key under which the cache contents are stored.
-	 * @param string     $group Optional. Where the cache contents are grouped. Default empty.
-	 * @param bool       $force Optional. Whether to force an update of the local cache
+	 * @param int|string       $key The key under which the cache contents are stored.
+	 * @param string           $group Optional. Where the cache contents are grouped. Default empty.
+	 * @param bool             $force Optional. Whether to force an update of the local cache
 	 *                          from the persistent cache. Default false.
-	 * @param bool       $found Optional. Whether the key was found in the cache (passed by reference).
+	 * @param bool             $found Optional. Whether the key was found in the cache (passed by reference).
 	 *                          Disambiguates a return of false, a storable value. Default null.
 	 *
 	 * @return mixed|false The cache contents on success, false on failure to retrieve contents.
@@ -1812,9 +1916,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	/**
 	 * Retrieves multiple values from the cache in one call.
 	 *
-	 * @param array  $keys Array of keys under which the cache contents are stored.
-	 * @param string $group Optional. Where the cache contents are grouped. Default empty.
-	 * @param bool   $force Optional. Whether to force an update of the local cache
+	 * @param array            $keys Array of keys under which the cache contents are stored.
+	 * @param string           $group Optional. Where the cache contents are grouped. Default empty.
+	 * @param bool             $force Optional. Whether to force an update of the local cache
 	 *                      from the persistent cache. Default false.
 	 *
 	 * @return array Array of return values, grouped by key. Each value is either
@@ -1833,8 +1937,8 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	/**
 	 * Removes the cache contents matching key and group.
 	 *
-	 * @param int|string $key What the contents in the cache are called.
-	 * @param string     $group Optional. Where the cache contents are grouped. Default empty.
+	 * @param int|string       $key What the contents in the cache are called.
+	 * @param string           $group Optional. Where the cache contents are grouped. Default empty.
 	 *
 	 * @return bool True on successful removal, false on failure.
 	 * @since 2.0.0
@@ -1851,8 +1955,8 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	/**
 	 * Deletes multiple values from the cache in one call.
 	 *
-	 * @param array  $keys Array of keys under which the cache to deleted.
-	 * @param string $group Optional. Where the cache contents are grouped. Default empty.
+	 * @param array            $keys Array of keys for deletion.
+	 * @param string           $group Optional. Where the cache contents are grouped. Default empty.
 	 *
 	 * @return bool[] Array of return values, grouped by key. Each value is either
 	 *                true on success, or false if the contents were not deleted.
@@ -1870,10 +1974,10 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	/**
 	 * Increments numeric cache item's value.
 	 *
-	 * @param int|string $key The key for the cache contents that should be incremented.
-	 * @param int        $offset Optional. The amount by which to increment the item's value.
+	 * @param int|string       $key The key for the cache contents that should be incremented.
+	 * @param int              $offset Optional. The amount by which to increment the item's value.
 	 *                           Default 1.
-	 * @param string     $group Optional. The group the key is in. Default empty.
+	 * @param string           $group Optional. The group the key is in. Default empty.
 	 *
 	 * @return int|false The item's new value on success, false on failure.
 	 * @see WP_Object_Cache::incr()
@@ -1890,10 +1994,10 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	/**
 	 * Decrements numeric cache item's value.
 	 *
-	 * @param int|string $key The cache key to decrement.
-	 * @param int        $offset Optional. The amount by which to decrement the item's value.
+	 * @param int|string       $key The cache key to decrement.
+	 * @param int              $offset Optional. The amount by which to decrement the item's value.
 	 *                           Default 1.
-	 * @param string     $group Optional. The group the key is in. Default empty.
+	 * @param string           $group Optional. The group the key is in. Default empty.
 	 *
 	 * @return int|false The item's new value on success, false on failure.
 	 * @see WP_Object_Cache::decr()
@@ -1993,7 +2097,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	 *
 	 * @return true Always returns true.
 	 * @since 2.0.0
-	 *
 	 */
 	function wp_cache_close() {
 		global $wp_object_cache;
@@ -2004,7 +2107,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	/**
 	 * Adds a group or set of groups to the list of global groups.
 	 *
-	 * @param string|string[] $groups A group or an array of groups to add.
+	 * @param string|string[]  $groups A group or an array of groups to add.
 	 *
 	 * @see WP_Object_Cache::add_global_groups()
 	 * @global WP_Object_Cache $wp_object_cache Object cache global instance.
@@ -2042,7 +2145,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	 * @global WP_Object_Cache $wp_object_cache Object cache global instance.
 	 *
 	 * @since 3.5.0
-	 *
 	 */
 	function wp_cache_switch_to_blog( $blog_id ) {
 		global $wp_object_cache;
@@ -2060,7 +2162,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	 * This function is deprecated. Use wp_cache_switch_to_blog() instead of this
 	 * function when preparing the cache for a blog switch. For clearing the cache
 	 * during unit tests, consider using wp_cache_init(). wp_cache_init() is not
-	 * recommended outside of unit tests as the performance penalty for using it is high.
+	 * recommended outside unit tests as the performance penalty for using it is high.
 	 *
 	 * @since 3.0.0
 	 * @deprecated 3.5.0 Use wp_cache_switch_to_blog()
