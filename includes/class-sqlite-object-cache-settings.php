@@ -21,7 +21,7 @@ class SQLite_Object_Cache_Settings {
 	 *
 	 * @var     object
 	 */
-	public $parent = null;
+	public $parent;
 
 	/**
 	 * Prefix for plugin settings.
@@ -155,7 +155,6 @@ class SQLite_Object_Cache_Settings {
 					'description' => __( 'hours.', 'sqlite-object-cache' ),
 					'type'        => 'number',
 					'default'     => 2,
-					'max'         => 31 * 24,
 					'min'         => 0.1,
 					'step'        => 'any',
 					'cssclass'    => 'narrow',
@@ -179,7 +178,7 @@ class SQLite_Object_Cache_Settings {
 	 *
 	 * This is an options update filter. It filters an option value following sanitization.
 	 *
-	 * @param string $option The sanitized option value.
+	 * @param mixed  $option The sanitized option value.
 	 * @param string $name The option name.
 	 * @param string $original_value The original value passed to the function.
 	 *
@@ -262,10 +261,9 @@ class SQLite_Object_Cache_Settings {
 			$wp_object_cache->sqlite_reset_statistics();
 		}
 
+		/* for this post operation, we don't want to change any plugin options. */
 
-			/* for this post operation, we don't want to change any plugin options. */
 		return get_option( $name );
-
 	}
 
 	/**
@@ -338,7 +336,7 @@ class SQLite_Object_Cache_Settings {
 				echo '<h3 style="color: #d63638">' . esc_html__( 'Server configuration problem', 'sqlite-object-cache' ) . '</h3>';
 				echo '<p>';
 
-				if ( ! extension_loaded( 'sqlite3' ) || ! class_exists( 'SQLite3' ) ) {
+				if ( ! class_exists( 'SQLite3' ) || ! extension_loaded( 'sqlite3' ) ) {
 					echo esc_html__( 'The SQLite Persistent Object Cache plugin requires php\'s SQLite3 extension.', 'sqlite-object-cache' ) . ' ';
 					echo esc_html__( 'That extension is not installed in your server, so the plugin cannot work.', 'sqlite-object-cache' ) . ' ';
 				}
@@ -407,22 +405,15 @@ class SQLite_Object_Cache_Settings {
 	public function register_my_settings() {
 		if ( is_array( $this->settings ) ) {
 
-			// Check posted/selected tab.
-			$selected_section = '';
-			if ( isset( $_POST['tab'] ) && $_POST['tab'] ) {
-				$selected_section = $_POST['tab'];
-			} else {
-				if ( isset( $_GET['tab'] ) && $_GET['tab'] ) {
-					$selected_section = $_GET['tab'];
-				}
-			}
+			/* get the tab chosen by the user ('standard' or 'stats') */
+			$tab = isset ( $_REQUEST['tab'] ) ? sanitize_key( $_REQUEST['tab'] ) : 'standard';
 
 			$default_option = [];
 			$option_name    = $this->base . 'settings';
 
 			foreach ( $this->settings as $section => $data ) {
 
-				if ( $selected_section && $selected_section !== $section ) {
+				if ( $tab && $tab !== $section ) {
 					continue;
 				}
 
@@ -451,7 +442,7 @@ class SQLite_Object_Cache_Settings {
 						add_settings_field(
 							$field['id'],
 							$field['label'],
-							[ $this->parent->admin, 'display_field' ],
+							[ $this->parent->admin, 'echo_field' ],
 							$this->parent->_token . '_settings',
 							$section,
 							[
@@ -459,10 +450,6 @@ class SQLite_Object_Cache_Settings {
 								'option' => $option_name,
 							]
 						);
-					}
-
-					if ( ! $selected_section ) {
-						break;
 					}
 				}
 				/* register the settings object */
@@ -495,19 +482,16 @@ class SQLite_Object_Cache_Settings {
 	 * @return void
 	 */
 	private function support_links() {
-		/** @noinspection HtmlUnknownTarget */
-		$hyperlink     = '<a href="%s" target="_blank">%s</a>';
-		$supportUrl    = "https://wordpress.org/support/plugin/sqlite-object-cache/";
-		$reviewUrl     = "https://wordpress.org/support/plugin/sqlite-object-cache/reviews/";
-		$clickHere     = esc_html__( 'click here', 'sqlite-object-cache' );
-		$support       = sprintf( $hyperlink, $supportUrl, $clickHere );
-		$review        = sprintf( $hyperlink, $reviewUrl, $clickHere );
-		$supportString =
-			/* translators: 1: embeds "For help please ..."  2: hyperlink to review page on wp.org */
-			'<p>' . esc_html__( 'For support please %1$s.  Please %2$s to rate this plugin. Your feedback helps make it better, faster, and more useful.', 'sqlite-object-cache' ) . '</p>';
-		$supportString = sprintf( $supportString, $support, $review );
 
-		echo $supportString;
+		$supportUrl = "https://wordpress.org/support/plugin/sqlite-object-cache/";
+		$reviewUrl  = "https://wordpress.org/support/plugin/sqlite-object-cache/reviews/";
+		echo '<p>';
+		echo esc_html__( 'For support please', 'sqlite-object-cache' ) . ' ';
+		echo '<a href="' . $supportUrl . '">' . esc_html__( 'click here', 'sqlite-object-cache' ) . '</a>. ';
+		echo esc_html__( 'To rate this plugin please', 'sqlite-object-cache' ) . ' ';
+		echo '<a href="' . $reviewUrl . '">' . esc_html__( 'click here', 'sqlite-object-cache' ) . '</a>. ';
+		echo esc_html__( 'Your feedback helps make it better, faster, and more useful', 'sqlite-object-cache' ) . '.';
+		echo '</p>';
 	}
 
 	/**
@@ -523,7 +507,7 @@ class SQLite_Object_Cache_Settings {
 				/* translators: 1: version for sqlite   2: version for php  3: version for plugin */
 					__( 'Versions: SQLite: %1$s  php: %2$s  Plugin: %3$s.', 'sqlite-object-cache' ),
 					$wp_object_cache->sqlite_get_version(),
-					phpversion(),
+					PHP_VERSION,
 					$this->parent->_version ) ) . '</p>';
 		}
 	}
@@ -535,6 +519,7 @@ class SQLite_Object_Cache_Settings {
 	 *
 	 * @return void
 	 * @throws Exception Announce Database Failure.
+	 * @noinspection PhpUnusedParameterInspection
 	 */
 	public function stats_section_header( $section ) {
 		$this->support_links();
@@ -553,14 +538,12 @@ class SQLite_Object_Cache_Settings {
 	 */
 	public function settings_page() {
 
+		/* get the tab chosen by the user ('standard' by default or 'stats') */
+		$tab = isset ( $_REQUEST['tab'] ) ? sanitize_key( $_REQUEST['tab'] ) : 'standard';
+
 		// Build page HTML.
 		echo '<div class="wrap" id="' . esc_attr( $this->parent->_token . '_settings' ) . '">' . PHP_EOL;
 		echo '<h2>' . esc_html__( 'SQLite Persistent Object Cache', 'sqlite-object-cache' ) . '</h2>' . PHP_EOL;
-
-		$selected_section = null;
-		if ( isset( $_GET['tab'] ) && $_GET['tab'] ) {
-			$selected_section .= $_GET['tab'];
-		}
 
 		$submit_caption = __( 'Save Settings', 'sqlite-object-cache' );
 		$this->complain_if_sqlite3_unavailable( true );
@@ -570,32 +553,21 @@ class SQLite_Object_Cache_Settings {
 
 			echo '<h2 class="nav-tab-wrapper">' . PHP_EOL;
 
-			$c = 0;
 			foreach ( $this->settings as $section => $data ) {
 
 				// Set tab class.
 				$class = 'nav-tab';
-				if ( ! isset( $selected_section ) ) {
-					if ( 0 === $c ) {
-						$class .= ' nav-tab-active';
-					}
-				} else {
-					if ( $section == $selected_section ) {
-						$class          .= ' nav-tab-active';
-						$submit_caption = $data['submit'];
-					}
+				if ( $section === $tab ) {
+					$class          .= ' nav-tab-active';
+					$submit_caption = $data['submit'];
 				}
 
 				// Set tab link.
 				$tab_link = add_query_arg( [ 'tab' => $section ] );
-				if ( isset( $_GET['settings-updated'] ) ) {
-					$tab_link = remove_query_arg( 'settings-updated', $tab_link );
-				}
+				$tab_link = remove_query_arg( 'settings-updated', $tab_link );
 
 				// Output tab.
 				echo '<a href="' . $tab_link . '" class="' . esc_attr( $class ) . '">' . esc_html( $data['title'] ) . '</a>' . PHP_EOL;
-
-				++ $c;
 			}
 
 			echo '</h2>' . PHP_EOL;
@@ -609,7 +581,7 @@ class SQLite_Object_Cache_Settings {
 		do_settings_sections( $this->parent->_token . '_settings' );
 
 		echo '<p class="submit">' . PHP_EOL;
-		echo '<input type="hidden" name="tab" value="' . esc_attr( $selected_section ) . '" />' . PHP_EOL;
+		echo '<input type="hidden" name="tab" value="' . esc_attr( $tab ) . '" />' . PHP_EOL;
 		echo '<input name="Submit" type="submit" class="button-primary" value="' . $submit_caption . '" />' . PHP_EOL;
 		echo '</p>' . PHP_EOL;
 		echo '</form>' . PHP_EOL;

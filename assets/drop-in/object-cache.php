@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache Drop-In
- * Version: 0.1.2
+ * Version: 0.1.3
  * Note: This Version number must match the one in the ctor for SQLite_Object_Cache.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -43,8 +43,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	 * @since 0.1.0
 	 */
 	class WP_Object_Cache extends SQLite3 {
-		const SQLITE_CONSTRAINT_VIOLATION_ERROR_CODE = 19;
-
 		/**
 		 * The amount of times the cache data was already stored in the cache.
 		 *
@@ -548,7 +546,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				return sprintf( /* translators: 1: WP_CONTENT_DIR */ __( 'The SQLite Object Cache cannot be activated because the %s directory is not writable.', 'sqlite-object-cache' ), $directory );
 			}
 
-			if ( ! extension_loaded( 'sqlite3' ) || ! class_exists( 'SQLite3' ) ) {
+			if ( ! class_exists( 'SQLite3' ) || ! extension_loaded( 'sqlite3' ) ) {
 				return __( 'The SQLite Object Cache cannot be activated because the SQLite3 extension is not loaded.', 'sqlite-object-cache' );
 			}
 
@@ -726,7 +724,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 */
 		private function maybe_clean_up_cache( $retention_time = null, $inverse_probability = 1000 ) {
 			/* wp_rand is better, but it isn't always loaded when we need it. */
-			$random = rand( 1, $inverse_probability );
+			$random = wp_rand( 1, $inverse_probability );
 			if ( 1 !== $random ) {
 				return;
 			}
@@ -747,10 +745,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			if ( ! is_numeric( $age ) ) {
 				$sql = "DELETE FROM $this->cache_table_name WHERE name LIKE 'sqlite_object_cache|mon|%';";
 			} else {
-				$expires = intval( time() - $age );
+				$expires = (int) ( time() - $age );
 				/* @noinspection SqlResolve */
-				$sql =
-					"DELETE FROM $this->cache_table_name WHERE name LIKE 'sqlite_object_cache|mon|%' AND expires < $expires;";
+				$sql = "DELETE FROM $this->cache_table_name WHERE name LIKE 'sqlite_object_cache|mon|%' AND expires < $expires;";
 			}
 			$this->exec( $sql );
 		}
@@ -758,9 +755,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		/**
 		 * Remove old entries and VACUUM the database.
 		 *
-		 * @param int  $retention_time How long, in seconds, to keep old entries. Default one week.
-		 * @param bool $use_transaction True if the cleanup should be inside BEGIN / COMMIT.
-		 * @param bool $vacuum VACUUM the db.
+		 * @param mixed $retention_time How long, in seconds, to keep old entries. Default one week.
+		 * @param bool  $use_transaction True if the cleanup should be inside BEGIN / COMMIT.
+		 * @param bool  $vacuum VACUUM the db.
 		 *
 		 * @return void
 		 * @throws Exception Announce database failure.
@@ -836,10 +833,10 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$resolution = $resolution >= 1.0 ? round( $resolution, 0 ) : $resolution;
 			$timestamp  = $now - ( fmod( $now, $resolution ) );
 			$timestamp  = round( $timestamp, 3 );
-			$timestamp  = $resolution >= 1.0 ? intval( $timestamp ) : $timestamp;
+			$timestamp  = $resolution >= 1.0 ? (int) $timestamp : $timestamp;
 
 			/* get the lifetime */
-			$lifetime = $options['lifetime'] ? intval( $options['lifetime'] ) : HOUR_IN_SECONDS;
+			$lifetime = $options['lifetime'] ? (int) $options['lifetime'] : HOUR_IN_SECONDS;
 
 			$name = 'sqlite_object_cache|mon|' . str_pad( $timestamp, 12, '0', STR_PAD_LEFT );
 			$sql  =
@@ -847,14 +844,13 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$stmt = $this->prepare( $sql );
 			$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
 			$stmt->bindValue( ':value', $this->maybe_serialize( $record ), SQLITE3_BLOB );
-			$stmt->bindValue( ':expires', intval( $lifetime + $now ), SQLITE3_INTEGER );
+			$stmt->bindValue( ':expires', (int) ( $lifetime + $now ), SQLITE3_INTEGER );
 			$result = @$stmt->execute();
 			if ( false !== $result ) {
 				/* this statement might hit "UNIQUE constraint failed". We ignore that in this case. */
 				$result->finalize();
 			}
-			unset( $record );
-			unset( $stmt );
+			unset( $record, $stmt );
 		}
 
 		/**
@@ -1290,17 +1286,17 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			}
 
 			if ( $this->cache_item_exists( $key, $group ) ) {
-				$found            = true;
-				$this->cache_hits = $this->cache_hits + 1;
+				$found = true;
+				++ $this->cache_hits;
 				if ( is_object( $this->cache[ $group ][ $key ] ) ) {
 					return clone $this->cache[ $group ][ $key ];
-				} else {
-					return $this->cache[ $group ][ $key ];
 				}
+
+				return $this->cache[ $group ][ $key ];
 			}
 
-			$found              = false;
-			$this->cache_misses = $this->cache_misses + 1;
+			$found = false;
+			$this->cache_misses ++;
 
 			return false;
 		}
@@ -1386,7 +1382,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 *
 		 * @return int|false The item's new value on success, false on failure.
 		 * @since 3.3.0
-		 *
 		 */
 		public function incr( $key, $offset = 1, $group = 'default' ) {
 			if ( ! $this->is_valid_key( $key ) ) {
@@ -1514,7 +1509,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @return true Always returns true.
 		 * @throws Exception Announce database failure.
 		 * @since 6.1.0
-		 *
 		 */
 		public function flush_group( $group ) {
 			unset( $this->cache[ $group ] );
@@ -1551,7 +1545,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @param string|string[] $groups List of groups that are global.
 		 *
 		 * @since 3.0.0
-		 *
 		 */
 		public function add_global_groups( $groups ) {
 			$groups = (array) $groups;
@@ -1605,7 +1598,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @since 2.0.0
 		 */
 		public function stats() {
-			echo esc_html( "<p><strong>Cache Hits:</strong> {$this->cache_hits}<br /><strong>Cache Misses:</strong> {$this->cache_misses}<br /></p>" );
+			echo esc_html( "<p><strong>Cache Hits:</strong> $this->cache_hits<br /><strong>Cache Misses:</strong> $this->cache_misses<br /></p>" );
 			echo esc_html( '<ul>' );
 			foreach ( $this->cache as $group => $cache ) {
 				// phpcs:ignore
@@ -1675,18 +1668,18 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 			$GLOBALS['wp_object_cache'] = new WP_Object_Cache();
 		} else {
-			throw new Exception( $message );
+			throw new \RuntimeException( $message );
 		}
 	}
 
 	/**
 	 * Adds data to the cache, if the cache key doesn't already exist.
 	 *
-	 * @param int|string       $key The cache key to use for retrieval later.
-	 * @param mixed            $data The data to add to the cache.
-	 * @param string           $group Optional. The group to add the cache to. Enables the same key
+	 * @param int|string $key The cache key to use for retrieval later.
+	 * @param mixed      $data The data to add to the cache.
+	 * @param string     $group Optional. The group to add the cache to. Enables the same key
 	 *                           to be used across groups. Default empty.
-	 * @param int              $expire Optional. When the cache data should expire, in seconds.
+	 * @param int        $expire Optional. When the cache data should expire, in seconds.
 	 *                           Default 0 (no expiration).
 	 *
 	 * @return bool True on success, false if cache key and group already exist.
@@ -1775,9 +1768,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	/**
 	 * Sets multiple values to the cache in one call.
 	 *
-	 * @param array            $data Array of keys and values to be set.
-	 * @param string           $group Optional. Where the cache contents are grouped. Default empty.
-	 * @param int              $expire Optional. When to expire the cache contents, in seconds.
+	 * @param array  $data Array of keys and values to be set.
+	 * @param string $group Optional. Where the cache contents are grouped. Default empty.
+	 * @param int    $expire Optional. When to expire the cache contents, in seconds.
 	 *                       Default 0 (no expiration).
 	 *
 	 * @return bool[] Array of return values, grouped by key. Each value is either
@@ -1786,7 +1779,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	 * @global WP_Object_Cache $wp_object_cache Object cache global instance.
 	 *
 	 * @since 6.0.0
-	 *
 	 */
 	function wp_cache_set_multiple( array $data, $group = '', $expire = 0 ) {
 		global $wp_object_cache;
@@ -1797,11 +1789,11 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	/**
 	 * Retrieves the cache contents from the cache by key and group.
 	 *
-	 * @param int|string       $key The key under which the cache contents are stored.
-	 * @param string           $group Optional. Where the cache contents are grouped. Default empty.
-	 * @param bool             $force Optional. Whether to force an update of the local cache
+	 * @param int|string $key The key under which the cache contents are stored.
+	 * @param string     $group Optional. Where the cache contents are grouped. Default empty.
+	 * @param bool       $force Optional. Whether to force an update of the local cache
 	 *                          from the persistent cache. Default false.
-	 * @param bool             $found Optional. Whether the key was found in the cache (passed by reference).
+	 * @param bool       $found Optional. Whether the key was found in the cache (passed by reference).
 	 *                          Disambiguates a return of false, a storable value. Default null.
 	 *
 	 * @return mixed|false The cache contents on success, false on failure to retrieve contents.
@@ -1820,9 +1812,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	/**
 	 * Retrieves multiple values from the cache in one call.
 	 *
-	 * @param array            $keys Array of keys under which the cache contents are stored.
-	 * @param string           $group Optional. Where the cache contents are grouped. Default empty.
-	 * @param bool             $force Optional. Whether to force an update of the local cache
+	 * @param array  $keys Array of keys under which the cache contents are stored.
+	 * @param string $group Optional. Where the cache contents are grouped. Default empty.
+	 * @param bool   $force Optional. Whether to force an update of the local cache
 	 *                      from the persistent cache. Default false.
 	 *
 	 * @return array Array of return values, grouped by key. Each value is either
@@ -1831,7 +1823,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	 * @global WP_Object_Cache $wp_object_cache Object cache global instance.
 	 *
 	 * @since 5.5.0
-	 *
 	 */
 	function wp_cache_get_multiple( $keys, $group = '', $force = false ) {
 		global $wp_object_cache;
@@ -1842,8 +1833,8 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	/**
 	 * Removes the cache contents matching key and group.
 	 *
-	 * @param int|string       $key What the contents in the cache are called.
-	 * @param string           $group Optional. Where the cache contents are grouped. Default empty.
+	 * @param int|string $key What the contents in the cache are called.
+	 * @param string     $group Optional. Where the cache contents are grouped. Default empty.
 	 *
 	 * @return bool True on successful removal, false on failure.
 	 * @since 2.0.0
@@ -1860,8 +1851,8 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	/**
 	 * Deletes multiple values from the cache in one call.
 	 *
-	 * @param array            $keys Array of keys under which the cache to deleted.
-	 * @param string           $group Optional. Where the cache contents are grouped. Default empty.
+	 * @param array  $keys Array of keys under which the cache to deleted.
+	 * @param string $group Optional. Where the cache contents are grouped. Default empty.
 	 *
 	 * @return bool[] Array of return values, grouped by key. Each value is either
 	 *                true on success, or false if the contents were not deleted.
@@ -1869,7 +1860,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	 *
 	 * @see WP_Object_Cache::delete_multiple()
 	 * @global WP_Object_Cache $wp_object_cache Object cache global instance.
-	 *
 	 */
 	function wp_cache_delete_multiple( array $keys, $group = '' ) {
 		global $wp_object_cache;
@@ -1880,17 +1870,16 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	/**
 	 * Increments numeric cache item's value.
 	 *
-	 * @param int|string       $key The key for the cache contents that should be incremented.
-	 * @param int              $offset Optional. The amount by which to increment the item's value.
+	 * @param int|string $key The key for the cache contents that should be incremented.
+	 * @param int        $offset Optional. The amount by which to increment the item's value.
 	 *                           Default 1.
-	 * @param string           $group Optional. The group the key is in. Default empty.
+	 * @param string     $group Optional. The group the key is in. Default empty.
 	 *
 	 * @return int|false The item's new value on success, false on failure.
 	 * @see WP_Object_Cache::incr()
 	 * @global WP_Object_Cache $wp_object_cache Object cache global instance.
 	 *
 	 * @since 3.3.0
-	 *
 	 */
 	function wp_cache_incr( $key, $offset = 1, $group = '' ) {
 		global $wp_object_cache;
@@ -1901,17 +1890,16 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	/**
 	 * Decrements numeric cache item's value.
 	 *
-	 * @param int|string       $key The cache key to decrement.
-	 * @param int              $offset Optional. The amount by which to decrement the item's value.
+	 * @param int|string $key The cache key to decrement.
+	 * @param int        $offset Optional. The amount by which to decrement the item's value.
 	 *                           Default 1.
-	 * @param string           $group Optional. The group the key is in. Default empty.
+	 * @param string     $group Optional. The group the key is in. Default empty.
 	 *
 	 * @return int|false The item's new value on success, false on failure.
 	 * @see WP_Object_Cache::decr()
 	 * @global WP_Object_Cache $wp_object_cache Object cache global instance.
 	 *
 	 * @since 3.3.0
-	 *
 	 */
 	function wp_cache_decr( $key, $offset = 1, $group = '' ) {
 		global $wp_object_cache;
@@ -1978,7 +1966,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	 *
 	 * @return bool True if the feature is supported, false otherwise.
 	 * @since 6.1.0
-	 *
 	 */
 	function wp_cache_supports( $feature ) {
 		switch ( $feature ) {
@@ -2017,13 +2004,12 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	/**
 	 * Adds a group or set of groups to the list of global groups.
 	 *
-	 * @param string|string[]  $groups A group or an array of groups to add.
+	 * @param string|string[] $groups A group or an array of groups to add.
 	 *
 	 * @see WP_Object_Cache::add_global_groups()
 	 * @global WP_Object_Cache $wp_object_cache Object cache global instance.
 	 *
 	 * @since 2.6.0
-	 *
 	 */
 	function wp_cache_add_global_groups( $groups ) {
 		global $wp_object_cache;
@@ -2037,7 +2023,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	 * @param string|string[] $groups A group or an array of groups to add.
 	 *
 	 * @since 2.6.0
-	 *
 	 */
 	function wp_cache_add_non_persistent_groups( $groups ) {
 
