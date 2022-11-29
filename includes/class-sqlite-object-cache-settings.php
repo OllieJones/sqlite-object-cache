@@ -113,14 +113,14 @@ class SQLite_Object_Cache_Settings {
 				[
 					'id'          => 'retention',
 					'label'       => __( 'Cached data expires after', 'sqlite-object-cache' ),
-					'description' => __( 'days.', 'sqlite-object-cache' ),
+					'description' => __( 'hours.', 'sqlite-object-cache' ),
 					'type'        => 'number',
-					'default'     => 7,
-					'max'         => 365,
+					'default'     => 24,
+					'max'         => 24 * 7,
 					'min'         => 1,
 					'step'        => 'any',
 					'cssclass'    => 'narrow',
-					'placeholder' => __( 'Days to retain.', 'sqlite-object-cache' ),
+					'placeholder' => __( 'Hours to retain.', 'sqlite-object-cache' ),
 				],
 				[
 					'id'          => 'cleanup',
@@ -203,10 +203,7 @@ class SQLite_Object_Cache_Settings {
 		}
 		$retention = $this->numeric_option( $option, 'retention', 7 );
 		if ( array_key_exists( 'cleanup', $option ) && $option ['cleanup'] === 'on' ) {
-
-			if ( method_exists( $wp_object_cache, 'sqlite_clean_up_cache' ) ) {
-				$wp_object_cache->sqlite_clean_up_cache( $retention * DAY_IN_SECONDS, true, true );
-			}
+			$this->parent->clean();
 			unset ( $option['cleanup'] );
 		}
 

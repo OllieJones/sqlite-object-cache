@@ -15,13 +15,14 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Only make one instance of this, please.
  */
 class SQLite_Object_Cache {
+	const CLEAN_EVENT_HOOK = 'sqlite_object_cache_clean';
 
 	/**
 	 * Local instance of SQLite_Object_Cache_Admin_API
 	 *
 	 * @var SQLite_Object_Cache_Admin_API|null
 	 */
-	public $admin = null;
+	public $admin;
 
 	/**
 	 * Settings class object
@@ -30,7 +31,7 @@ class SQLite_Object_Cache {
 	 * @access  public
 	 * @since   1.0.0
 	 */
-	public $settings = null;
+	public $settings;
 
 	/**
 	 * The version number.
@@ -154,6 +155,12 @@ class SQLite_Object_Cache {
 		if ( is_array( $option ) && array_key_exists( 'capture', $option ) && $option['capture'] === 'on' ) {
 			add_action( 'init', [ $this, 'do_capture' ] );
 		}
+
+		/* handle cron cleanup */
+		add_action( self::CLEAN_EVENT_HOOK, [ $this, 'clean' ], 10, 0 );
+		if ( ! wp_next_scheduled( self::CLEAN_EVENT_HOOK ) ) {
+			wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', self::CLEAN_EVENT_HOOK );
+		}
 	} // End __construct ()
 
 	/**
@@ -170,6 +177,28 @@ class SQLite_Object_Cache {
 
 		load_textdomain( $domain, WP_LANG_DIR . '/' . $domain . '/' . $domain . '-' . $locale . '.mo' );
 		load_plugin_textdomain( $domain, false, dirname( plugin_basename( $this->file ) ) . '/languages/' );
+	}
+
+	public function clean() {
+		global $wp_object_cache;
+		$option    = get_option( $this->_token . '_settings', [] );
+		if ( method_exists( $wp_object_cache, 'sqlite_clean_up_cache' ) ) {
+			$retention = array_key_exists( 'retention', $option ) ? $option['retention'] : 24;
+			try {
+				$wp_object_cache->sqlite_clean_up_cache( $retention * HOUR_IN_SECONDS, true, true );
+			} catch ( Exception $ex ) {
+				error_log( 'sqlite_object_cache cache cleanup failure: ', $ex->getMessage() );
+			}
+		}
+
+		if ( method_exists( $wp_object_cache, 'sqlite_reset_statistics' ) ) {
+			$retention = array_key_exists( 'retainmeasurements', $option ) ? $option['retainmeasurements'] : 24;
+			try {
+				$wp_object_cache->sqlite_reset_statistics( $retention * HOUR_IN_SECONDS );
+			} catch ( Exception $ex ) {
+				error_log( 'sqlite_object_cache stats cleanup failure: ', $ex->getMessage() );
+			}
+		}
 	} // End enqueue_styles ()
 
 	/**
@@ -203,14 +232,14 @@ class SQLite_Object_Cache {
 	 * @return bool|string true, or an error message.
 	 */
 	public function has_sqlite() {
-		if ( ! extension_loaded( 'sqlite3' ) || ! class_exists( 'SQLite3' ) ) {
+		if ( ! class_exists( 'SQLite3' ) || ! extension_loaded( 'sqlite3' ) ) {
 			return __( 'You cannot use the SQLite Object Cache plugin. Your server does not have php\'s SQLite3 extension installed.', 'sqlite-object-cache' );
 		}
 
 		$sqlite_version = $this->sqlite_version();
-		if (version_compare($sqlite_version, $this->minimum_sqlite_version) < 0) {
-			return sprintf (
-				/* translators: 1 actual SQLite version. 2 required SQLite version) */
+		if ( version_compare( $sqlite_version, $this->minimum_sqlite_version ) < 0 ) {
+			return sprintf(
+			/* translators: 1 actual SQLite version. 2 required SQLite version) */
 				__( 'You cannot use the SQLite Object Cache plugin. Your server offers SQLite3 version %1$s, but at least %2$s is required.', 'sqlite-object-cache' ),
 				$sqlite_version, $this->minimum_sqlite_version );
 		}
@@ -227,13 +256,14 @@ class SQLite_Object_Cache {
 		$result = false;
 
 		try {
-			if (  class_exists( 'SQLite3' ) && extension_loaded( 'sqlite3' ) ) {
+			if ( class_exists( 'SQLite3' ) && extension_loaded( 'sqlite3' ) ) {
 				$v      = SQLite3::version();
 				$result = $v['versionString'];
 			}
-		} catch (Exception $e) {
+		} catch ( Exception $e ) {
 			/* empty, intentionally. Don't crash if no useful version */
 		}
+
 		return $result;
 	}
 
@@ -261,7 +291,7 @@ class SQLite_Object_Cache {
 		}
 		$frequency        = $option['frequency'];
 		$frequency        = $frequency ?: 1;
-		$headway          = intval( HOUR_IN_SECONDS / $frequency );
+		$headway          = (int) ( HOUR_IN_SECONDS / $frequency );
 		$now              = time();
 		$previouscapture  = array_key_exists( 'previouscapture', $option ) ? $option['previouscapture'] : 0;
 		$sincelastcapture = $previouscapture > 0 ? $now - $previouscapture : $headway;
@@ -303,10 +333,8 @@ class SQLite_Object_Cache {
 			return new WP_Error( 'exists', __( 'Object cache drop-in file doesn’t exist.', 'sqlite-object-cache' ) );
 		}
 
-		if ( $wp_filesystem->exists( $testfiledest ) ) {
-			if ( ! $wp_filesystem->delete( $testfiledest ) ) {
-				return new WP_Error( 'delete', __( 'Test file exists, but couldn’t be deleted.', 'sqlite-object-cache' ) );
-			}
+		if ( $wp_filesystem->exists( $testfiledest ) && ! $wp_filesystem->delete( $testfiledest ) ) {
+			return new WP_Error( 'delete', __( 'Test file exists, but couldn’t be deleted.', 'sqlite-object-cache' ) );
 		}
 
 		if ( ! $wp_filesystem->is_writable( WP_CONTENT_DIR ) ) {
@@ -386,10 +414,8 @@ class SQLite_Object_Cache {
 		}
 
 		$has = $this->has_sqlite();
-		if ( true === $has ) {
-			if ( $this->object_cache_dropin_needs_updating() ) {
-				add_action( 'shutdown', [ $this, 'update_dropin' ] );
-			}
+		if ( ( true === $has ) && $this->object_cache_dropin_needs_updating() ) {
+			add_action( 'shutdown', [ $this, 'update_dropin' ] );
 		}
 	}
 
@@ -457,6 +483,8 @@ class SQLite_Object_Cache {
 	 */
 	public function on_deactivation( $plugin ) {
 		global $wp_filesystem;
+
+		wp_unschedule_hook(self::CLEAN_EVENT_HOOK);
 
 		$db_file = WP_CONTENT_DIR . '/object-cache.sqlite';
 		if ( defined( 'WP_SQLITE_OBJECT_CACHE_DB_FILE' ) ) {

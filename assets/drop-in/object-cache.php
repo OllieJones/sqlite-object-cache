@@ -45,6 +45,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	class WP_Object_Cache extends SQLite3 {
 		const OBJECT_STATS_TABLE = 'object_stats';
 		const OBJECT_CACHE_TABLE = 'object_cache';
+		const logging = true;  //TODO change to false.
 		/**
 		 * The amount of times the cache data was already stored in the cache.
 		 *
@@ -476,7 +477,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @return void
 		 * @throws Exception If something fails.
 		 */
-		private function create_stats_table( $tbl ) {
+		private function maybe_create_stats_table( $tbl ) {
 			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
 			$this->exec( 'BEGIN;' );
 			/* does our table exist?  */
@@ -696,8 +697,7 @@ SET value=excluded.value, expires=excluded.expires;";
 					$this->exec( 'COMMIT;' );
 				}
 			}
-			$this->queue = [];
-			$this->maybe_clean_up_cache();
+			$this->queue       = [];
 			$this->update_time = $this->time_usec() - $start;
 
 			if ( is_array( $this->monitoring_options ) ) {
@@ -819,25 +819,6 @@ SET value=excluded.value, expires=excluded.expires;";
 		}
 
 		/**
-		 * Remove old entries and VACUUM the database, one time in many.
-		 *
-		 * @param int $retention_time How long, in seconds, to keep old entries. Default one week.
-		 * @param int $inverse_probability Do the job one time in this many. Default 1000.
-		 *
-		 * @return void
-		 * @throws Exception Announce database failure.
-		 */
-		private function maybe_clean_up_cache( $retention_time = null, $inverse_probability = 1000 ) {
-			/* wp_rand is better, but it isn't always loaded when we need it. */
-			$random = wp_rand( 1, $inverse_probability );
-			if ( 1 !== $random ) {
-				return;
-			}
-
-			$this->sqlite_clean_up_cache( $retention_time, true, true );
-		}
-
-		/**
 		 * Remove statistics entries from the cache
 		 *
 		 * @param int $age Number of seconds' worth to retain. Default: retain none.
@@ -847,6 +828,7 @@ SET value=excluded.value, expires=excluded.expires;";
 		 */
 		public function sqlite_reset_statistics( $age = null ) {
 			$object_stats = self::OBJECT_STATS_TABLE;
+			$this->maybe_create_stats_table( $object_stats );
 			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
 			if ( ! is_numeric( $age ) ) {
 				$sql = "DELETE FROM $object_stats;";
@@ -857,25 +839,29 @@ SET value=excluded.value, expires=excluded.expires;";
 					"DELETE FROM $object_stats WHERE timestamp < $expires;";
 			}
 			$this->exec( $sql );
+			if ( self::logging ) {
+				$d = $this->changes();
+				error_log( "sqlite_object_cache stats: expired: $d" );
+			}
 		}
 
 		/**
 		 * Remove old entries and VACUUM the database.
 		 *
-		 * @param mixed $retention_time How long, in seconds, to keep old entries. Default one week.
+		 * @param mixed $retention How long, in seconds, to keep old entries. Default one week.
 		 * @param bool  $use_transaction True if the cleanup should be inside BEGIN / COMMIT.
 		 * @param bool  $vacuum VACUUM the db.
 		 *
 		 * @return void
 		 * @throws Exception Announce database failure.
 		 */
-		public function sqlite_clean_up_cache( $retention_time = null, $use_transaction = true, $vacuum = false ) {
+		public function sqlite_clean_up_cache( $retention = null, $use_transaction = true, $vacuum = false ) {
+			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
 			try {
 				if ( $use_transaction ) {
 					$this->exec( 'BEGIN;' );
 				}
-				$retention_time = is_numeric( $retention_time ) ? $retention_time : $this->max_lifetime;
-				/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
+				/* Remove items with definite expirations, like transients */
 				$sql  = "DELETE FROM $this->cache_table_name WHERE expires <= :now;";
 				$stmt = $this->prepare( $sql );
 				$stmt->bindValue( ':now', time(), SQLITE3_INTEGER );
@@ -883,15 +869,23 @@ SET value=excluded.value, expires=excluded.expires;";
 				if ( false !== $result ) {
 					$result->finalize();
 				}
-				$sql    = "DELETE FROM $this->cache_table_name WHERE expires BETWEEN :offset AND :end;";
-				$stmt   = $this->prepare( $sql );
-				$offset = $this->noexpire_timestamp_offset;
-				$end    = time() + $offset - $retention_time;
+				$d1 = $this->changes();
+
+				/* Remove old items. We use the most recent update time. Tracking use time is too expensive. */
+				$retention = is_numeric( $retention ) ? $retention : $this->max_lifetime;
+				$sql       = "DELETE FROM $this->cache_table_name WHERE expires BETWEEN :offset AND :end;";
+				$stmt      = $this->prepare( $sql );
+				$offset    = $this->noexpire_timestamp_offset;
+				$end       = time() + $offset - $retention;
 				$stmt->bindValue( ':offset', $offset, SQLITE3_INTEGER );
 				$stmt->bindValue( ':end', $end, SQLITE3_INTEGER );
 				$result = $stmt->execute();
 				if ( false !== $result ) {
 					$result->finalize();
+				}
+				if ( self::logging ) {  //TODO
+					$d2 = $this->changes();
+					error_log( "sqlite_object_cache cleanup: expired: $d1 aged: $d2" );
 				}
 			} finally {
 				if ( $use_transaction ) {
@@ -904,6 +898,30 @@ SET value=excluded.value, expires=excluded.expires;";
 		}
 
 		/**
+		 * Read rows from the stored statistics.
+		 *
+		 * @return Generator
+		 * @throws Exception Announce SQLite failure.
+		 * @noinspection SqlResolve
+		 */
+		public function sqlite_load_statistics() {
+			$object_stats = self::OBJECT_STATS_TABLE;
+			$this->maybe_create_stats_table( $object_stats );
+			$sql       = 'SELECT value FROM object_stats ORDER BY timestamp;';
+			$stmt      = $this->prepare( $sql );
+			$resultset = $stmt->execute();
+			while ( true ) {
+				$row = $resultset->fetchArray( SQLITE3_NUM );
+				if ( ! $row ) {
+					break;
+				}
+				$value = $this->maybe_unserialize( $row[0] );
+				yield (object) $value;
+			}
+			$resultset->finalize();
+		}
+
+		/**
 		 * Do the performance-capture operation.
 		 *
 		 * Put a row named sqlite_object_cache.mon.123456 into sqlite containing the raw data.
@@ -911,6 +929,7 @@ SET value=excluded.value, expires=excluded.expires;";
 		 * @param array $options Contents of $this->monitoring_options.
 		 *
 		 * @return void
+		 * @throws Exception Announce database failure.
 		 */
 		private function capture( $options ) {
 			$object_stats = self::OBJECT_STATS_TABLE;
@@ -935,18 +954,7 @@ SET value=excluded.value, expires=excluded.expires;";
 				$record ['delete_names'] = $this->insert_names;
 			}
 
-			/* make ourselves a clean timestamp number applying desired resolution */
-			$resolution = $options['resolution'] ?: 60.0;
-			$resolution = round( $resolution, 3 );
-			$resolution = $resolution >= 1.0 ? round( $resolution, 0 ) : $resolution;
-			$timestamp  = $now - ( fmod( $now, $resolution ) );
-			$timestamp  = round( $timestamp, 3 );
-			$timestamp  = $resolution >= 1.0 ? (int) $timestamp : $timestamp;
-
-			/* get the lifetime */
-			$lifetime = $options['lifetime'] ? (int) $options['lifetime'] : HOUR_IN_SECONDS;
-
-			$this->create_stats_table( $object_stats );
+			$this->maybe_create_stats_table( $object_stats );
 			$sql  =
 				"INSERT INTO $object_stats (value, timestamp) VALUES (:value, :timestamp);";
 			$stmt = $this->prepare( $sql );

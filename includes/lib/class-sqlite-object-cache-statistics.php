@@ -27,13 +27,6 @@ class SQLite_Object_Cache_Statistics {
 	 * @var array
 	 */
 	public $descriptions;
-
-	/**
-	 *  True if the igbinary serializer is available.
-	 *
-	 * @var bool
-	 */
-	private $has_igbinary;
 	/**
 	 * @var string
 	 */
@@ -44,23 +37,14 @@ class SQLite_Object_Cache_Statistics {
 	private $end_time;
 
 	/**
-	 * Sets up object properties; PHP 5 style constructor.
-	 *
-	 * @throws Exception Database failure.
-	 * @since 0.1.0
-	 */
-	public function __construct() {
-
-		$this->has_igbinary = function_exists( 'igbinary_serialize' ) && function_exists( 'igbinary_unserialize' );
-	}
-
-	/**
 	 * Initialize and load data.
 	 *
 	 * @return void
 	 * @throws Exception Announce database failure.
 	 */
 	public function init() {
+		global $wp_object_cache;
+
 		$first = PHP_INT_MAX;
 		$last  = PHP_INT_MIN;
 
@@ -77,7 +61,11 @@ class SQLite_Object_Cache_Statistics {
 		$DISKhits       = 0;
 		$DISKmisses     = 0;
 
-		foreach ( $this->load_measurements() as $data ) {
+		if ( ! method_exists( $wp_object_cache, 'sqlite_load_statistics' ) ) {
+			return;
+		}
+
+		foreach ( $wp_object_cache->sqlite_load_statistics() as $data ) {
 			$first        = min( $data->time, $first );
 			$last         = max( $data->time, $last );
 			$RAMhits      += $data->RAMhits;
@@ -125,34 +113,6 @@ class SQLite_Object_Cache_Statistics {
 	}
 
 	/**
-	 * Read rows from the stored statistics.
-	 *
-	 * @return Generator
-	 * @throws Exception Announce SQLite failure.
-	 * @noinspection SqlResolve
-	 */
-	private function load_measurements() {
-		global $wp_object_cache;
-
-		if ( method_exists( $wp_object_cache, 'prepare' ) ) {
-			$sql       =
-				"SELECT value FROM object_stats ORDER BY timestamp;";
-			$stmt      = $wp_object_cache->prepare( $sql );
-			$resultset = $stmt->execute();
-			while ( true ) {
-				$row = $resultset->fetchArray( SQLITE3_NUM );
-				if ( ! $row ) {
-					break;
-				}
-				/* the name in row [0] is sqlite_object_cache|mon|1666930243, with a timestamp baked in */
-				$value = $this->has_igbinary ? igbinary_unserialize( $row[0] ) : unserialize( $row[1] );
-				yield (object) $value;
-			}
-			$resultset->finalize();
-		}
-	}
-
-	/**
 	 * Descriptive statistics for an array of numbers.
 	 *
 	 * @param array $a The array.
@@ -160,19 +120,20 @@ class SQLite_Object_Cache_Statistics {
 	 * @return array
 	 */
 	public function descriptive_stats( array $a ) {
-		$result          = [
+		$min    = $this->minimum( $a );
+		$max    = $this->maximum( $a );
+
+		return [
 			'n'      => count( $a ),
-			'[min'   => $this->minimum( $a ),
+			'[min'   => $min,
 			'median' => $this->percentile( $a, 0.5 ),
 			'mean'   => $this->mean( $a ),
 			'p95'    => $this->percentile( $a, 0.95 ),
-			'max]'   => $this->maximum( $a ),
+			'max]'   => $max,
+			'range'  => $max - $min,
 			'mad'    => $this->mad( $a ),
 			'stdev'  => $this->stdev( $a ),
 		];
-		$result['range'] = $result['max]'] - $result['[min'];
-
-		return $result;
 	}
 
 	/**
@@ -186,6 +147,19 @@ class SQLite_Object_Cache_Statistics {
 		sort( $a );
 
 		return count( $a ) > 0 ? $a[0] : null;
+	}
+
+	/**
+	 * The largest value in an array.
+	 *
+	 * @param array $a The array.
+	 *
+	 * @return mixed|null
+	 */
+	public function maximum( array $a ) {
+		sort( $a );
+
+		return count( $a ) > 0 ? $a[ count( $a ) - 1 ] : null;
 	}
 
 	/** Percentile.
@@ -230,19 +204,6 @@ class SQLite_Object_Cache_Statistics {
 		}
 
 		return $acc / $n;
-	}
-
-	/**
-	 * The largest value in an array.
-	 *
-	 * @param array $a The array.
-	 *
-	 * @return mixed|null
-	 */
-	public function maximum( array $a ) {
-		sort( $a );
-
-		return count( $a ) > 0 ? $a[ count( $a ) - 1 ] : null;
 	}
 
 	/**
@@ -309,7 +270,7 @@ class SQLite_Object_Cache_Statistics {
 		echo '<h3>' . esc_html__( 'Cache performance statistics', 'sqlite-object-cache' ) . '</h3>';
 		if ( is_array( $this->descriptions ) ) {
 			echo '<p>' . esc_html( sprintf(
-									/* translators:  1 start time   2 end time both in localized format */
+			                    /* translators:  1 start time   2 end time both in localized format */
 				                    __( 'From %1$s to %2$s.', 'sqlite-object-cache' ),
 				                    $this->start_time, $this->end_time ) . ' ' . __( 'Times in microseconds.', 'sqlite-object-cache' ) ) . '</p>';
 			echo '<table class="sql-object-cache-stats">';
