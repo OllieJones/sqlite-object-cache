@@ -45,7 +45,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	class WP_Object_Cache extends SQLite3 {
 		const OBJECT_STATS_TABLE = 'object_stats';
 		const OBJECT_CACHE_TABLE = 'object_cache';
-		const logging = true;  //TODO change to false.
 		/**
 		 * The amount of times the cache data was already stored in the cache.
 		 *
@@ -839,10 +838,6 @@ SET value=excluded.value, expires=excluded.expires;";
 					"DELETE FROM $object_stats WHERE timestamp < $expires;";
 			}
 			$this->exec( $sql );
-			if ( self::logging ) {
-				$d = $this->changes();
-				error_log( "sqlite_object_cache stats: expired: $d" );
-			}
 		}
 
 		/**
@@ -882,10 +877,6 @@ SET value=excluded.value, expires=excluded.expires;";
 				$result = $stmt->execute();
 				if ( false !== $result ) {
 					$result->finalize();
-				}
-				if ( self::logging ) {  //TODO
-					$d2 = $this->changes();
-					error_log( "sqlite_object_cache cleanup: expired: $d1 aged: $d2" );
 				}
 			} finally {
 				if ( $use_transaction ) {
