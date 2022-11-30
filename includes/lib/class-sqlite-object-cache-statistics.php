@@ -120,8 +120,8 @@ class SQLite_Object_Cache_Statistics {
 	 * @return array
 	 */
 	public function descriptive_stats( array $a ) {
-		$min    = $this->minimum( $a );
-		$max    = $this->maximum( $a );
+		$min = $this->minimum( $a );
+		$max = $this->maximum( $a );
 
 		return [
 			'n'      => count( $a ),
@@ -270,9 +270,9 @@ class SQLite_Object_Cache_Statistics {
 		echo '<h3>' . esc_html__( 'Cache performance statistics', 'sqlite-object-cache' ) . '</h3>';
 		if ( is_array( $this->descriptions ) ) {
 			echo '<p>' . esc_html( sprintf(
-			                    /* translators:  1 start time   2 end time both in localized format */
-				                    __( 'From %1$s to %2$s.', 'sqlite-object-cache' ),
-				                    $this->start_time, $this->end_time ) . ' ' . __( 'Times in microseconds.', 'sqlite-object-cache' ) ) . '</p>';
+			                       /* translators:  1 start time   2 end time both in localized format */
+				                       __( 'From %1$s to %2$s.', 'sqlite-object-cache' ),
+				                       $this->start_time, $this->end_time ) . ' ' . __( 'Times in microseconds.', 'sqlite-object-cache' ) ) . '</p>';
 			echo '<table class="sql-object-cache-stats">';
 			$first = true;
 			foreach ( $this->descriptions as $stat => $description ) {
@@ -299,12 +299,36 @@ class SQLite_Object_Cache_Statistics {
 		}
 
 		if ( is_array( $this->selected_names ) && count( $this->selected_names ) > 0 ) {
+
+			$names = $this->selected_names;
+			uksort( $names, function ( $a, $b ) {
+				/* Descending order of frequency */
+				if ( $this->selected_names[ $a ] !== $this->selected_names[ $b ] ) {
+					return $this->selected_names[ $a ] > $this->selected_names[ $b ] ? - 1 : 1;
+				}
+				$as = explode( '|', $a, 2 );
+				$bs = explode( '|', $b, 2 );
+				/* Ascending order by group name */
+				if ( $as[0] !== $bs[0] ) {
+					return strnatcmp( $as[0], $bs[0]);
+				}
+				/* Ascending order by key name, handling numeric keys correctly. */
+				if ( is_numeric( $as[1] ) && is_numeric( $bs[1] ) ) {
+					if ( (float) $as[1] === (float) $bs[1] ) {
+						return 0;
+					}
+
+					return ( (float) $as[1] ) < ( (float) $bs[1] ) ? - 1 : 1;
+				}
+				return strnatcmp( $as[1], $bs[1]);
+			} );
+
 			echo '<h3>' . esc_html__( 'Most frequently looked up cache items' ) . '</h3>';
 
 			echo '<table class="sql-object-cache-items">';
 			$count_threshold = - 1;
 			$first           = true;
-			foreach ( $this->selected_names as $name => $count ) {
+			foreach ( $names as $name => $count ) {
 				if ( $first ) {
 					echo '<thead><tr>';
 					$group_name = esc_html__( "Cache Group", 'sqlite-object-cache' );

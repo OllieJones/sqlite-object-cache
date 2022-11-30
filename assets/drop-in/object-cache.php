@@ -1255,7 +1255,7 @@ SET value=excluded.value, expires=excluded.expires;";
 			$this->cache[ $group ][ $key ] = $data;
 			if ( $former_data !== $data ) {
 				/* enqueue for output */
-				$this->enqueue_put( $key, $data, $group, $expire );
+				$this->handle_put( $key, $data, $group, $expire );
 			}
 
 			return true;
@@ -1271,14 +1271,13 @@ SET value=excluded.value, expires=excluded.expires;";
 		 *
 		 * @return void
 		 */
-		private function enqueue_put( $key, $data, $group, $expire ) {
+		private function handle_put( $key, $data, $group, $expire ) {
 			if ( $this->is_ignored_group( $group ) ) {
 				return;
 			}
-
-			$name                  = $this->name_from_key_group( $key, $group );
+			$name = $this->name_from_key_group( $key, $group );
 			$this->queue [ $name ] = [ 'put', [ $data, $expire ] ];
-			unset( $this->not_in_persistent_cache[ $group . '.' . $key ] );
+			unset( $this->not_in_persistent_cache[ $name ] );
 		}
 
 		/**
@@ -1465,7 +1464,7 @@ SET value=excluded.value, expires=excluded.expires;";
 			}
 
 			unset( $this->cache[ $group ][ $key ] );
-			$this->enqueue_delete( $key, $group );
+			$this->handle_delete( $key, $group );
 
 			return true;
 		}
@@ -1478,11 +1477,11 @@ SET value=excluded.value, expires=excluded.expires;";
 		 *
 		 * @return void
 		 */
-		private function enqueue_delete( $key, $group ) {
+		private function handle_delete( $key, $group ) {
 			$name                  = $this->name_from_key_group( $key, $group );
 			$this->queue [ $name ] = [ 'delete', [] ];
 
-			$this->not_in_persistent_cache[ $group . '.' . $key ] = true;
+			$this->not_in_persistent_cache[ $name ] = true;
 		}
 
 		/**
@@ -1524,7 +1523,7 @@ SET value=excluded.value, expires=excluded.expires;";
 			if ( $this->cache[ $group ][ $key ] < 0 ) {
 				$this->cache[ $group ][ $key ] = 0;
 			}
-			$this->enqueue_put( $key, $group, $this->cache[ $group ][ $key ], 0 );
+			$this->handle_put( $key, $group, $this->cache[ $group ][ $key ], 0 );
 
 			return $this->cache[ $group ][ $key ];
 		}
@@ -1570,7 +1569,7 @@ SET value=excluded.value, expires=excluded.expires;";
 				$this->cache[ $group ][ $key ] = 0;
 			}
 
-			$this->enqueue_put( $key, $group, $this->cache[ $group ][ $key ], 0 );
+			$this->handle_put( $key, $group, $this->cache[ $group ][ $key ], 0 );
 
 			return $this->cache[ $group ][ $key ];
 		}

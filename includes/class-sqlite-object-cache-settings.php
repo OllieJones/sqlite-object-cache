@@ -338,7 +338,7 @@ class SQLite_Object_Cache_Settings {
 					echo esc_html__( 'That extension is not installed in your server, so the plugin cannot work.', 'sqlite-object-cache' ) . ' ';
 				}
 
-				$sqlite_version = $this->parent->sqlite_version();
+				$sqlite_version = $this->parent->sqlite_get_version();
 				if ( version_compare( $sqlite_version, $this->parent->minimum_sqlite_version ) < 0 ) {
 					echo sprintf(
 					/* translators: 1 actual SQLite version. 2 required SQLite version) */

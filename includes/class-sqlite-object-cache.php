@@ -156,12 +156,15 @@ class SQLite_Object_Cache {
 			add_action( 'init', [ $this, 'do_capture' ] );
 		}
 
-		/* handle cron cleanup */
+		/* handle cron cache cleanup */
 		add_action( self::CLEAN_EVENT_HOOK, [ $this, 'clean' ], 10, 0 );
 		if ( ! wp_next_scheduled( self::CLEAN_EVENT_HOOK ) ) {
 			wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', self::CLEAN_EVENT_HOOK );
 		}
-	} // End __construct ()
+
+		/* TODO this is for debugging cronjobs. */
+		add_action( 'cron_request', [ $this, 'add_cron_xdebug_cookie' ], 10, 2 );
+	}
 
 	/**
 	 * Load plugin textdomain
@@ -179,9 +182,35 @@ class SQLite_Object_Cache {
 		load_plugin_textdomain( $domain, false, dirname( plugin_basename( $this->file ) ) . '/languages/' );
 	}
 
+	/**
+	 * Allow debugging of wp_cron jobs  TODO this is for debugging only.
+	 *
+	 * @param array  $cron_request_array
+	 * @param string $doing_wp_cron
+	 *
+	 * @return array $cron_request_array with the current XDEBUG_SESSION cookie added if set
+	 */
+	public function add_cron_xdebug_cookie( $cron_request_array, $doing_wp_cron ) {
+		if ( empty ( $_COOKIE['XDEBUG_SESSION'] ) ) {
+			return ( $cron_request_array );
+		}
+
+		if ( array_key_exists( 'cookies', $cron_request_array['args'] ) ) {
+			$cron_request_array['args']['cookies'] = [];
+		}
+		$cron_request_array['args']['cookies']['XDEBUG_SESSION'] = $_COOKIE['XDEBUG_SESSION'];
+
+		return ( $cron_request_array );
+	}
+
+	/**
+	 * WP_Cron task to clean cache entries.
+	 *
+	 * @return void
+	 */
 	public function clean() {
 		global $wp_object_cache;
-		$option    = get_option( $this->_token . '_settings', [] );
+		$option = get_option( $this->_token . '_settings', [] );
 		if ( method_exists( $wp_object_cache, 'sqlite_clean_up_cache' ) ) {
 			$retention = array_key_exists( 'retention', $option ) ? $option['retention'] : 24;
 			try {
@@ -236,11 +265,11 @@ class SQLite_Object_Cache {
 			return __( 'You cannot use the SQLite Object Cache plugin. Your server does not have php\'s SQLite3 extension installed.', 'sqlite-object-cache' );
 		}
 
-		$sqlite_version = $this->sqlite_version();
+		$sqlite_version = $this->sqlite_get_version();
 		if ( version_compare( $sqlite_version, $this->minimum_sqlite_version ) < 0 ) {
 			return sprintf(
 			/* translators: 1 actual SQLite version. 2 required SQLite version) */
-				__( 'You cannot use the SQLite Object Cache plugin. Your server offers SQLite3 version %1$s, but at least %2$s is required.', 'sqlite-object-cache' ),
+				__( 'You cannot use the SQLite Object Cache plugin. Your server only offers SQLite3 version %1$s, but at least %2$s is required.', 'sqlite-object-cache' ),
 				$sqlite_version, $this->minimum_sqlite_version );
 		}
 
@@ -252,19 +281,13 @@ class SQLite_Object_Cache {
 	 *
 	 * @return string|false  SQLite's version number.
 	 */
-	public function sqlite_version() {
-		$result = false;
+	public function sqlite_get_version() {
 
-		try {
-			if ( class_exists( 'SQLite3' ) && extension_loaded( 'sqlite3' ) ) {
-				$v      = SQLite3::version();
-				$result = $v['versionString'];
-			}
-		} catch ( Exception $e ) {
-			/* empty, intentionally. Don't crash if no useful version */
+		if ( class_exists( 'SQLite3' ) ) {
+			$version = SQLite3::version();
+			return $version['versionString'];
 		}
-
-		return $result;
+		return false;
 	}
 
 	/**
@@ -484,7 +507,7 @@ class SQLite_Object_Cache {
 	public function on_deactivation( $plugin ) {
 		global $wp_filesystem;
 
-		wp_unschedule_hook(self::CLEAN_EVENT_HOOK);
+		wp_unschedule_hook( self::CLEAN_EVENT_HOOK );
 
 		$db_file = WP_CONTENT_DIR . '/object-cache.sqlite';
 		if ( defined( 'WP_SQLITE_OBJECT_CACHE_DB_FILE' ) ) {
