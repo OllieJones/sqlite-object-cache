@@ -50,7 +50,6 @@ class SQLite_Object_Cache_Statistics {
 
 		$selected_names = [];
 		$opens          = [];
-		$updates        = [];
 		$selects        = [];
 		$inserts        = [];
 		$deletes        = [];
@@ -77,7 +76,6 @@ class SQLite_Object_Cache_Statistics {
 			$DISKratio    = $data->DISKhits / ( $data->DISKhits + $data->DISKmisses );
 			$DISKratios[] = $DISKratio;
 			$opens []     = $data->open;
-			$updates []   = $data->update;
 			$selects []   = $data->selects;
 			$inserts []   = $data->inserts;
 			$deletes[]    = $data->deletes;
@@ -96,7 +94,6 @@ class SQLite_Object_Cache_Statistics {
 			arsort( $selected_names );
 			$descriptions = [
 				__( 'Start', 'sqlite-object-cache' )          => $this->descriptive_stats( $opens ),
-				__( 'Save and Close', 'sqlite-object-cache' ) => $this->descriptive_stats( $updates ),
 				__( 'RAM Hit Ratio', 'sqlite-object-cache' )  => $this->descriptive_stats( $RAMratios ),
 				__( 'Disk Hit Ratio', 'sqlite-object-cache' ) => $this->descriptive_stats( $DISKratios ),
 				__( 'Lookup', 'sqlite-object-cache' )         => $this->descriptive_stats( array_merge( ...$selects ) ),
@@ -270,9 +267,9 @@ class SQLite_Object_Cache_Statistics {
 		echo '<h3>' . esc_html__( 'Cache performance statistics', 'sqlite-object-cache' ) . '</h3>';
 		if ( is_array( $this->descriptions ) ) {
 			echo '<p>' . esc_html( sprintf(
-			                       /* translators:  1 start time   2 end time both in localized format */
-				                       __( 'From %1$s to %2$s.', 'sqlite-object-cache' ),
-				                       $this->start_time, $this->end_time ) . ' ' . __( 'Times in microseconds.', 'sqlite-object-cache' ) ) . '</p>';
+			                    /* translators:  1 start time   2 end time both in localized format */
+				                    __( 'From %1$s to %2$s.', 'sqlite-object-cache' ),
+				                    $this->start_time, $this->end_time ) . ' ' . __( 'Times in microseconds.', 'sqlite-object-cache' ) ) . '</p>';
 			echo '<table class="sql-object-cache-stats">';
 			$first = true;
 			foreach ( $this->descriptions as $stat => $description ) {

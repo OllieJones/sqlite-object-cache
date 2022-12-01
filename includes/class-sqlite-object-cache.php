@@ -163,7 +163,7 @@ class SQLite_Object_Cache {
 		}
 
 		/* TODO this is for debugging cronjobs. */
-		add_action( 'cron_request', [ $this, 'add_cron_xdebug_cookie' ], 10, 2 );
+		add_filter( 'cron_request', [ $this, 'add_cron_xdebug_cookie' ], 10, 1 );
 	}
 
 	/**
@@ -185,12 +185,11 @@ class SQLite_Object_Cache {
 	/**
 	 * Allow debugging of wp_cron jobs  TODO this is for debugging only.
 	 *
-	 * @param array  $cron_request_array
-	 * @param string $doing_wp_cron
+	 * @param array $cron_request_array
 	 *
 	 * @return array $cron_request_array with the current XDEBUG_SESSION cookie added if set
 	 */
-	public function add_cron_xdebug_cookie( $cron_request_array, $doing_wp_cron ) {
+	public function add_cron_xdebug_cookie( $cron_request_array ) {
 		if ( empty ( $_COOKIE['XDEBUG_SESSION'] ) ) {
 			return ( $cron_request_array );
 		}
@@ -285,8 +284,10 @@ class SQLite_Object_Cache {
 
 		if ( class_exists( 'SQLite3' ) ) {
 			$version = SQLite3::version();
+
 			return $version['versionString'];
 		}
+
 		return false;
 	}
 

@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache Drop-In
- * Version: 0.1.3
+ * Version: 0.1.4
  * Note: This Version number must match the one in the ctor for SQLite_Object_Cache.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -196,16 +196,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 */
 		private $updateone;
 
-		/**
-		 * A queue of put operations.
-		 *
-		 * We queue up all INSERT/UPDATE/DELETE operations
-		 * and do them in a single transaction upon .close().
-		 * This avoids write-lock churning and makes things faster.
-		 *
-		 * @var array Put ops.
-		 */
-		private $queue = [];
 		/**
 		 * Associative array of items we know ARE NOT in SQLite.
 		 *
@@ -664,130 +654,17 @@ SET value=excluded.value, expires=excluded.expires;";
 		}
 
 		/**
-		 * Write out the accumulated puts in one transaction, then close the connection.
+		 * Capture statistics if need be, then close the connection.
 		 *
 		 * @return bool
 		 * @throws Exception Announce failure.
 		 */
 		public function close() {
-
-			$start = $this->time_usec();
-			if ( count( $this->queue ) > 0 ) {
-				try {
-					$this->exec( 'BEGIN;' );
-					foreach ( $this->queue as $name => $item ) {
-						switch ( $item[0] ) {
-							case 'put':
-								$this->putone( $name, $item[1] );
-								break;
-
-							case 'delete':
-								$this->deleteone( $name );
-								break;
-
-							default:
-								throw new Exception( 'SQLite3 put_queue: unknown operation ' . $item[0] );
-						}
-					}
-				} catch ( Exception $e ) {
-					/* catch and rethrow to make sure we get the "finally". */
-					throw $e;
-				} finally {
-					$this->exec( 'COMMIT;' );
-				}
-			}
-			$this->queue       = [];
-			$this->update_time = $this->time_usec() - $start;
-
 			if ( is_array( $this->monitoring_options ) ) {
 				$this->capture( $this->monitoring_options );
 			}
 
 			return parent::close();
-		}
-
-		/** Put one item into the persistent cache.
-		 *
-		 * Note well: SQLite offers UPSERT functionality (...ON CONFLICT...).
-		 * But this functionality wasn't available until version 3.22,
-		 * and some hosting services offer earlier versions.
-		 * So this method does an update first. If that changed no rows
-		 * we proceed to do an insert.
-		 *
-		 * @param string $name The table name for the item.
-		 * @param array  $item The item, [$data, $expire].
-		 *
-		 * @return void
-		 * @throws Exception Announce database failure.
-		 */
-		private function putone( $name, $item ) {
-
-			$start   = $this->time_usec();
-			$value   = $this->maybe_serialize( $item[0] );
-			$expires = $item[1] ?: $this->noexpire_timestamp_offset;
-			if ( $this->has_upsert ) {
-				$stmt = $this->upsertone;
-				$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
-				$stmt->bindValue( ':value', $value, SQLITE3_BLOB );
-				$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
-				$result = $stmt->execute();
-				if ( false === $result ) {
-					$code = $this->lastErrorCode();
-					throw new Exception( "putone: $name failed upsert: ($code): " . $this->lastErrorMsg() );
-				}
-				$result->finalize();
-			} else {
-				$stmt = $this->updateone;
-				$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
-				$stmt->bindValue( ':value', $value, SQLITE3_BLOB );
-				$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
-				$result = $stmt->execute();
-				if ( false === $result ) {
-					$code = $this->lastErrorCode();
-					throw new Exception( "putone: $name failed update: ($code): " . $this->lastErrorMsg() );
-				}
-				$result->finalize();
-				if ( 0 === $this->changes() ) {
-					/* Updated no rows:  need insert. */
-					$stmt = $this->insertone;
-					$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
-					$stmt->bindValue( ':value', $value, SQLITE3_BLOB );
-					$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
-					$result = $stmt->execute();
-					if ( false === $result ) {
-						$code = $this->lastErrorCode();
-						throw new Exception( "putone: $name failed insert: ($code): " . $this->lastErrorMsg() );
-					}
-					$result->finalize();
-				}
-			}
-			unset( $this->not_in_persistent_cache[ $name ] );
-			$this->in_persistent_cache[ $name ] = true;
-			/* track how long it took. */
-			$this->insert_times[] = $this->time_usec() - $start;
-			$this->insert_names[] = $name;
-		}
-
-		/** Delete one item from the persistent cache.
-		 *
-		 * @param string $name Database name of item to delete.
-		 *
-		 * @return void
-		 * @throws Exception Announce database failure.
-		 */
-		private function deleteone( $name ) {
-			$start = $this->time_usec();
-			$stmt  = $this->deleteone;
-			$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
-			$result = $stmt->execute();
-			if ( false === $result ) {
-				throw new Exception( 'SQLite3 deleteone: ' . $this->lastErrorMsg(), $this->lastErrorCode() );
-			}
-			$result->finalize();
-			unset( $this->in_persistent_cache[ $name ] );
-			$this->not_in_persistent_cache[ $name ] = true;
-			/* track how long it took. */
-			$this->delete_times[] = $this->time_usec() - $start;
 		}
 
 		/**
@@ -830,6 +707,7 @@ SET value=excluded.value, expires=excluded.expires;";
 			$this->maybe_create_stats_table( $object_stats );
 			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
 			if ( ! is_numeric( $age ) ) {
+				/* @noinspection SqlWithoutWhere */
 				$sql = "DELETE FROM $object_stats;";
 			} else {
 				$expires = (int) ( time() - $age );
@@ -938,7 +816,6 @@ SET value=excluded.value, expires=excluded.expires;";
 				'selects'    => $this->select_times,
 				'inserts'    => $this->insert_times,
 				'deletes'    => $this->delete_times,
-				'update'     => $this->update_time,
 			];
 			if ( $options['verbose'] ) {
 				$record ['select_names'] = $this->select_names;
@@ -1240,20 +1117,14 @@ SET value=excluded.value, expires=excluded.expires;";
 				$data = clone $data;
 			}
 
-			$former_data =
-				array_key_exists( $group, $this->cache ) && array_key_exists( $key, $this->cache[ $group ] ) ? $this->cache [ $group ][ $key ] : null;
-
 			$this->cache[ $group ][ $key ] = $data;
-			if ( $former_data !== $data ) {
-				/* enqueue for output */
-				$this->handle_put( $key, $data, $group, $expire );
-			}
+			$this->handle_put( $key, $data, $group, $expire );
 
 			return true;
 		}
 
 		/**
-		 * Enqueues data to write to the persistent cache.
+		 * Write to the persistent cache.
 		 *
 		 * @param int|string $key What to call the contents in the cache.
 		 * @param mixed      $data The contents to store in the cache.
@@ -1261,14 +1132,57 @@ SET value=excluded.value, expires=excluded.expires;";
 		 * @param int        $expire Optional. Not used.
 		 *
 		 * @return void
+		 * @throws Exception    Announce database failure.
 		 */
 		private function handle_put( $key, $data, $group, $expire ) {
 			if ( $this->is_ignored_group( $group ) ) {
 				return;
 			}
-			$name = $this->name_from_key_group( $key, $group );
-			$this->queue [ $name ] = [ 'put', [ $data, $expire ] ];
+			$name    = $this->name_from_key_group( $key, $group );
+			$start   = $this->time_usec();
+			$value   = $this->maybe_serialize( $data );
+			$expires = $expire ?: $this->noexpire_timestamp_offset;
+			if ( $this->has_upsert ) {
+				$stmt = $this->upsertone;
+				$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
+				$stmt->bindValue( ':value', $value, SQLITE3_BLOB );
+				$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
+				$result = $stmt->execute();
+				if ( false === $result ) {
+					$code = $this->lastErrorCode();
+					throw new Exception( "putone: $name failed upsert: ($code): " . $this->lastErrorMsg() );
+				}
+				$result->finalize();
+			} else {
+				$stmt = $this->updateone;
+				$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
+				$stmt->bindValue( ':value', $value, SQLITE3_BLOB );
+				$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
+				$result = $stmt->execute();
+				if ( false === $result ) {
+					$code = $this->lastErrorCode();
+					throw new Exception( "putone: $name failed update: ($code): " . $this->lastErrorMsg() );
+				}
+				$result->finalize();
+				if ( 0 === $this->changes() ) {
+					/* Updated no rows:  need insert. */
+					$stmt = $this->insertone;
+					$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
+					$stmt->bindValue( ':value', $value, SQLITE3_BLOB );
+					$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
+					$result = $stmt->execute();
+					if ( false === $result ) {
+						$code = $this->lastErrorCode();
+						throw new Exception( "putone: $name failed insert: ($code): " . $this->lastErrorMsg() );
+					}
+					$result->finalize();
+				}
+			}
 			unset( $this->not_in_persistent_cache[ $name ] );
+			$this->in_persistent_cache[ $name ] = true;
+			/* track how long it took. */
+			$this->insert_times[] = $this->time_usec() - $start;
+			$this->insert_names[] = $name;
 		}
 
 		/**
@@ -1434,6 +1348,7 @@ SET value=excluded.value, expires=excluded.expires;";
 		 * @param bool       $deprecated Optional. Unused. Default false.
 		 *
 		 * @return bool True on success, false if the contents were not deleted.
+		 * @throws Exception Announce database failure
 		 * @since 2.0.0
 		 *
 		 */
@@ -1461,18 +1376,28 @@ SET value=excluded.value, expires=excluded.expires;";
 		}
 
 		/**
-		 * Enqueues data to delete from the persistent cache.
+		 * Delete from the persistent cache.
 		 *
 		 * @param int|string $key What to call the contents in the cache.
 		 * @param string     $group Optional. Where to group the cache contents. Default 'default'.
 		 *
 		 * @return void
+		 * @throws Exception Announce database failure
 		 */
 		private function handle_delete( $key, $group ) {
-			$name                  = $this->name_from_key_group( $key, $group );
-			$this->queue [ $name ] = [ 'delete', [] ];
-
+			$name  = $this->name_from_key_group( $key, $group );
+			$start = $this->time_usec();
+			$stmt  = $this->deleteone;
+			$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
+			$result = $stmt->execute();
+			if ( false === $result ) {
+				throw new Exception( 'SQLite3 deleteone: ' . $this->lastErrorMsg(), $this->lastErrorCode() );
+			}
+			$result->finalize();
+			unset( $this->in_persistent_cache[ $name ] );
 			$this->not_in_persistent_cache[ $name ] = true;
+			/* track how long it took. */
+			$this->delete_times[] = $this->time_usec() - $start;
 		}
 
 		/**
