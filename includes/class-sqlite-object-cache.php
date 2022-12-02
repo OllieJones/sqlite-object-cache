@@ -161,9 +161,6 @@ class SQLite_Object_Cache {
 		if ( ! wp_next_scheduled( self::CLEAN_EVENT_HOOK ) ) {
 			wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', self::CLEAN_EVENT_HOOK );
 		}
-
-		/* TODO this is for debugging cronjobs. */
-		add_filter( 'cron_request', [ $this, 'add_cron_xdebug_cookie' ], 10, 1 );
 	}
 
 	/**
@@ -180,26 +177,6 @@ class SQLite_Object_Cache {
 
 		load_textdomain( $domain, WP_LANG_DIR . '/' . $domain . '/' . $domain . '-' . $locale . '.mo' );
 		load_plugin_textdomain( $domain, false, dirname( plugin_basename( $this->file ) ) . '/languages/' );
-	}
-
-	/**
-	 * Allow debugging of wp_cron jobs  TODO this is for debugging only.
-	 *
-	 * @param array $cron_request_array
-	 *
-	 * @return array $cron_request_array with the current XDEBUG_SESSION cookie added if set
-	 */
-	public function add_cron_xdebug_cookie( $cron_request_array ) {
-		if ( empty ( $_COOKIE['XDEBUG_SESSION'] ) ) {
-			return ( $cron_request_array );
-		}
-
-		if ( array_key_exists( 'cookies', $cron_request_array['args'] ) ) {
-			$cron_request_array['args']['cookies'] = [];
-		}
-		$cron_request_array['args']['cookies']['XDEBUG_SESSION'] = $_COOKIE['XDEBUG_SESSION'];
-
-		return ( $cron_request_array );
 	}
 
 	/**

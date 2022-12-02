@@ -484,9 +484,9 @@ class SQLite_Object_Cache_Settings {
 		$reviewUrl  = "https://wordpress.org/support/plugin/sqlite-object-cache/reviews/";
 		echo '<p>';
 		echo esc_html__( 'For support please', 'sqlite-object-cache' ) . ' ';
-		echo '<a href="' . $supportUrl . '">' . esc_html__( 'click here', 'sqlite-object-cache' ) . '</a>. ';
+		echo '<a href="' . esc_url( $supportUrl ) . '">' . esc_html__( 'click here', 'sqlite-object-cache' ) . '</a>. ';
 		echo esc_html__( 'To rate this plugin please', 'sqlite-object-cache' ) . ' ';
-		echo '<a href="' . $reviewUrl . '">' . esc_html__( 'click here', 'sqlite-object-cache' ) . '</a>. ';
+		echo '<a href="' . esc_url( $reviewUrl ) . '">' . esc_html__( 'click here', 'sqlite-object-cache' ) . '</a>. ';
 		echo esc_html__( 'Your feedback helps make it better, faster, and more useful', 'sqlite-object-cache' ) . '.';
 		echo '</p>';
 	}

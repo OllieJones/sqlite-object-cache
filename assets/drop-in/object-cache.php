@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache Drop-In
- * Version: 0.1.4
+ * Version: 0.1.5
  * Note: This Version number must match the one in the ctor for SQLite_Object_Cache.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -1626,15 +1626,15 @@ SET value=excluded.value, expires=excluded.expires;";
 		 * @since 2.0.0
 		 */
 		public function stats() {
-			echo esc_html( "<p><strong>Cache Hits:</strong> $this->cache_hits<br /><strong>Cache Misses:</strong> $this->cache_misses<br /></p>" );
-			echo esc_html( '<ul>' );
+			echo '<p><strong>Cache Hits:</strong> ' . esc_html( $this->cache_hits ) . '<br />';
+			echo '<strong>Cache Misses:</strong> ' . esc_html( $this->cache_misses ) . '<br /></p>';
+			echo '<ul>';
 			foreach ( $this->cache as $group => $cache ) {
-				// phpcs:ignore
-				$length = number_format( strlen( @serialize( $cache ) ) / KB_IN_BYTES, 2 );
+				$length = number_format( strlen( $this->maybe_serialize( $cache ) ) / KB_IN_BYTES, 1 );
 				$item   = $group . ' - ( ' . $length . 'KiB )';
-				echo esc_html( '<li><strong>Group:</strong> ' . $item . '</li>' );
+				echo '<li><strong>Group:</strong> ' . esc_html( $item ) . '</li>';
 			}
-			echo esc_html( '</ul>' );
+			echo '</ul>';
 		}
 
 		/**
