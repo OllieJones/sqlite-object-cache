@@ -269,28 +269,27 @@ class SQLite_Object_Cache_Statistics {
 			echo '<p>' . esc_html( sprintf(
 			                    /* translators:  1 start time   2 end time both in localized format */
 				                    __( 'From %1$s to %2$s.', 'sqlite-object-cache' ),
-				                    $this->start_time, $this->end_time ) . ' ' . __( 'Times in microseconds.', 'sqlite-object-cache' ) ) . '</p>';
-			echo '<table class="sql-object-cache-stats">';
+				                    $this->start_time, $this->end_time ) . ' ' . __( 'Times in microseconds.', 'sqlite-object-cache' ) ) . '</p>' . PHP_EOL;
+			echo '<table class="sql-object-cache-stats">' . PHP_EOL;
 			$first = true;
 			foreach ( $this->descriptions as $stat => $description ) {
 				if ( $first ) {
 					echo '<thead><tr>';
-					echo '<th>' . esc_html__( 'Item', 'sqlite-object-cache' ) . '</th>';
+					echo '<th scope="col">' . esc_html__( 'Item', 'sqlite-object-cache' ) . '</th>';
 					foreach ( $description as $item => $value ) {
-						echo '<th>' . esc_html( $item ) . '</th>';
+						echo '<th scope="col">' . esc_html( $item ) . '</th>' . PHP_EOL;
 					}
-					echo '</tr></thead><tbody>';
+					echo '</tr></thead><tbody>' . PHP_EOL;
 					$first = false;
 				}
 				echo '<tr>';
-				$stat = esc_html( $stat );
-				echo "<th scope='row'>$stat</th>";
+				echo '<th scope="row">' . esc_html( $stat ) . '</th>';
 				foreach ( $description as $value ) {
 					echo '<td>' . esc_html( round( $value, 2 ) ) . '</td>';
 				}
-				echo '</tr>';
+				echo '</tr>' . PHP_EOL;
 			}
-			echo '</tr></tbody></table>';
+			echo '</tr></tbody></table>' . PHP_EOL;
 		} else {
 			echo '<p>' . esc_html__( 'No cache statistics recorded yet.', 'sqlite-object-cache' ) . '</p>';
 		}
@@ -307,7 +306,7 @@ class SQLite_Object_Cache_Statistics {
 				$bs = explode( '|', $b, 2 );
 				/* Ascending order by group name */
 				if ( $as[0] !== $bs[0] ) {
-					return strnatcmp( $as[0], $bs[0]);
+					return strnatcmp( $as[0], $bs[0] );
 				}
 				/* Ascending order by key name, handling numeric keys correctly. */
 				if ( is_numeric( $as[1] ) && is_numeric( $bs[1] ) ) {
@@ -317,22 +316,22 @@ class SQLite_Object_Cache_Statistics {
 
 					return ( (float) $as[1] ) < ( (float) $bs[1] ) ? - 1 : 1;
 				}
-				return strnatcmp( $as[1], $bs[1]);
+
+				return strnatcmp( $as[1], $bs[1] );
 			} );
 
-			echo '<h3>' . esc_html__( 'Most frequently looked up cache items' ) . '</h3>';
+			echo '<h3>' . esc_html__( 'Most frequently looked up cache items', 'sqlite-object-cache' ) . '</h3>' . PHP_EOL;
 
-			echo '<table class="sql-object-cache-items">';
+			echo '<table class="sql-object-cache-items">' . PHP_EOL;
 			$count_threshold = - 1;
 			$first           = true;
 			foreach ( $names as $name => $count ) {
 				if ( $first ) {
 					echo '<thead><tr>';
-					$group_name = esc_html__( "Cache Group", 'sqlite-object-cache' );
-					$key_name   = esc_html__( "Cache Key", 'sqlite-object-cache' );
-					$count_name = esc_html__( "Count", 'sqlite-object-cache' );
-					echo "<th>$group_name</th><th>$key_name</th><th>$count_name</th>";
-					echo '</tr></thead><tbody>';
+					echo '<th scope="col">' . esc_html__( "Cache Group", 'sqlite-object-cache' ) . '</th>';
+					echo '<th scope="col">' . esc_html__( "Cache Key", 'sqlite-object-cache' ) . '</th>';
+					echo '<th scope="col">' . esc_html__( "Count", 'sqlite-object-cache' ) . '</th>';
+					echo '</tr></thead><tbody>' . PHP_EOL;
 					$count_threshold = (int) ( $count * 0.7 );
 					$first           = false;
 				}
@@ -340,10 +339,11 @@ class SQLite_Object_Cache_Statistics {
 					break;
 				}
 				$splits = explode( '|', $name, 2 );
-				$group  = esc_html( $splits[0] );
-				$key    = esc_html( $splits[1] );
-				$count  = esc_html( $count );
-				echo "<tr><td>$group</td><td>$key</td><td>$count</td></tr>";
+				echo '<tr>';
+				echo '<td>' . esc_html( $splits[0] ) . '</td>';
+				echo '<td>' . esc_html( $splits[1] ) . '</td>';
+				echo '<td>' . esc_html( $count ) . '</td>';
+				echo '</tr>' . PHP_EOL;
 			}
 		}
 		echo '</tbody></table>';

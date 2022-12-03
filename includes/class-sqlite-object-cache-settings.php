@@ -340,13 +340,13 @@ class SQLite_Object_Cache_Settings {
 
 				$sqlite_version = $this->parent->sqlite_get_version();
 				if ( version_compare( $sqlite_version, $this->parent->minimum_sqlite_version ) < 0 ) {
-					echo sprintf(
+					echo esc_html( sprintf(
 					/* translators: 1 actual SQLite version. 2 required SQLite version) */
 						__( 'You cannot use the SQLite Object Cache plugin. Your server only offers SQLite3 version %1$s, but at least %2$s is required.', 'sqlite-object-cache' ),
-						$sqlite_version, $this->parent->minimum_sqlite_version );
+						$sqlite_version, $this->parent->minimum_sqlite_version ) );
 				}
 
-				echo '</p></div>';
+				echo '</p></div>' . PHP_EOL;
 			}
 		}
 	}
@@ -564,7 +564,7 @@ class SQLite_Object_Cache_Settings {
 				$tab_link = remove_query_arg( 'settings-updated', $tab_link );
 
 				// Output tab.
-				echo '<a href="' . $tab_link . '" class="' . esc_attr( $class ) . '">' . esc_html( $data['title'] ) . '</a>' . PHP_EOL;
+				echo '<a href="' . esc_url( $tab_link ) . '" class="' . esc_attr( $class ) . '">' . esc_html( $data['title'] ) . '</a>' . PHP_EOL;
 			}
 
 			echo '</h2>' . PHP_EOL;
@@ -579,10 +579,8 @@ class SQLite_Object_Cache_Settings {
 
 		echo '<p class="submit">' . PHP_EOL;
 		echo '<input type="hidden" name="tab" value="' . esc_attr( $tab ) . '" />' . PHP_EOL;
-		echo '<input name="Submit" type="submit" class="button-primary" value="' . $submit_caption . '" />' . PHP_EOL;
-		echo '</p>' . PHP_EOL;
-		echo '</form>' . PHP_EOL;
-		echo '</div>' . PHP_EOL;
+		echo '<input name="Submit" type="submit" class="button-primary" value="' . esc_attr( $submit_caption ) . '" />' . PHP_EOL;
+		echo '</p></form></div>' . PHP_EOL;
 	}
 
 	/**

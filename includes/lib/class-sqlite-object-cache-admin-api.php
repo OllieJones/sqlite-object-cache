@@ -247,7 +247,7 @@ class SQLite_Object_Cache_Admin_API {
 
 		foreach ( $fields as $field ) {
 			if ( isset( $_REQUEST[ $field['id'] ] ) ) {
-				update_post_meta( $post_id, $field['id'], $this->validate_field( $_REQUEST[ $field['id'] ], $field['type'] ) );
+				update_post_meta( $post_id, $field['id'], $this->sanitize_field( $_REQUEST[ $field['id'] ], $field['type'] ) );
 			} else {
 				update_post_meta( $post_id, $field['id'], '' );
 			}
@@ -255,14 +255,14 @@ class SQLite_Object_Cache_Admin_API {
 	}
 
 	/**
-	 * Validate form field
+	 * Sanitize form field
 	 *
 	 * @param string $data Submitted value.
-	 * @param string $type Type of field to validate.
+	 * @param string $type Type of field to sanitize.
 	 *
-	 * @return string       Validated value
+	 * @return string       Sanitized value
 	 */
-	public function validate_field( $data = '', $type = 'text' ) {
+	public function sanitize_field( $data = '', $type = 'text' ) {
 
 		switch ( $type ) {
 			case 'text':
@@ -273,6 +273,9 @@ class SQLite_Object_Cache_Admin_API {
 				break;
 			case 'email':
 				$data = sanitize_email( $data );
+				break;
+			default:
+				$data = sanitize_key ($data);
 				break;
 		}
 

@@ -2,14 +2,14 @@
 # This file is distributed under the same license as the SQLite Object Cache plugin.
 msgid ""
 msgstr ""
-"Project-Id-Version: SQLite Object Cache 0.1.5\n"
+"Project-Id-Version: SQLite Object Cache 0.1.6\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/sqlite-object-cache\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2022-12-02T15:24:13-05:00\n"
+"POT-Creation-Date: 2022-12-03T08:03:25-05:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.6.0\n"
 "X-Domain: sqlite-object-cache\n"
@@ -243,8 +243,12 @@ msgstr ""
 msgid "Item"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:295
+#: includes/lib/class-sqlite-object-cache-statistics.php:294
 msgid "No cache statistics recorded yet."
+msgstr ""
+
+#: includes/lib/class-sqlite-object-cache-statistics.php:323
+msgid "Most frequently looked up cache items"
 msgstr ""
 
 #: includes/lib/class-sqlite-object-cache-statistics.php:331

@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache Drop-In
- * Version: 0.1.5
+ * Version: 0.1.6
  * Note: This Version number must match the one in the ctor for SQLite_Object_Cache.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -1627,7 +1627,7 @@ SET value=excluded.value, expires=excluded.expires;";
 		 */
 		public function stats() {
 			echo '<p><strong>Cache Hits:</strong> ' . esc_html( $this->cache_hits ) . '<br />';
-			echo '<strong>Cache Misses:</strong> ' . esc_html( $this->cache_misses ) . '<br /></p>';
+			echo '<strong>Cache Misses:</strong> ' . esc_html( $this->cache_misses ) . '<br /></p>' . PHP_EOL;
 			echo '<ul>';
 			foreach ( $this->cache as $group => $cache ) {
 				$length = number_format( strlen( $this->maybe_serialize( $cache ) ) / KB_IN_BYTES, 1 );
