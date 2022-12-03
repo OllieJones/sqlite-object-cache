@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache Drop-In
- * Version: 0.1.6
+ * Version: 0.1.7
  * Note: This Version number must match the one in the ctor for SQLite_Object_Cache.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -387,8 +387,10 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$this->exec( 'PRAGMA synchronous = OFF' );
 			$this->exec( "PRAGMA encoding = 'UTF-8'" );
 			$this->exec( 'PRAGMA case_sensitive_like = true' );
-			// TODO detect corruption and rebuild the cache db.
-			$this->exec( 'PRAGMA journal_mode = MEMORY' );
+			/* WAL is available in 3.7.0 and beyond */
+			if ( version_compare( $this->sqlite_get_version(), '3.7.0', 'ge' )  ) {
+				$this->exec( 'PRAGMA journal_mode = WAL' );
+			}
 
 			$this->create_object_cache_table( $tbl, $noexpire_timestamp_offset );
 			$this->prepare_statements( $tbl );
@@ -763,6 +765,8 @@ SET value=excluded.value, expires=excluded.expires;";
 			}
 			if ( $vacuum ) {
 				$this->exec( 'VACUUM;' );
+				$this->exec( 'PRAGMA analysis_limit=400;' );
+				$this->exec( 'PRAGMA optimize;' );
 			}
 		}
 
