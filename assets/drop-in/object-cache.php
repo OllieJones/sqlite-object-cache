@@ -384,13 +384,11 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			/* set some initial pragma stuff */
 
 			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
-			$this->exec( 'PRAGMA synchronous = OFF' );
 			$this->exec( "PRAGMA encoding = 'UTF-8'" );
 			$this->exec( 'PRAGMA case_sensitive_like = true' );
-			/* WAL is available in 3.7.0 and beyond */
-			if ( version_compare( $this->sqlite_get_version(), '3.7.0', 'ge' )  ) {
-				$this->exec( 'PRAGMA journal_mode = WAL' );
-			}
+			$this->exec( 'PRAGMA synchronous = NORMAL' );
+			/* we don't run on versions pre 3.7, so WAL is always available. */
+			$this->exec( 'PRAGMA journal_mode = WAL' );
 
 			$this->create_object_cache_table( $tbl, $noexpire_timestamp_offset );
 			$this->prepare_statements( $tbl );
