@@ -52,6 +52,14 @@ SQLite serves this plugin as a very simple key / value storage mechanism. A pers
 
 But many hosting providers don't offer redis or any other separate cache server, while they do offer SQLite. This plugin enables your site to use a persistent object cache even without a separate cache server.
 
+= Is this plugin compatible with my version of MySQL or MariaDB? =
+
+**Yes**. It does require any specific database server version.
+
+= Is this plugin compatible with my version of redis or memcached? =
+
+Please **do not use** this plugin if you have access to redis or memcached. Instead, use the [Redis Object Cache](https://wordpress.org/plugins/redis-cache/) or [Memcached Object Cache[https://wordpress.org/plugins/memcached/} plugin.
+
 = Why not use the MariaDB or MySql database server for the object cache? =
 
 In WordPress, as in many web frameworks, your database server is a performance bottleneck. Using some other mechanism for the object cache avoids adding to your database workload. Web servers serve pages using multiple php processes, and each process handles its own SQLite workload while updating a shared database file. That spreads the object-cache workload out over many processes rather than centralizing it.
