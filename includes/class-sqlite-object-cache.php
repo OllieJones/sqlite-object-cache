@@ -487,7 +487,7 @@ class SQLite_Object_Cache {
 
 		wp_unschedule_hook( self::CLEAN_EVENT_HOOK );
 
-		$db_file = WP_CONTENT_DIR . '/object-cache.sqlite';
+		$db_file = WP_CONTENT_DIR . '/.ht.object-cache.sqlite';
 		if ( defined( 'WP_SQLITE_OBJECT_CACHE_DB_FILE' ) ) {
 			$db_file = WP_SQLITE_OBJECT_CACHE_DB_FILE;
 		}
@@ -500,7 +500,7 @@ class SQLite_Object_Cache {
 		wp_cache_flush();
 
 		if ( $this->validate_object_cache_dropin() && $this->initialize_filesystem( '', true ) ) {
-			$wp_filesystem->delete( $this->dropinfiledest );
+			$wp_filesystem->delete( $this->dropinfiledest );  //TODO delete any -shm or -wal files here.
 			if ( ! $dont_delete_db_file ) {
 				$wp_filesystem->delete( $db_file );
 			}
