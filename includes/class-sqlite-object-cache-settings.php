@@ -197,7 +197,7 @@ class SQLite_Object_Cache_Settings {
 
 		if ( array_key_exists( 'flush', $option ) && $option ['flush'] === 'on' ) {
 			if ( method_exists( $wp_object_cache, 'flush' ) ) {
-				$wp_object_cache->flush( true, true );
+				$wp_object_cache->flush( true );
 			}
 			unset ( $option['flush'] );
 		}

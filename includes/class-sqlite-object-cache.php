@@ -130,7 +130,7 @@ class SQLite_Object_Cache {
 		$this->dir              =
 			trailingslashit( dirname( WP_CONTENT_DIR . '/plugins/' . plugin_basename( $this->file ) ) );
 		$this->assets_dir       = trailingslashit( $this->dir . 'assets' );
-		$this->dropinfilesource = $this->assets_dir . '/drop-in/object-cache.php';
+		$this->dropinfilesource = $this->assets_dir . 'drop-in/object-cache.php';
 		$this->dropinfiledest   = trailingslashit( WP_CONTENT_DIR ) . 'object-cache.php';
 
 		$this->assets_url = esc_url( trailingslashit( plugins_url( '/assets/', $this->file ) ) );
@@ -212,27 +212,13 @@ class SQLite_Object_Cache {
 	 * @return void
 	 */
 	public function on_activation() {
-		$this->_log_version_number();
 		if ( true === $this->has_sqlite() ) {
 			add_action( 'shutdown', [ $this, 'update_dropin' ] );
 		}
 	}
 
 	/**
-	 * Log the plugin version number.
-	 *
-	 * @access  public
-	 * @return  void
-	 * @since   1.0.0
-	 */
-	private function _log_version_number() {
-		update_option( $this->_token . '_version', $this->_version, false );
-	}
-
-	/**
 	 * Determine whether we can use SQLite3.
-	 *
-	 * @param string $directory The directory to hold the .sqlite file. Default WP_CONTENT_DIR.
 	 *
 	 * @return bool|string true, or an error message.
 	 */
@@ -461,8 +447,9 @@ class SQLite_Object_Cache {
 		global $wp_filesystem;
 		$has = $this->has_sqlite();
 		if ( true === $has && $this->initialize_filesystem( '', true ) ) {
-			$result = $wp_filesystem->copy( $this->dropinfilesource, $this->dropinfiledest, true, FS_CHMOD_FILE );
 
+			$this->delete_sqlite_files();
+			$result = $wp_filesystem->copy( $this->dropinfilesource, $this->dropinfiledest, true, FS_CHMOD_FILE );
 			/**
 			 * Fires on cache enable event
 			 *
@@ -474,35 +461,34 @@ class SQLite_Object_Cache {
 		}
 	}
 
-	/**
-	 * Plugin deactivation hook
-	 *
-	 * @param string $plugin Plugin basename.
-	 *
-	 * @return void
-	 * @author Till Krüss
-	 */
-	public function on_deactivation( $plugin ) {
+	private function delete_dropin() {
+		global $wp_filesystem;
+		ob_start();
+
+		if ( $this->validate_object_cache_dropin() && $this->initialize_filesystem( '', true ) ) {
+			$wp_filesystem->delete( $this->dropinfiledest );
+		}
+
+		ob_end_clean();
+
+	}
+
+	private function delete_sqlite_files() {
 		global $wp_filesystem;
 
-		wp_unschedule_hook( self::CLEAN_EVENT_HOOK );
-
-		$db_file = WP_CONTENT_DIR . '/.ht.object-cache.sqlite';
+		/* the former filename */
+		$old_file = WP_CONTENT_DIR . '/object-cache.sqlite';
+		$db_file  = WP_CONTENT_DIR . '/.ht.object-cache.sqlite';
 		if ( defined( 'WP_SQLITE_OBJECT_CACHE_DB_FILE' ) ) {
 			$db_file = WP_SQLITE_OBJECT_CACHE_DB_FILE;
 		}
 
-		$dont_delete_db_file =
-			defined( 'WP_SQLITE_OBJECT_CACHE_DB_FILE_DISABLE_DELETE' ) && WP_SQLITE_OBJECT_CACHE_DB_FILE_DISABLE_DELETE;
-
 		ob_start();
 
-		wp_cache_flush();
-
 		if ( $this->validate_object_cache_dropin() && $this->initialize_filesystem( '', true ) ) {
-			$wp_filesystem->delete( $this->dropinfiledest );  //TODO delete any -shm or -wal files here.
-			if ( ! $dont_delete_db_file ) {
-				$wp_filesystem->delete( $db_file );
+			foreach ( [ '', '-shm', '-wal' ] as $suffix ) {
+				$wp_filesystem->delete( $db_file . $suffix );
+				$wp_filesystem->delete( $old_file . $suffix );
 			}
 		}
 
@@ -538,5 +524,23 @@ class SQLite_Object_Cache {
 			$dropin['PluginURI'],
 			$plugin['PluginURI']
 		);
+	}
+
+	/**
+	 * Plugin deactivation hook
+	 *
+	 * @param string $plugin Plugin basename.
+	 *
+	 * @return void
+	 * @author Till Krüss
+	 */
+	public function on_deactivation( $plugin ) {
+		global $wp_filesystem;
+
+		wp_cache_flush();
+
+		wp_unschedule_hook( self::CLEAN_EVENT_HOOK );
+		$this->delete_sqlite_files();
+		$this->delete_dropin();
 	}
 }

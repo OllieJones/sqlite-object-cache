@@ -5,8 +5,8 @@ Tags: cache, sqlite, performance
 Requires at least: 5.9
 Requires PHP: 5.6
 Tested up to: 6.1.1
-Version: 0.1.8
-Stable tag: 0.1.8
+Version: 1.0.0
+Stable tag: 1.0.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache
@@ -46,21 +46,23 @@ Installing "SQLite Object Cache" can be done either by searching for "SQLite Obj
 
 = Wait, what? Do I really need two different kinds of SQL database? =
 
-This plugin doesn't use SQLite as a full-fledged database server.
+No, you don't. This plugin doesn't use SQLite as a full-fledged database server.
 
-SQLite serves this plugin as a very simple key / value storage mechanism. A persistent object cache needs some storage mechanism. Some hosting providers offer scalable high-performance [redis](https://redis.io/) cache servers. If your provider offers that, it is a good choice. You can use it via [Redis Object Cache](https://wordpress.org/plugins/redis-cache/) plugin. Sites using redis have one SQL database and another non-SQL storage scheme: redis.
+SQLite serves this plugin as a very simple key / value storage mechanism. A persistent object cache needs some kind of storage mechanism.
 
-But many hosting providers don't offer redis or any other separate cache server, while they do offer SQLite. This plugin enables your site to use a persistent object cache even without a separate cache server.
+Some hosting providers offer scalable high-performance [redis](https://redis.io/) cache servers. If your provider offers redis, it is a good choice. You can use it via [Redis Object Cache](https://wordpress.org/plugins/redis-cache/) plugin. Sites using redis have one SQL database and another non-SQL storage scheme: redis. Other hosting providers offer [memcached](https://memcached.org/), which has the [Memcached Object Cache](https://wordpress.org/plugins/memcached/).
+
+But many hosting providers don't offer either redis or memcached, while they do offer SQLite. This plugin enables your site to use a persistent object cache even without a separate cache server.
 
 = Is this plugin compatible with my version of MySQL or MariaDB? =
 
-**Yes**. It does require any specific database server version.
+**Yes**. It does not require any specific database server version.
 
 = Is this plugin compatible with my version of redis or memcached? =
 
 Please **do not use** this plugin if you have access to redis or memcached. Instead, use the [Redis Object Cache](https://wordpress.org/plugins/redis-cache/) or [Memcached Object Cache[https://wordpress.org/plugins/memcached/} plugin.
 
-= Why not use the MariaDB or MySql database server for the object cache? =
+= Why not use the site's main MariaDB or MySql database server for the object cache? =
 
 In WordPress, as in many web frameworks, your database server is a performance bottleneck. Using some other mechanism for the object cache avoids adding to your database workload. Web servers serve pages using multiple php processes, and each process handles its own SQLite workload while updating a shared database file. That spreads the object-cache workload out over many processes rather than centralizing it.
 
@@ -78,7 +80,19 @@ In WordPress, as in many web frameworks, your database server is a performance b
 
 = How does this work? =
 
-This plugin uses a WordPress drop-in to extend the functionality of the WP_Cache class.
+This plugin uses a [WordPress drop-in](https://developer.wordpress.org/reference/functions/get_dropins/) to extend the functionality of the WP_Cache class. When you activate the plugin it creates the dropin file `.../wp-content/object-cache.php`. Upon deactivation, it removes that file and the cached data.
+
+= Where does the plugin store the cached data? =
+
+It's in your site's `wp_content` directory, in the file named `.ht.object-cache.sqlite`. That file's name has the `.ht.` prefix to prevent your web server from allowing it to be downloaded. SQLite also sometimes uses the files named `.ht.object-cache.sqlite-shm` and `.ht.object-cache.sqlite-wal`, so you may see any of those files.
+
+On Linux and other UNIX-derived operating systems, you must give the command `ls -a` to see files when their names begin with a dot.
+
+If you define the constant `WP_SQLITE_OBJECT_CACHE_DB_FILE` in `wp_config.php` the plugin uses that for the file name instead. For example, if `wp_config.php` contains this line
+
+`define( 'WP_SQLITE_OBJECT_CACHE_DB_FILE', '/var/tmp/mysite-object-cache.sqlite' );`
+
+your object cache data goes into the `/var/tmp` folder.
 
 = Is there a joke somewhere in this? =
 
@@ -98,15 +112,14 @@ Seriously, the core of WordPress has already worked out, over years of developme
 
 == Changelog ==
 
-= 0.1.2 = Cleanups
+= 1.0.0 =
 
+Use `.ht.object-cache.sqlite` for cached data to prevent downloading it via the web server.
 
-= 0.1.1 =
-* 2022-11-19 Post Plugin Review
+Add support for the `WP_SQLITE_OBJECT_CACHE_DB_FILE` constant.
 
-= 0.1.0 =
-* 2022-11-17 Initial release
+= 0.1.7 = First release
 
 == Upgrade Notice ==
 
-* Initial release
+This release fixes a security vulnerability, and adds support for the `WP_SQLITE_OBJECT_CACHE_DB_FILE` constant.
