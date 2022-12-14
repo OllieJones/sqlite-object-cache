@@ -875,7 +875,9 @@ SET value=excluded.value, expires=excluded.expires;";
 				$stmt->bindValue( ':value', $this->maybe_serialize( $record ), SQLITE3_BLOB );
 				$stmt->bindValue( ':timestamp', time(), SQLITE3_INTEGER );
 				$result = $stmt->execute();
-				$result->finalize();
+				if ($result) {
+					$result->finalize();
+				}
 			} catch ( \Exception $ex ) {
 				error_log( $ex );
 			}
