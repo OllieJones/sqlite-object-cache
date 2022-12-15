@@ -1089,7 +1089,7 @@ SET value=excluded.value, expires=excluded.expires;";
 				return false;
 			}
 
-			return $this->set( $id, $data, $group, (int) $expire );
+			return $this->set( $key, $data, $group, (int) $expire );
 		}
 
 		/**
@@ -1295,7 +1295,7 @@ SET value=excluded.value, expires=excluded.expires;";
 					$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
 					$result = $stmt->execute();
 					if ( false === $result ) {
-						$code = $this->sqlite->lastErrorCode();
+						$this->delete_offending_files( 0 );
 						throw new SQLite_Object_Cache_Exception( 'insert: ' . $name, $this->sqlite, $start2 );
 					}
 					$result->finalize();
@@ -1816,7 +1816,7 @@ SET value=excluded.value, expires=excluded.expires;";
 		 *
 		 * @return void
 		 */
-		private function delete_offending_files( int $retries = 0 ) {
+		private function delete_offending_files( $retries = 0 ) {
 			error_log( "sqlite_object_cache connection failure, deleting sqlite files to retry. $retries" );
 			require_once ABSPATH . 'wp-admin/includes/file.php';
 			ob_start();
@@ -1826,6 +1826,7 @@ SET value=excluded.value, expires=excluded.expires;";
 			foreach ( [ '', '-shm', '-wal' ] as $suffix ) {
 				$wp_filesystem->delete( $this->sqlite_path . $suffix );
 			}
+			ob_end_clean();
 		}
 	}
 

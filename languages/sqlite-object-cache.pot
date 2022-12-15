@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2022-12-15T10:03:40-05:00\n"
+"POT-Creation-Date: 2022-12-15T16:43:43-05:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.6.0\n"
 "X-Domain: sqlite-object-cache\n"
@@ -35,11 +35,11 @@ msgid "https://github.com/OllieJones/"
 msgstr ""
 
 #. translators: 1: WP_CONTENT_DIR
-#: assets/drop-in/object-cache.php:710
+#: assets/drop-in/object-cache.php:713
 msgid "The SQLite Object Cache cannot be activated because the %s directory is not writable."
 msgstr ""
 
-#: assets/drop-in/object-cache.php:714
+#: assets/drop-in/object-cache.php:717
 msgid "The SQLite Object Cache cannot be activated because the SQLite3 extension is not loaded."
 msgstr ""
 
