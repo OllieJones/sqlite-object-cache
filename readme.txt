@@ -114,12 +114,12 @@ Seriously, the core of WordPress has already worked out, over years of developme
 
 = 1.0.0 =
 
-Use `.ht.object-cache.sqlite` for cached data to prevent downloading it via the web server.
-
-Add support for the `WP_SQLITE_OBJECT_CACHE_DB_FILE` constant.
+1. Use `.ht.object-cache.sqlite` for cached data to prevent downloading it via the web server.
+2. Add support for the `WP_SQLITE_OBJECT_CACHE_DB_FILE` constant.
+3. It's possible for the sqlite cache file to become corrupt if a server process crashes. When detecting that kind of situation, the plugin now deletes and rebuilds it.
 
 = 0.1.7 = First release
 
 == Upgrade Notice ==
 
-This release fixes a security vulnerability, and adds support for the `WP_SQLITE_OBJECT_CACHE_DB_FILE` constant.
+This release fixes a security vulnerability and adds support for the `WP_SQLITE_OBJECT_CACHE_DB_FILE` constant.
