@@ -411,11 +411,14 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 
 		/**
 		 * Open SQLite3 connection.
+		 *
 		 * @return void
+		 * @throws SQLite_Object_Cache_Exception Announce SQLite failure.
 		 */
 		private function actual_open_connection() {
 			$start        = $this->time_usec();
 			$this->sqlite = new SQLite3( $this->sqlite_path, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE, null );
+			$this->sqlite->enableExceptions( true );
 			$this->sqlite->busyTimeout( $this->sqlite_timeout );
 
 			/* set some initial pragma stuff */
