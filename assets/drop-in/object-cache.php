@@ -50,6 +50,11 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			parent::__construct( $note . ': ' . $sqlite->lastErrorMsg(), $sqlite->lastErrorCode(), null );
 		}
 
+		/**
+		 * Get the current time in microseconds.
+		 *
+		 * @return float Current time (relative to some arbitrary epoch, not UNIX's epoch.
+		 */
 		private function time_usec() {
 
 			if ( function_exists( 'hrtime' ) ) {
@@ -389,29 +394,47 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			if ( $this->sqlite ) {
 				return;
 			}
-			try {
-				$start        = $this->time_usec();
-				$this->sqlite = new SQLite3( $this->sqlite_path, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE, null );
-				$this->sqlite->busyTimeout( $this->sqlite_timeout );
+			$max_retries = 3;
+			$retries     = 0;
+			while ( ++ $retries <= $max_retries ) {
+				try {
+					$this->actual_open_connection();
 
-				/* set some initial pragma stuff */
-				/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
-				$this->exec( "PRAGMA encoding = 'UTF-8'" );
-				$this->exec( 'PRAGMA case_sensitive_like = true' );
-				/* we don't run on versions pre 3.7, so WAL is always available. */
-				//$this->exec( 'PRAGMA synchronous = NORMAL' );
-				//$this->exec( 'PRAGMA journal_mode = WAL' );
-				$this->exec( 'PRAGMA synchronous = OFF' );
-				$this->exec( 'PRAGMA journal_mode = MEMORY' );
-
-				$this->create_object_cache_table();
-				$this->prepare_statements( $this->cache_table_name );
-				$this->preload( $this->cache_table_name );
-
-				$this->open_time = $this->time_usec() - $start;
-			} catch ( \Exception $ex ) {
-				error_log( $ex );
+					return;
+				} catch ( \Exception $ex ) {
+					/* something went wrong opening */
+					error_log( $ex );
+					$this->delete_offending_files( $retries );
+				}
 			}
+		}
+
+		/**
+		 * Open SQLite3 connection.
+		 * @return void
+		 */
+		private function actual_open_connection() {
+			$start        = $this->time_usec();
+			$this->sqlite = new SQLite3( $this->sqlite_path, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE, null );
+			$this->sqlite->busyTimeout( $this->sqlite_timeout );
+
+			/* set some initial pragma stuff */
+			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
+
+			/* Notice we use a journal mode that risks database corruption.
+			 * That's OK, because it's MUCH faster, and because we have an error
+			 * recovery procedure that deletes and recreates a corrupt database file.
+			 */
+			$this->exec( 'PRAGMA synchronous = OFF' );
+			$this->exec( 'PRAGMA journal_mode = MEMORY' );
+			$this->exec( "PRAGMA encoding = 'UTF-8'" );
+			$this->exec( 'PRAGMA case_sensitive_like = true' );
+
+			$this->create_object_cache_table();
+			$this->prepare_statements( $this->cache_table_name );
+			$this->preload( $this->cache_table_name );
+
+			$this->open_time = $this->time_usec() - $start;
 		}
 
 		/**
@@ -728,6 +751,7 @@ SET value=excluded.value, expires=excluded.expires;";
 					$this->sqlite = null;
 				} catch ( Exception $ex ) {
 					error_log( $ex );
+					$this->delete_offending_files();
 				}
 			}
 
@@ -837,6 +861,7 @@ SET value=excluded.value, expires=excluded.expires;";
 				}
 			} catch ( SQLite_Object_Cache_Exception $ex ) {
 				error_log( $ex );
+				$this->delete_offending_files( 0 );
 			}
 		}
 
@@ -916,6 +941,7 @@ SET value=excluded.value, expires=excluded.expires;";
 				}
 			} catch ( \Exception $ex ) {
 				error_log( $ex );
+				$this->delete_offending_files( 0 );
 			}
 			unset( $record, $stmt );
 		}
@@ -1242,6 +1268,7 @@ SET value=excluded.value, expires=excluded.expires;";
 				$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
 				$result = $stmt->execute();
 				if ( false === $result ) {
+					$this->delete_offending_files( 0 );
 					throw new SQLite_Object_Cache_Exception( 'upsert: ' . $name, $this->sqlite, $start );
 				}
 				$result->finalize();
@@ -1252,6 +1279,7 @@ SET value=excluded.value, expires=excluded.expires;";
 				$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
 				$result = $stmt->execute();
 				if ( false === $result ) {
+					$this->delete_offending_files( 0 );
 					throw new SQLite_Object_Cache_Exception( 'update: ' . $name, $this->sqlite, $start );
 				}
 				$result->finalize();
@@ -1486,6 +1514,7 @@ SET value=excluded.value, expires=excluded.expires;";
 			$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
 			$result = $stmt->execute();
 			if ( false === $result ) {
+				$this->delete_offending_files( 0 );
 				throw new SQLite_Object_Cache_Exception( 'delete: ' . $name, $this->sqlite, $start );
 			}
 			$result->finalize();
@@ -1625,6 +1654,7 @@ SET value=excluded.value, expires=excluded.expires;";
 				}
 			} catch ( Exception $ex ) {
 				error_log( $ex );
+				$this->delete_offending_files( 0 );
 			}
 
 			return true;
@@ -1649,6 +1679,7 @@ SET value=excluded.value, expires=excluded.expires;";
 			$stmt->bindValue( ':group', $group, SQLITE3_TEXT );
 			$result = $stmt->execute();
 			if ( false === $result ) {
+				$this->delete_offending_files( 0 );
 				error_log( new SQLite_Object_Cache_Exception( 'deletegroup', $this->sqlite, $start ) );
 			}
 
@@ -1773,6 +1804,25 @@ SET value=excluded.value, expires=excluded.expires;";
 		 */
 		protected function is_global_group( $group ) {
 			return $this->is_group_of_type( $group, 'global' );
+		}
+
+		/**
+		 * Delete sqlite files in hopes of recovering from trouble.
+		 *
+		 * @param int $retries
+		 *
+		 * @return void
+		 */
+		private function delete_offending_files( int $retries = 0 ) {
+			error_log( "sqlite_object_cache connection failure, deleting sqlite files to retry. $retries" );
+			require_once ABSPATH . 'wp-admin/includes/file.php';
+			ob_start();
+			$credentials = request_filesystem_credentials( '' );
+			WP_Filesystem( $credentials );
+			global $wp_filesystem;
+			foreach ( [ '', '-shm', '-wal' ] as $suffix ) {
+				$wp_filesystem->delete( $this->sqlite_path . $suffix );
+			}
 		}
 	}
 
