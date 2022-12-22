@@ -42,7 +42,7 @@ Installing "SQLite Object Cache" can be done either by searching for "SQLite Obj
 
 = Does this plugin replace MariaDB or MySQL with SQLite? =
 
-**No.**  Your MariaDB or MySQL database server still holds all your content. All your site's imports, exports, backups and other database operations continue to function normally.  This plugin uses SQLite simply to hold named values. For example, a value named "post|3" will hold a temporary, easy-to-retrieve cached copy of post number 3. When it needs that post, WordPress can fetch it quickly from SQLite.
+**No.**  Your MariaDB or MySQL database sql server still holds all your content. All your site's imports, exports, backups and other database operations continue to function normally.  This plugin uses SQLite simply to hold named values. For example, a value named "post|3" will hold a temporary, easy-to-retrieve cached copy of post number 3. When it needs that post, WordPress can fetch it quickly from SQLite.
 
 = Wait, what? Do I really need two different kinds of SQL database? =
 
@@ -60,7 +60,7 @@ But many hosting providers don't offer either redis or memcached, while they do 
 
 = Is this plugin compatible with my version of redis or memcached? =
 
-Please **do not use** this plugin if you have access to redis or memcached. Instead, use the [Redis Object Cache](https://wordpress.org/plugins/redis-cache/) or [Memcached Object Cache[https://wordpress.org/plugins/memcached/} plugin.
+Please **do not use** this plugin if you have access to redis or memcached. Instead, use the [Redis Object Cache](https://wordpress.org/plugins/redis-cache/) or [Memcached Object Cache](https://wordpress.org/plugins/memcached/) plugin.
 
 = Why not use the site's main MariaDB or MySql database server for the object cache? =
 
@@ -77,6 +77,12 @@ In WordPress, as in many web frameworks, your database server is a performance b
 = If I operate a scaled-up load-balanced installation, can I use this? =
 
 **No.** If you have more than one web server this doesn't work correctly. If you operate at that scale, use redis or some other cache server. (If you aren't sure whether you have a load-balanced installation, you almost certainly do not.)
+
+= Can I use this with the Performance Lab plugin? =
+
+**Yes, but** you must *activate this plugin first* before you activate Performance Lab. And, you must deactivate Performance Lab before *deactivating this plugin last*.
+
+The [Performance Lab plugin](https://wordpress.org/plugins/performance-lab/) offers some advanced and experimental ways of making your site faster. One of its features uses object-cache initialization code to start tracking performance. So there's a required order of activation if you want both to work.
 
 = How does this work? =
 
