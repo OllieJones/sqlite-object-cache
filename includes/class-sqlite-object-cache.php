@@ -360,7 +360,7 @@ class SQLite_Object_Cache {
 	 *
 	 */
 	public function initialize_filesystem( $url, $silent = false ) {
-		require_once ABSPATH . 'wp-admin/includes/file.php';;
+		require_once ABSPATH . 'wp-admin/includes/file.php';
 		if ( $silent ) {
 			ob_start();
 		}

@@ -36,6 +36,14 @@ Installing "SQLite Object Cache" can be done either by searching for "SQLite Obj
 
 == Frequently Asked Questions ===
 
+= Does this work with a multisite WordPress installation? =
+
+**Yes**.  To see the Settings page, choose Settings > Object Cache from the first site, or any site, in the multisite installation.
+
+= How much faster will this make my site? =
+
+Exactly predicting each site's speedup is not possible. Still, benchmarking results are promising. Please see [this](https://www.plumislandmedia.net/wordpress-plugins/sqlite-object-cache/benchmarks/). If you run a benchmark, please let the author know by leaving a comment on that page or using the [support forum](https://wordpress.org/support/plugin/sqlite-object-cache/).
+
 = What is SQLite? =
 
 [SQLite](https://www.sqlite.org/about.html) is fast and efficient database software. It doesn't require a separate server. Instead, it is built into php using the [SQLite3](https://www.php.net/manual/en/book.sqlite3.php) extension. SQLite programs don't need to open network connections to send requests and wait for replies.
@@ -48,7 +56,7 @@ Installing "SQLite Object Cache" can be done either by searching for "SQLite Obj
 
 No, you don't. This plugin doesn't use SQLite as a full-fledged database server.
 
-SQLite serves this plugin as a very simple key / value storage mechanism. A persistent object cache needs some kind of storage mechanism.
+A persistent object cache needs some kind of storage mechanism. SQLite serves this plugin as a fast and simple key / value storage mechanism.
 
 Some hosting providers offer scalable high-performance [redis](https://redis.io/) cache servers. If your provider offers redis, it is a good choice. You can use it via [Redis Object Cache](https://wordpress.org/plugins/redis-cache/) plugin. Sites using redis have one SQL database and another non-SQL storage scheme: redis. Other hosting providers offer [memcached](https://memcached.org/), which has the [Memcached Object Cache](https://wordpress.org/plugins/memcached/).
 
@@ -107,6 +115,10 @@ Q: What are the two hardest things to get right in computer science?
 1. Caching things.
 2. Naming things.
 3. Coping with off-by-one errors.
+
+= I have another question =
+
+Please look for more questions and answers [here](https://www.plumislandmedia.net/wordpress-plugins/sqlite-object-cache/faq/). Or ask your question in the [support forum](https://wordpress.org/support/plugin/sqlite-object-cache/faq/).
 
 Seriously, the core of WordPress has already worked out, over years of development and millions of sites, how to cache things and name them. This plugin simply extends that mechanism to make those things persistent.
 
