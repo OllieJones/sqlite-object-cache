@@ -106,7 +106,7 @@ If you define the constant `WP_SQLITE_OBJECT_CACHE_DB_FILE` in `wp_config.php` t
 
 `define( 'WP_SQLITE_OBJECT_CACHE_DB_FILE', '/var/tmp/mysite-object-cache.sqlite' );`
 
-your object cache data goes into the `/var/tmp` folder.
+your object cache data goes into the `/var/tmp` folder in a file named `mysite-object-cache.sqlite`.
 
 = Is there a joke somewhere in this? =
 
@@ -116,11 +116,11 @@ Q: What are the two hardest things to get right in computer science?
 2. Naming things.
 3. Coping with off-by-one errors.
 
+Seriously, the core of WordPress has already worked out, over years of development and millions of sites, how to cache things and name them. This plugin simply extends that mechanism to make those things persistent.
+
 = I have another question =
 
 Please look for more questions and answers [here](https://www.plumislandmedia.net/wordpress-plugins/sqlite-object-cache/faq/). Or ask your question in the [support forum](https://wordpress.org/support/plugin/sqlite-object-cache/faq/).
-
-Seriously, the core of WordPress has already worked out, over years of development and millions of sites, how to cache things and name them. This plugin simply extends that mechanism to make those things persistent.
 
 == Screenshots ==
 
