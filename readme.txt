@@ -2,7 +2,7 @@
 Author: Oliver Jones
 Contributors: OllieJones
 Tags: cache, sqlite, performance
-Requires at least: 5.9
+Requires at least: 5.8.3
 Requires PHP: 5.6
 Tested up to: 6.1.1
 Version: 1.0.0
