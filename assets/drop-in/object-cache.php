@@ -755,7 +755,7 @@ SET value=excluded.value, expires=excluded.expires;";
 							$samplerate = max( $samplerate, 0.0 );
 							if ( $samplerate > 0.0 ) {
 								/* a random sample at $samplerate */
-								if ( 1.0 === $samplerate || $samplerate <= rand( 0.0, 1.0 ) ) {
+								if ( 1.0 === $samplerate || $samplerate >= lcg_value() ) {
 									$this->capture( $this->monitoring_options );
 								}
 							}
