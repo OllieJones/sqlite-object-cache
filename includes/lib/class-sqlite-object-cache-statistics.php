@@ -48,39 +48,47 @@ class SQLite_Object_Cache_Statistics {
 		$first = PHP_INT_MAX;
 		$last  = PHP_INT_MIN;
 
-		$selected_names = [];
-		$opens          = [];
-		$selects        = [];
-		$inserts        = [];
-		$deletes        = [];
-		$RAMratios      = [];
-		$RAMhits        = 0;
-		$RAMmisses      = 0;
-		$DISKratios     = [];
-		$DISKhits       = 0;
-		$DISKmisses     = 0;
+		$selected_names        = [];
+		$opens                 = [];
+		$selects               = [];
+		$inserts               = [];
+		$deletes               = [];
+		$RAMratios             = [];
+		$RAMhits               = 0;
+		$RAMmisses             = 0;
+		$DISKratios            = [];
+		$DISKLookupsPerRequest = [];
+		$SavesPerRequest       = [];
+		$DBMSqueriesPerRequest = [];
+		$DISKhits              = 0;
+		$DISKmisses            = 0;
 
 		if ( ! method_exists( $wp_object_cache, 'sqlite_load_statistics' ) ) {
 			return;
 		}
 
 		foreach ( $wp_object_cache->sqlite_load_statistics() as $data ) {
-			$first        = min( $data->time, $first );
-			$last         = max( $data->time, $last );
-			$RAMhits      += $data->RAMhits;
-			$RAMmisses    += $data->RAMmisses;
-			$DISKhits     += $data->RAMhits;
-			$DISKmisses   += $data->RAMmisses;
-			$RAMratio     = $data->RAMhits / ( $data->RAMhits + $data->RAMmisses );
-			$RAMratios[]  = $RAMratio;
-			$DISKratio    = $data->DISKhits / ( $data->DISKhits + $data->DISKmisses );
-			$DISKratios[] = $DISKratio;
-			$opens []     = $data->open;
-			$selects []   = $data->selects;
-			$inserts []   = $data->inserts;
-			$deletes[]    = $data->deletes;
+			$first                   = min( $data->time, $first );
+			$last                    = max( $data->time, $last );
+			$RAMhits                 += $data->RAMhits;
+			$RAMmisses               += $data->RAMmisses;
+			$DISKhits                += $data->DISKhits;
+			$DISKmisses              += $data->DISKmisses;
+			$DISKLookupsPerRequest[] = $data->DISKhits + $data->DISKmisses;
+			$RAMratio                = $data->RAMhits / ( $data->RAMhits + $data->RAMmisses );
+			$RAMratios[]             = $RAMratio;
+			$DISKratio               = $data->DISKhits / ( $data->DISKhits + $data->DISKmisses );
+			$DISKratios[]            = $DISKratio;
+			$opens []                = $data->open;
+			$selects []              = $data->selects;
+			$inserts []              = $data->inserts;
+			$SavesPerRequest []      = count( $data->inserts );
+			if ( property_exists( $data, 'DBMSqueries' ) && is_numeric( $data->DBMSqueries ) ) {
+				$DBMSqueriesPerRequest [] = $data->DBMSqueries;
+			}
+			$deletes[] = $data->deletes;
 
-			if ( is_array( $data->select_names ) ) {
+			if ( property_exists( $data, 'select_names' ) && is_array( $data->select_names ) ) {
 				foreach ( $data->select_names as $name ) {
 					if ( ! array_key_exists( $name, $selected_names ) ) {
 						$selected_names[ $name ] = 0;
@@ -93,12 +101,15 @@ class SQLite_Object_Cache_Statistics {
 		if ( $duration > 0 ) {
 			arsort( $selected_names );
 			$descriptions = [
-				__( 'Start', 'sqlite-object-cache' )          => $this->descriptive_stats( $opens ),
-				__( 'RAM Hit Ratio', 'sqlite-object-cache' )  => $this->descriptive_stats( $RAMratios ),
-				__( 'Disk Hit Ratio', 'sqlite-object-cache' ) => $this->descriptive_stats( $DISKratios ),
-				__( 'Lookup', 'sqlite-object-cache' )         => $this->descriptive_stats( array_merge( ...$selects ) ),
-				__( 'Save', 'sqlite-object-cache' )           => $this->descriptive_stats( array_merge( ...$inserts ) ),
-				__( 'Delete', 'sqlite-object-cache' )         => $this->descriptive_stats( array_merge( ...$deletes ) ),
+				__( 'RAM hit ratio', 'sqlite-object-cache' )         => $this->descriptive_stats( $RAMratios ),
+				__( 'Disk hit ratio', 'sqlite-object-cache' )        => $this->descriptive_stats( $DISKratios ),
+				__( 'Disk lookups/request', 'sqlite-object-cache' )  => $this->descriptive_stats( $DISKLookupsPerRequest ),
+				__( 'Disk saves/request', 'sqlite-object-cache' )    => $this->descriptive_stats( $SavesPerRequest ),
+				__( 'MySQL queries/request', 'sqlite-object-cache' ) => $this->descriptive_stats( $DBMSqueriesPerRequest ),
+				__( 'Initialization times', 'sqlite-object-cache' )           => $this->descriptive_stats( $opens ),
+				__( 'Lookup times', 'sqlite-object-cache' )          => $this->descriptive_stats( array_merge( ...$selects ) ),
+				__( 'Save times', 'sqlite-object-cache' )            => $this->descriptive_stats( array_merge( ...$inserts ) ),
+				__( 'Delete times', 'sqlite-object-cache' )          => $this->descriptive_stats( array_merge( ...$deletes ) ),
 			];
 
 			$this->descriptions   = $descriptions;
@@ -123,6 +134,7 @@ class SQLite_Object_Cache_Statistics {
 		return [
 			'n'      => count( $a ),
 			'[min'   => $min,
+			'p5'     => $this->percentile( $a, 0.05 ),
 			'median' => $this->percentile( $a, 0.5 ),
 			'mean'   => $this->mean( $a ),
 			'p95'    => $this->percentile( $a, 0.95 ),
@@ -267,17 +279,17 @@ class SQLite_Object_Cache_Statistics {
 		echo '<h3>' . esc_html__( 'Cache performance statistics', 'sqlite-object-cache' ) . '</h3>';
 		if ( is_array( $this->descriptions ) ) {
 			echo '<p>' . esc_html( sprintf(
-			                    /* translators:  1 start time   2 end time both in localized format */
-				                    __( 'From %1$s to %2$s.', 'sqlite-object-cache' ),
-				                    $this->start_time, $this->end_time ) . ' ' . __( 'Times in microseconds.', 'sqlite-object-cache' ) ) . '</p>' . PHP_EOL;
+			                       /* translators:  1 start time   2 end time both in localized format */
+				                       __( 'From %1$s to %2$s.', 'sqlite-object-cache' ),
+				                       $this->start_time, $this->end_time ) . ' ' . __( 'Times in microseconds.', 'sqlite-object-cache' ) ) . '</p>' . PHP_EOL;
 			echo '<table class="sql-object-cache-stats">' . PHP_EOL;
 			$first = true;
 			foreach ( $this->descriptions as $stat => $description ) {
 				if ( $first ) {
 					echo '<thead><tr>';
-					echo '<th scope="col">' . esc_html__( 'Item', 'sqlite-object-cache' ) . '</th>';
+					echo '<th scope="col"></th>';
 					foreach ( $description as $item => $value ) {
-						echo '<th scope="col">' . esc_html( $item ) . '</th>' . PHP_EOL;
+						echo '<th scope="col" class="right">' . esc_html( $item ) . '</th>' . PHP_EOL;
 					}
 					echo '</tr></thead><tbody>' . PHP_EOL;
 					$first = false;

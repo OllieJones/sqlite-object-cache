@@ -138,16 +138,16 @@ class SQLite_Object_Cache_Settings {
 					'default'     => '',
 				],
 				[
-					'id'          => 'frequency',
+					'id'          => 'samplerate',
 					'label'       => __( 'Measure', 'sqlite-object-cache' ),
-					'description' => __( 'times per hour.', 'sqlite-object-cache' ),
+					'description' => __( 'percent of requests, randomly sampled.', 'sqlite-object-cache' ),
 					'type'        => 'number',
-					'default'     => 10,
-					'max'         => 36000,
-					'min'         => 0.001,
+					'default'     => 1,
+					'max'         => 100,
+					'min'         => 0,
 					'step'        => 'any',
 					'cssclass'    => 'narrow',
-					'placeholder' => __( 'Times per hour to measure.', 'sqlite-object-cache' ),
+					'placeholder' => __( 'Sampling percentage.', 'sqlite-object-cache' ),
 				],
 				[
 					'id'          => 'retainmeasurements',
@@ -207,7 +207,7 @@ class SQLite_Object_Cache_Settings {
 			unset ( $option['cleanup'] );
 		}
 
-		$this->numeric_option( $option, 'frequency', 10 );
+		$this->numeric_option( $option, 'samplerate', 10 );
 		$this->numeric_option( $option, 'retainmeasurements', 2 );
 
 		if ( array_key_exists( 'capture', $option ) && $option['capture'] === 'on' ) {

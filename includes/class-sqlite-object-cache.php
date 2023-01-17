@@ -150,12 +150,6 @@ class SQLite_Object_Cache {
 		add_action( 'admin-init', [ $this, 'load_localization' ], 0 );
 		add_action( 'admin_init', [ $this, 'maybe_update_dropin' ] );
 
-		/* Are we capturing SQLite Object Cache statistics? */
-		$option = get_option( $this->_token . '_settings', [] );
-		if ( is_array( $option ) && array_key_exists( 'capture', $option ) && $option['capture'] === 'on' ) {
-			add_action( 'init', [ $this, 'do_capture' ] );
-		}
-
 		/* handle cron cache cleanup */
 		add_action( self::CLEAN_EVENT_HOOK, [ $this, 'clean' ], 10, 0 );
 		if ( ! wp_next_scheduled( self::CLEAN_EVENT_HOOK ) ) {
@@ -212,6 +206,11 @@ class SQLite_Object_Cache {
 	 * @return void
 	 */
 	public function on_activation() {
+		/* make sure the autoloaded option is set when activating; avoid an extra dbms or cache hit to fetch it */
+		$option = get_option(  $this->_token . '_settings', 'default' );
+		if ( 'default' === $option ) {
+			update_option(  $this->_token . '_settings', [], true );
+		}
 		if ( true === $this->has_sqlite() ) {
 			add_action( 'shutdown', [ $this, 'update_dropin' ] );
 		}
@@ -263,41 +262,6 @@ class SQLite_Object_Cache {
 	 */
 	public function load_localization() {
 		load_plugin_textdomain( 'sqlite-object-cache', false, dirname( plugin_basename( $this->file ) ) . '/languages/' );
-	}
-
-	/**
-	 * Init action to initiate statistics capture from this page view.
-	 *
-	 * @return void
-	 */
-	public function do_capture() {
-		$option = get_option( $this->_token . '_settings' );
-		if ( ! is_array( $option ) || ! array_key_exists( 'frequency', $option ) || ! array_key_exists( 'retainmeasurements', $option ) ) {
-			/* Something's wrong with the option. Just ignore it. */
-			return;
-		}
-		$frequency        = $option['frequency'];
-		$frequency        = $frequency ?: 1;
-		$headway          = (int) ( HOUR_IN_SECONDS / $frequency );
-		$now              = time();
-		$previouscapture  = array_key_exists( 'previouscapture', $option ) ? $option['previouscapture'] : 0;
-		$sincelastcapture = $previouscapture > 0 ? $now - $previouscapture : $headway;
-		if ( $sincelastcapture >= $headway ) {
-			/* Time for a capture! */
-			global $wp_object_cache;
-			if ( method_exists( $wp_object_cache, 'set_sqlite_monitoring_options' ) ) {
-				$monitoring_options = [
-					'capture'    => true,
-					'resolution' => $headway,
-					'lifetime'   => $option['retainmeasurements'] * HOUR_IN_SECONDS,
-					'verbose'    => true,
-				];
-				$wp_object_cache->set_sqlite_monitoring_options( $monitoring_options );
-			}
-			$previouscapture           = $now;
-			$option['previouscapture'] = $previouscapture;
-			update_option( $this->_token . '_settings', $option );
-		}
 	}
 
 	/**

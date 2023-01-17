@@ -747,8 +747,19 @@ SET value=excluded.value, expires=excluded.expires;";
 			$result = true;
 			if ( $this->sqlite ) {
 				try {
-					if ( is_array( $this->monitoring_options ) ) {
-						$this->capture( $this->monitoring_options );
+					$options = get_option( 'sqlite_object_cache_settings', [] );
+					if ( is_array( $options ) && array_key_exists( 'capture', $options ) && 'on' === $options['capture'] ) {
+						if ( array_key_exists( 'samplerate', $options ) && is_numeric( $options['samplerate'] ) ) {
+							$samplerate = $options['samplerate'] * 0.01;
+							$samplerate = min( $samplerate, 1.0 );
+							$samplerate = max( $samplerate, 0.0 );
+							if ( $samplerate > 0.0 ) {
+								/* a random sample at $samplerate */
+								if ( 1.0 === $samplerate || $samplerate <= rand( 0.0, 1.0 ) ) {
+									$this->capture( $this->monitoring_options );
+								}
+							}
+						}
 					}
 					$result       = $this->sqlite->close();
 					$this->sqlite = null;
@@ -907,22 +918,21 @@ SET value=excluded.value, expires=excluded.expires;";
 		 * @noinspection SqlResolve
 		 */
 		private function capture( $options ) {
-			if ( ! array_key_exists( 'capture', $options ) || ! $options['capture'] ) {
-				return;
-			}
-			$now    = microtime( true );
+			$now = microtime( true );
+			global $wpdb;
 			$record = [
-				'time'       => $now,
-				'RAMhits'    => $this->cache_hits,
-				'RAMmisses'  => $this->cache_misses,
-				'DISKhits'   => $this->persistent_hits,
-				'DISKmisses' => $this->persistent_misses,
-				'open'       => $this->open_time,
-				'selects'    => $this->select_times,
-				'inserts'    => $this->insert_times,
-				'deletes'    => $this->delete_times,
+				'time'        => $now,
+				'RAMhits'     => $this->cache_hits,
+				'RAMmisses'   => $this->cache_misses,
+				'DISKhits'    => $this->persistent_hits,
+				'DISKmisses'  => $this->persistent_misses,
+				'open'        => $this->open_time,
+				'selects'     => $this->select_times,
+				'inserts'     => $this->insert_times,
+				'deletes'     => $this->delete_times,
+				'DBMSqueries' => $wpdb->num_queries,
 			];
-			if ( $options['verbose'] ) {
+			if ( is_array( $options ) && $options['verbose'] ) {
 				$record ['select_names'] = $this->select_names;
 				$record ['delete_names'] = $this->insert_names;
 			}
