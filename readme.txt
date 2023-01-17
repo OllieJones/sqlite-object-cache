@@ -2,7 +2,7 @@
 Author: Oliver Jones
 Contributors: OllieJones
 Tags: cache, sqlite, performance
-Requires at least: 5.8.3
+Requires at least: 5.5
 Requires PHP: 5.6
 Tested up to: 6.1.1
 Version: 1.0.0
@@ -120,7 +120,7 @@ Seriously, the core of WordPress has already worked out, over years of developme
 
 = I have another question =
 
-Please look for more questions and answers [here](https://www.plumislandmedia.net/wordpress-plugins/sqlite-object-cache/faq/). Or ask your question in the [support forum](https://wordpress.org/support/plugin/sqlite-object-cache/faq/).
+Please look for more questions and answers [here](https://www.plumislandmedia.net/wordpress-plugins/sqlite-object-cache/faq/). Or ask your question in the [support forum](https://wordpress.org/support/plugin/sqlite-object-cache/).
 
 == Screenshots ==
 
@@ -129,6 +129,10 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 
 == Changelog ==
+
+= 1.0.1 =
+
+Test with WordPress 5.5, the earliest version that does not require the obsolete mysql extension.
 
 = 1.0.0 =
 
