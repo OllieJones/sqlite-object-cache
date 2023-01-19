@@ -5,8 +5,8 @@ Tags: cache, sqlite, performance
 Requires at least: 5.5
 Requires PHP: 5.6
 Tested up to: 6.1.1
-Version: 1.0.0
-Stable tag: 1.0.0
+Version: 1.0.1
+Stable tag: 1.0.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache
@@ -132,7 +132,10 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 = 1.0.1 =
 
-Test with WordPress 5.5, the earliest version that does not require the obsolete mysql extension.
+* Test with WordPress 5.5, the earliest version that does not require the obsolete mysql extension.
+* Change performance logging from time-based to random sampling to reduce overhead.
+* Fix a race condition upserting cached values under load in pre-3.24 SQLite.
+* Show availability of the space-saving igbinary serialization on dashboard panels.
 
 = 1.0.0 =
 

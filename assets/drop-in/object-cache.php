@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache Drop-In
- * Version: 1.0.0
+ * Version: 1.0.1
  * Note: This Version number must match the one in the ctor for SQLite_Object_Cache.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -97,6 +97,13 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		const NOEXPIRE_TIMESTAMP_OFFSET = 500000000000;
 		const MAX_LIFETIME = DAY_IN_SECONDS * 2;
 		const MYSQLITE_TIMEOUT = 500;
+
+		/**
+		 * Timeout waiting for transaction completion.
+		 *
+		 * @var int
+		 */
+		private $sqlite_timeout;
 		/**
 		 * The amount of times the cache data was already stored in the cache.
 		 *
@@ -739,6 +746,38 @@ SET value=excluded.value, expires=excluded.expires;";
 		}
 
 		/**
+		 * Is recording this performance sample appropriate.
+		 *
+		 * We decide to take a performance sample based upon:
+		 *  -- the sqlite_object_cache_settings option existing.
+		 *  -- $option.capture having the 'on' value.
+		 *  -- $option.samplerate >= 100 or samplerate greater than a random number.
+		 *
+		 * @return bool True if this sample should be recorded.
+		 */
+		private function is_sample() {
+			$options = get_option( 'sqlite_object_cache_settings', 'missing_option' );
+			if ( 'missing_option' === $options ) {
+				/* set an absent option to the empty array, so we don't repeatedly hammer the cache looking for a missing option */
+				update_option( 'sqlite_object_cache_settings', [], true );
+
+				return false;
+			}
+			if ( is_array( $options ) && array_key_exists( 'capture', $options ) && 'on' === $options['capture'] ) {
+				if ( array_key_exists( 'samplerate', $options ) && is_numeric( $options['samplerate'] ) ) {
+					/* samplerate is a percentage likelihood in the option setting */
+					$samplerate = $options['samplerate'] * 0.01;
+					if ( $samplerate > 0.0 ) {
+						/* a random sample at $samplerate */
+						return ( $samplerate >= 1.0 || $samplerate >= lcg_value() );
+					}
+				}
+			}
+
+			return false;
+		}
+
+		/**
 		 * Capture statistics if need be, then close the connection.
 		 *
 		 * @return bool
@@ -747,19 +786,8 @@ SET value=excluded.value, expires=excluded.expires;";
 			$result = true;
 			if ( $this->sqlite ) {
 				try {
-					$options = get_option( 'sqlite_object_cache_settings', [] );
-					if ( is_array( $options ) && array_key_exists( 'capture', $options ) && 'on' === $options['capture'] ) {
-						if ( array_key_exists( 'samplerate', $options ) && is_numeric( $options['samplerate'] ) ) {
-							$samplerate = $options['samplerate'] * 0.01;
-							$samplerate = min( $samplerate, 1.0 );
-							$samplerate = max( $samplerate, 0.0 );
-							if ( $samplerate > 0.0 ) {
-								/* a random sample at $samplerate */
-								if ( 1.0 === $samplerate || $samplerate >= lcg_value() ) {
-									$this->capture( $this->monitoring_options );
-								}
-							}
-						}
+					if ( $this->is_sample() ) {
+						$this->capture( $this->monitoring_options );
 					}
 					$result       = $this->sqlite->close();
 					$this->sqlite = null;
@@ -1185,11 +1213,17 @@ SET value=excluded.value, expires=excluded.expires;";
 			}
 			$stmt = $this->getone;
 			$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
-			$result = $stmt->execute();
-			if ( false === $result ) {
+			try {
+				$result = $stmt->execute();
+				if ( false === $result ) {
+					unset( $this->in_persistent_cache[ $name ] );
+					$this->not_in_persistent_cache [ $name ] = true;
+					throw new SQLite_Object_Cache_Exception( 'stmt->execute', $this->sqlite, $start );
+				}
+			} catch (Exception $ex) {
 				unset( $this->in_persistent_cache[ $name ] );
 				$this->not_in_persistent_cache [ $name ] = true;
-				throw new SQLite_Object_Cache_Exception( 'stmt->execute', $this->sqlite, $start );
+				throw $ex;
 			}
 			$row  = $result->fetchArray( SQLITE3_NUM );
 			$data = false !== $row && is_array( $row ) && 1 === count( $row ) ? $row[0] : null;
@@ -1286,29 +1320,43 @@ SET value=excluded.value, expires=excluded.expires;";
 				}
 				$result->finalize();
 			} else {
-				$stmt = $this->updateone;
-				$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
-				$stmt->bindValue( ':value', $value, SQLITE3_BLOB );
-				$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
-				$result = $stmt->execute();
-				if ( false === $result ) {
-					$this->delete_offending_files( 0 );
-					throw new SQLite_Object_Cache_Exception( 'update: ' . $name, $this->sqlite, $start );
-				}
-				$result->finalize();
-				if ( 0 === $this->sqlite->changes() ) {
-					/* Updated no rows:  need insert. */
-					$start2 = $this->time_usec();
-					$stmt   = $this->insertone;
+				try {
+					/* Pre-upsert version (pre- 3.24) of SQLite,
+					 * Need to try update, then do insert if need be.
+					 * Race conditions are possible, hence BEGIN / COMMIT
+					 */
+					$this->exec( 'BEGIN;' );
+					$stmt = $this->updateone;
 					$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
 					$stmt->bindValue( ':value', $value, SQLITE3_BLOB );
 					$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
 					$result = $stmt->execute();
 					if ( false === $result ) {
+						$this->exec( 'ROLLBACK;' );
 						$this->delete_offending_files( 0 );
-						throw new SQLite_Object_Cache_Exception( 'insert: ' . $name, $this->sqlite, $start2 );
+						throw new SQLite_Object_Cache_Exception( 'update: ' . $name, $this->sqlite, $start );
 					}
 					$result->finalize();
+					if ( 0 === $this->sqlite->changes() ) {
+						/* Updated no rows:  need insert. */
+						$start2 = $this->time_usec();
+						$stmt   = $this->insertone;
+						$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
+						$stmt->bindValue( ':value', $value, SQLITE3_BLOB );
+						$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
+						$result = $stmt->execute();
+						if ( false === $result ) {
+							$this->exec( 'ROLLBACK;' );
+							$this->delete_offending_files( 0 );
+							throw new SQLite_Object_Cache_Exception( 'insert: ' . $name, $this->sqlite, $start2 );
+						}
+						$result->finalize();
+					}
+					$this->exec( 'COMMIT;' );
+				} catch (Exception $e) {
+					$this->exec( 'ROLLBACK;' );
+					$this->delete_offending_files( 0 );
+					throw new SQLite_Object_Cache_Exception( 'insert: ' . $name, $this->sqlite, $start2 );
 				}
 			}
 			unset( $this->not_in_persistent_cache[ $name ] );

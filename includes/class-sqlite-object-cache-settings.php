@@ -499,13 +499,18 @@ class SQLite_Object_Cache_Settings {
 	 */
 	private function versions() {
 		global $wp_object_cache;
+		$igbinary = function_exists( 'igbinary_serialize' ) && function_exists( 'igbinary_unserialize' )
+			? __( 'available', 'sqlite-object-cache' )
+			: __( 'unavailable', 'sqlite-object-cache' );
+
 		if ( method_exists( $wp_object_cache, 'sqlite_get_version' ) ) {
 			echo '<p>' . esc_html( sprintf(
-				/* translators: 1: version for sqlite   2: version for php  3: version for plugin */
-					__( 'Versions: SQLite: %1$s  php: %2$s  Plugin: %3$s.', 'sqlite-object-cache' ),
+				/* translators: 1: version for sqlite   2: version for php  3: version for plugin  4: status of igbinary */
+					__( 'Versions: SQLite: %1$s  php: %2$s  Plugin: %3$s  igbinary: %4$s.', 'sqlite-object-cache' ),
 					$wp_object_cache->sqlite_get_version(),
 					PHP_VERSION,
-					$this->parent->_version ) ) . '</p>';
+					$this->parent->_version,
+					$igbinary ) ) . '</p>';
 		}
 	}
 
