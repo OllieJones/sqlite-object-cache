@@ -5,8 +5,8 @@ Tags: cache, sqlite, performance
 Requires at least: 5.5
 Requires PHP: 5.6
 Tested up to: 6.1.1
-Version: 1.0.1
-Stable tag: 1.0.1
+Version: 1.1.0
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache
@@ -88,9 +88,13 @@ In WordPress, as in many web frameworks, your database server is a performance b
 
 = Can I use this with the Performance Lab plugin? =
 
-**Yes, but** you must *activate this plugin first* before you activate Performance Lab. And, you must deactivate Performance Lab before *deactivating this plugin last*.
+**Yes, but** you must *activate this plugin first* before you activate [Performance Lab](https://wordpress.org/plugins/performance-lab/). And, you must deactivate Performance Lab before *deactivating this plugin last*.
 
 The [Performance Lab plugin](https://wordpress.org/plugins/performance-lab/) offers some advanced and experimental ways of making your site faster. One of its features uses object-cache initialization code to start tracking performance. So there's a required order of activation if you want both to work.
+
+= How can I use this object cache to make my plugin or theme code run faster? =
+
+Use transients to store your cacheable data. WordPress's [Transient API](https://developer.wordpress.org/apis/transients/) uses persistent object caching if it's available, and the MariaDB or MySQL database when it isn't. The [Metadata API](https://developer.wordpress.org/apis/metadata/) and [Options API](https://developer.wordpress.org/apis/options/) also use persistent object caching.
 
 = How does this work? =
 
@@ -101,6 +105,8 @@ This plugin uses a [WordPress drop-in](https://developer.wordpress.org/reference
 It's in your site's `wp_content` directory, in the file named `.ht.object-cache.sqlite`. That file's name has the `.ht.` prefix to prevent your web server from allowing it to be downloaded. SQLite also sometimes uses the files named `.ht.object-cache.sqlite-shm` and `.ht.object-cache.sqlite-wal`, so you may see any of those files.
 
 On Linux and other UNIX-derived operating systems, you must give the command `ls -a` to see files when their names begin with a dot.
+
+= I want to store my cached data in a more secure place. How do I do that?
 
 If you define the constant `WP_SQLITE_OBJECT_CACHE_DB_FILE` in `wp_config.php` the plugin uses that for the file name instead. For example, if `wp_config.php` contains this line
 
@@ -130,7 +136,7 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 == Changelog ==
 
-= 1.0.1 =
+= 1.1.0 =
 
 * Test with WordPress 5.5, the earliest version that does not require the obsolete mysql extension.
 * Change performance logging from time-based to random sampling to reduce overhead.
@@ -147,4 +153,4 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 == Upgrade Notice ==
 
-This release fixes a security vulnerability and adds support for the `WP_SQLITE_OBJECT_CACHE_DB_FILE` constant.
+This release fixes a race condition that shows up under heavy load with SQLite versions before 3.24. It also uses random sampling instead of time-based sampling to capture performance data.
