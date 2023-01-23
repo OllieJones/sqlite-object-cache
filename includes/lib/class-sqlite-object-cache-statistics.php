@@ -134,10 +134,12 @@ class SQLite_Object_Cache_Statistics {
 		return [
 			'n'      => count( $a ),
 			'[min'   => $min,
+			'p1'     => $this->percentile( $a, 0.01 ),
 			'p5'     => $this->percentile( $a, 0.05 ),
 			'median' => $this->percentile( $a, 0.5 ),
 			'mean'   => $this->mean( $a ),
 			'p95'    => $this->percentile( $a, 0.95 ),
+			'p99'    => $this->percentile( $a, 0.99 ),
 			'max]'   => $max,
 			'range'  => $max - $min,
 			'mad'    => $this->mad( $a ),

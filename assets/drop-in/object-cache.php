@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache Drop-In
- * Version: 1.1.0
+ * Version: 1.1.1
  * Note: This Version number must match the one in the ctor for SQLite_Object_Cache.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -18,10 +18,11 @@
  * for files with that prefix. Use the UNIX ls -a command to
  * see these files from your command line.
  *
- * If you define WP_SQLITE_OBJECT_CACHE_DB_FILE
- * this plugin will use it as the name of the sqlite file
+ * If you define WP_SQLITE_OBJECT_CACHE_DB_FILE this plugin uses it as the name of the sqlite file
  * in place of .../wp-content/.ht.object_cache.sqlite .
- *
+ * If you define WP_SQLITE_OBJECT_CACHE_TIMEOUT this plugin uses it as the SQLite timeout in place of 5000 milliseconds.
+ * If you define WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE this plugin uses it as the SQLite journal mode in place of 'WAL'.
+ *   It can be DELETE | TRUNCATE | PERSIST | MEMORY | WAL. See https://www.sqlite.org/pragma.html#pragma_journal_mode
  *
  * Credit: Till Krüss's https://wordpress.org/plugins/redis-cache/ plugin. Thanks, Till!
  *
@@ -96,8 +97,27 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		const OBJECT_CACHE_TABLE = 'object_cache';
 		const NOEXPIRE_TIMESTAMP_OFFSET = 500000000000;
 		const MAX_LIFETIME = DAY_IN_SECONDS * 2;
-		const MYSQLITE_TIMEOUT = 500;
+		const SQLITE_TIMEOUT = 5000;
+		const SQLITE_PATH = '.ht.object-cache.sqlite';
+		const JOURNAL_MODE = 'WAL';  /* or 'MEMORY' */
 
+		/**
+		 * Path to SQLite file.
+		 *
+		 * @var string
+		 */
+		private $sqlite_path;
+
+		/**
+		 * SQLite's journal mode.
+		 *
+		 * Avoid the OFF journal mode, especially in pre-3.24 versions of SQLite.
+		 *
+		 * @see https://www.sqlite.org/pragma.html#pragma_journal_mode
+		 *
+		 * @var string  MEMORY, WAL, DELETE, TRUNCATE, PERSIST, OFF
+		 */
+		private $sqlite_journal_mode;
 		/**
 		 * Timeout waiting for transaction completion.
 		 *
@@ -364,25 +384,26 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		/**
 		 * Constructor for SQLite Object Cache.
 		 *
-		 * @param string $directory Name of the directory for the db file.
-		 * @param string $file Name of the db file.
-		 * @param int    $timeout Milliseconds before timeout.
-		 *
 		 * @since 2.0.8
 		 */
-		public function __construct( $directory = WP_CONTENT_DIR, $file = '.ht.object-cache.sqlite', $timeout = self::MYSQLITE_TIMEOUT ) {
+		public function __construct() {
 
 			$this->cache_group_types();
 
-			$db_file = $directory . '/' . $file;
-			if ( defined( 'WP_SQLITE_OBJECT_CACHE_DB_FILE' ) ) {
-				$db_file = WP_SQLITE_OBJECT_CACHE_DB_FILE;
-			}
-			$this->sqlite_path = $db_file;
+			$this->sqlite_path = defined( 'WP_SQLITE_OBJECT_CACHE_DB_FILE' )
+				? WP_SQLITE_OBJECT_CACHE_DB_FILE
+				: WP_CONTENT_DIR . '/' . self::SQLITE_PATH;
+
+			$this->sqlite_timeout =  defined( 'WP_SQLITE_OBJECT_CACHE_TIMEOUT' )
+				? WP_SQLITE_OBJECT_CACHE_TIMEOUT
+				: self::SQLITE_TIMEOUT;
+
+			$this->sqlite_journal_mode = defined( 'WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE' )
+				? WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE
+				: self::JOURNAL_MODE;
 
 			$this->multisite                 = is_multisite();
 			$this->blog_prefix               = $this->multisite ? get_current_blog_id() . ':' : '';
-			$this->sqlite_timeout            = $timeout ?: self::MYSQLITE_TIMEOUT;
 			$this->cache_table_name          = self::OBJECT_CACHE_TABLE;
 			$this->noexpire_timestamp_offset = self::NOEXPIRE_TIMESTAMP_OFFSET;
 			$this->max_lifetime              = self::MAX_LIFETIME;
@@ -408,7 +429,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 					$this->actual_open_connection();
 
 					return;
-				} catch ( \Exception $ex ) {
+				} catch ( Exception $ex ) {
 					/* something went wrong opening */
 					error_log( $ex );
 					$this->delete_offending_files( $retries );
@@ -436,7 +457,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			 * recovery procedure that deletes and recreates a corrupt database file.
 			 */
 			$this->exec( 'PRAGMA synchronous = OFF' );
-			$this->exec( 'PRAGMA journal_mode = MEMORY' );
+			$this->exec( "PRAGMA journal_mode = $this->sqlite_journal_mode" );
 			$this->exec( "PRAGMA encoding = 'UTF-8'" );
 			$this->exec( 'PRAGMA case_sensitive_like = true' );
 
@@ -980,7 +1001,7 @@ SET value=excluded.value, expires=excluded.expires;";
 				if ( $result ) {
 					$result->finalize();
 				}
-			} catch ( \Exception $ex ) {
+			} catch ( Exception $ex ) {
 				error_log( $ex );
 				$this->delete_offending_files( 0 );
 			}
@@ -1220,7 +1241,7 @@ SET value=excluded.value, expires=excluded.expires;";
 					$this->not_in_persistent_cache [ $name ] = true;
 					throw new SQLite_Object_Cache_Exception( 'stmt->execute', $this->sqlite, $start );
 				}
-			} catch (Exception $ex) {
+			} catch ( Exception $ex ) {
 				unset( $this->in_persistent_cache[ $name ] );
 				$this->not_in_persistent_cache [ $name ] = true;
 				throw $ex;
@@ -1353,7 +1374,7 @@ SET value=excluded.value, expires=excluded.expires;";
 						$result->finalize();
 					}
 					$this->exec( 'COMMIT;' );
-				} catch (Exception $e) {
+				} catch ( Exception $e ) {
 					$this->exec( 'ROLLBACK;' );
 					$this->delete_offending_files( 0 );
 					throw new SQLite_Object_Cache_Exception( 'insert: ' . $name, $this->sqlite, $start2 );

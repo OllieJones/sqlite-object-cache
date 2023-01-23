@@ -5,8 +5,8 @@ Tags: cache, sqlite, performance
 Requires at least: 5.5
 Requires PHP: 5.6
 Tested up to: 6.1.1
-Version: 1.1.0
-Stable tag: 1.1.0
+Version: 1.1.1
+Stable tag: 1.1.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache
@@ -33,6 +33,13 @@ Installing "SQLite Object Cache" can be done either by searching for "SQLite Obj
 1. Download the plugin via WordPress.org
 1. Upload the ZIP file through the 'Plugins > Add New > Upload' screen in your WordPress dashboard
 1. Activate the plugin through the 'Plugins' menu in WordPress
+
+The plugin offers optional settings for your `wp-config.php` file. If you change them, deactivate the plugin first, then change them, then reactivate the plugin.
+
+1. WP_SQLITE_OBJECT_CACHE_DB_FILE. This is the SQLite file pathname. The default is …/wp-content/.ht.object_cache.sqlite. Use this if you want to place the SQLite cache file outside your document root.
+1. WP_SQLITE_OBJECT_CACHE_TIMEOUT. This is the SQLite timeout in milliseconds. Default: 5000.
+1. WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE This is the [SQLite journal mode](https://www.sqlite.org/pragma.html#pragma_journal_mode). Default: ‘WAL’. Possible values DELETE | TRUNCATE | PERSIST | MEMORY | WAL | NONE.
+
 
 == Frequently Asked Questions ===
 
@@ -136,12 +143,31 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 == Changelog ==
 
-= 1.1.0 =
+= 1.1.1 =
 
+* Switch from MEMORY to WAL for SQLite's journaling mode.
+* Implement some wp-config.php settings:
+
+  WP_SQLITE_OBJECT_CACHE_DB_FILE. sqlite file pathname. Default: …/wp-content/.ht.object_cache.sqlite .
+
+  WP_SQLITE_OBJECT_CACHE_TIMEOUT SQLite timeout. Default: 5000 milliseconds.
+
+  WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE Default: ‘WAL’. Possible values DELETE | TRUNCATE | PERSIST | MEMORY | WAL | NONE. See https://www.sqlite.org/pragma.html#pragma_journal_mode
+
+= 1.1.1 =
+
+* Increase the SQLite wait timeout from 0.5sec to 5.0sec, trying to deal with rare long wait to perform an SQLite operation. #10.
+* Switch SQLite's journaling mode from MEMORY to WAL trying to reduce contention between readers and writers.
+* Show p1 first-percentile and p99 99th-percentile times in the Statistics panel along with p5, median, mean, p95.
+* Add wp-config.php settings for timeout and journaliing mode along with filename.
 * Test with WordPress 5.5, the earliest version that does not require the obsolete mysql extension.
 * Change performance logging from time-based to random sampling to reduce overhead.
 * Fix a race condition upserting cached values under load in pre-3.24 SQLite.
 * Show availability of the space-saving igbinary serialization on dashboard panels.
+
+This application of SQLite puts its concurrency-handling code to the test.
+
+
 
 = 1.0.0 =
 
@@ -153,4 +179,6 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 == Upgrade Notice ==
 
-This release fixes a race condition that shows up under heavy load with SQLite versions before 3.24. It also uses random sampling instead of time-based sampling to capture performance data.
+This release allows you to use `wp-config.php` settings to configure SQLite's timeout, journaliing mode, and file name. And, it changes the timeout and journaliing mode attempting to cope with rare long SQLite waits.
+
+Thanks, dear users, especially @spaceling and @ss88_uk, for letting me know about errors you found, and for your patience as I figure this out.
