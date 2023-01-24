@@ -48,13 +48,17 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				$duration = round( 1000.0 * ( $this->time_usec() - $start ) );
 				$note     .= ' (' . $duration . ')';
 			}
+			if ( ! function_exists( '__' ) ) {
+				wp_load_translations_early();
+			}
+
 			parent::__construct( $note . ': ' . $sqlite->lastErrorMsg(), $sqlite->lastErrorCode(), null );
 		}
 
 		/**
-		 * Get the current time in microseconds.
+		 * Get the current time.
 		 *
-		 * @return float Current time (relative to some arbitrary epoch, not UNIX's epoch.
+		 * @return float Current time in microseconds (relative to some arbitrary epoch, not UNIX's epoch.)
 		 */
 		private function time_usec() {
 
@@ -738,10 +742,18 @@ SET value=excluded.value, expires=excluded.expires;";
 		 */
 		public static function has_sqlite( $directory = WP_CONTENT_DIR ) {
 			if ( ! wp_is_writable( $directory ) ) {
+				if ( ! function_exists( '__' ) ) {
+					wp_load_translations_early();
+				}
+
 				return sprintf( /* translators: 1: WP_CONTENT_DIR */ __( 'The SQLite Object Cache cannot be activated because the %s directory is not writable.', 'sqlite-object-cache' ), $directory );
 			}
 
 			if ( ! class_exists( 'SQLite3' ) || ! extension_loaded( 'sqlite3' ) ) {
+				if ( ! function_exists( '__' ) ) {
+					wp_load_translations_early();
+				}
+
 				return __( 'The SQLite Object Cache cannot be activated because the SQLite3 extension is not loaded.', 'sqlite-object-cache' );
 			}
 
@@ -929,6 +941,32 @@ SET value=excluded.value, expires=excluded.expires;";
 		}
 
 		/**
+		 * Read object names, sizes, expirations from cache.
+		 *
+		 * @return Generator of name/length/timestamp rows.
+		 * @throws SQLite_Object_Cache_Exception Announce SQLite failure.
+		 * @noinspection SqlResolve
+		 */
+		public function sqlite_load_sizes() {
+			if ( ! $this->sqlite ) {
+				$this->open_connection();
+			}
+
+			$object_cache = self::OBJECT_CACHE_TABLE;
+			$sql          = "SELECT name, LENGTH(value) length, timestamp FROM $object_cache";
+			$stmt         = $this->prepare( $sql );
+			$resultset    = $stmt->execute();
+			while ( true ) {
+				$row = $resultset->fetchArray( SQLITE3_ASSOC );
+				if ( ! $row ) {
+					break;
+				}
+				yield (object) $row;
+			}
+			$resultset->finalize();
+		}
+
+		/**
 		 * Read rows from the stored statistics.
 		 *
 		 * @return Generator
@@ -942,7 +980,7 @@ SET value=excluded.value, expires=excluded.expires;";
 
 			$object_stats = self::OBJECT_STATS_TABLE;
 			$this->maybe_create_stats_table( $object_stats );
-			$sql       = 'SELECT value FROM object_stats ORDER BY timestamp;';
+			$sql       = "SELECT value FROM $object_stats;";
 			$stmt      = $this->prepare( $sql );
 			$resultset = $stmt->execute();
 			while ( true ) {
