@@ -11,7 +11,10 @@
 }
 
 #sqlite_object_cache_settings table.sql-object-cache-stats tr {
-    border-width: thin;
+    border-top-width: 0;
+    border-left-width: 0;
+    border-bottom-width: thin;
+    border-right-width: 0;
     border-style: dotted;
 }
 

@@ -524,13 +524,14 @@ class SQLite_Object_Cache_Settings {
 	 * @noinspection PhpUnusedParameterInspection
 	 */
 	public function stats_section_header( $section ) {
+
 		$this->support_links();
 		$this->versions();
 
 		$stats = new SQLite_Object_Cache_Statistics ();
 		$stats->init();
-
 		$stats->render();
+		$stats->render_usage();
 	}
 
 	/**

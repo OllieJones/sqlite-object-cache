@@ -456,8 +456,8 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			/* set some initial pragma stuff */
 			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
 
-			/* Notice we use a journal mode that risks database corruption.
-			 * That's OK, because it's MUCH faster, and because we have an error
+			/* Notice we sometimes use a journal mode (MEMORY) that risks database corruption.
+			 * That's OK, because it's faster, and because we have an error
 			 * recovery procedure that deletes and recreates a corrupt database file.
 			 */
 			$this->exec( 'PRAGMA synchronous = OFF' );
@@ -943,17 +943,19 @@ SET value=excluded.value, expires=excluded.expires;";
 		/**
 		 * Read object names, sizes, expirations from cache.
 		 *
+		 * @param $timestamps true If the timestamps returned should be expirations, false means raw
+		 *
 		 * @return Generator of name/length/timestamp rows.
 		 * @throws SQLite_Object_Cache_Exception Announce SQLite failure.
 		 * @noinspection SqlResolve
 		 */
-		public function sqlite_load_sizes() {
+		public function sqlite_load_usages( $timestamps = true ) {
 			if ( ! $this->sqlite ) {
 				$this->open_connection();
 			}
 
 			$object_cache = self::OBJECT_CACHE_TABLE;
-			$sql          = "SELECT name, LENGTH(value) length, timestamp FROM $object_cache";
+			$sql          = "SELECT name, LENGTH(value) length, expires FROM $object_cache";
 			$stmt         = $this->prepare( $sql );
 			$resultset    = $stmt->execute();
 			while ( true ) {
@@ -961,7 +963,15 @@ SET value=excluded.value, expires=excluded.expires;";
 				if ( ! $row ) {
 					break;
 				}
-				yield (object) $row;
+				$row = (object) $row;
+				if ($timestamps) {
+					$expires = $row->expires;
+					if ( $expires >= self::NOEXPIRE_TIMESTAMP_OFFSET ) {
+						$expires -= self::NOEXPIRE_TIMESTAMP_OFFSET;
+					} 
+					$row->expires = $expires;
+				}
+				yield $row;
 			}
 			$resultset->finalize();
 		}

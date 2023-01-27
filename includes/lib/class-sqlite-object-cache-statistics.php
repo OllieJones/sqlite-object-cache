@@ -67,6 +67,10 @@ class SQLite_Object_Cache_Statistics {
 			return;
 		}
 
+		if ( method_exists( $wp_object_cache, 'sqlite_clean_up_cache' ) ) {
+			$wp_object_cache->sqlite_clean_up_cache();
+		}
+
 		foreach ( $wp_object_cache->sqlite_load_statistics() as $data ) {
 			$first                   = min( $data->time, $first );
 			$last                    = max( $data->time, $last );
@@ -106,7 +110,7 @@ class SQLite_Object_Cache_Statistics {
 				__( 'Disk lookups/request', 'sqlite-object-cache' )  => $this->descriptive_stats( $DISKLookupsPerRequest ),
 				__( 'Disk saves/request', 'sqlite-object-cache' )    => $this->descriptive_stats( $SavesPerRequest ),
 				__( 'MySQL queries/request', 'sqlite-object-cache' ) => $this->descriptive_stats( $DBMSqueriesPerRequest ),
-				__( 'Initialization times', 'sqlite-object-cache' )           => $this->descriptive_stats( $opens ),
+				__( 'Initialization times', 'sqlite-object-cache' )  => $this->descriptive_stats( $opens ),
 				__( 'Lookup times', 'sqlite-object-cache' )          => $this->descriptive_stats( array_merge( ...$selects ) ),
 				__( 'Save times', 'sqlite-object-cache' )            => $this->descriptive_stats( array_merge( ...$inserts ) ),
 				__( 'Delete times', 'sqlite-object-cache' )          => $this->descriptive_stats( array_merge( ...$deletes ) ),
@@ -115,9 +119,22 @@ class SQLite_Object_Cache_Statistics {
 			$this->descriptions   = $descriptions;
 			$this->selected_names = $selected_names;
 			$date_format          = get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
-			$this->start_time     = wp_date( $date_format, (int) $first );
-			$this->end_time       = wp_date( $date_format, (int) $last );
+			$this->start_time     = $this->format_datestamp( $first );
+			$this->end_time       = $this->format_datestamp( $last );
 		}
+	}
+
+	/**
+	 * Format a UNIX timestamp using WP settings.
+	 *
+	 * @param $stamp
+	 *
+	 * @return false|string
+	 */
+	private function format_datestamp( $stamp ) {
+		$date_format = get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
+
+		return wp_date( $date_format, (int) $stamp );
 	}
 
 	/**
@@ -278,7 +295,7 @@ class SQLite_Object_Cache_Statistics {
 	 */
 	public function render() {
 
-		echo '<h3>' . esc_html__( 'Cache performance statistics', 'sqlite-object-cache' ) . '</h3>';
+		echo '<h3>' . esc_html__( 'Cache performance', 'sqlite-object-cache' ) . '</h3>';
 		if ( is_array( $this->descriptions ) ) {
 			echo '<p>' . esc_html( sprintf(
 			                       /* translators:  1 start time   2 end time both in localized format */
@@ -361,5 +378,82 @@ class SQLite_Object_Cache_Statistics {
 			}
 		}
 		echo '</tbody></table>';
+	}
+
+	/**
+	 * Render the usage display.
+	 *
+	 * @return void
+	 * @throws SQLite_Object_Cache_Exception
+	 */
+	public function render_usage() {
+
+		global $wp_object_cache;
+		if ( ! method_exists( $wp_object_cache, 'sqlite_load_usages' ) ) {
+			return;
+		}
+
+		echo '<h3>' . esc_html__( 'Cache usage', 'sqlite-object-cache' ) . '</h3>';
+		$grouplength = [];
+		$groupcount  = [];
+		$length      = 0;
+		$count       = 0;
+		$earliest    = PHP_INT_MAX;
+		$latest      = PHP_INT_MIN;
+
+		foreach ( $wp_object_cache->sqlite_load_usages( true ) as $item ) {
+			$length   += $item->length;
+			$ts       = $item->expires;
+			$earliest = min( $earliest, $ts );
+			$latest   = max( $latest, $ts );
+			$splits   = explode( '|', $item->name, 2 );
+			$group    = $splits[0];
+			if ( ! array_key_exists( $group, $grouplength ) ) {
+				$grouplength[ $group ] = 0;
+				$groupcount[ $group ]  = 0;
+			}
+			$length += $item->length;
+			$count ++;
+			$grouplength[ $group ] += $item->length;
+			$groupcount[ $group ] ++;
+		}
+
+		if ( $count > 0 ) {
+			$groups = array_keys( $grouplength );
+			sort( $groups );
+
+			echo '<p>' . esc_html( sprintf(
+			                       /* translators:  1 start time   2 end time both in localized format */
+				                       __( 'Expirations from %1$s to %2$s.', 'sqlite-object-cache' ),
+				                       $this->format_datestamp( $earliest ), $this->format_datestamp( $latest ) ) . ' ' . __( 'Sizes in MiB.', 'sqlite-object-cache' ) ) . '</p>' . PHP_EOL;
+
+			echo '<table class="sql-object-cache-stats">' . PHP_EOL;
+			/* table headers */
+			echo '<thead><tr>';
+			echo '<th scope="col" class="right">' . esc_html__( 'Cache Group', 'sqlite-object-cache' ) . '</th>';
+			echo '<th scope="col" class="right">' . esc_html__( 'Items', 'sqlite-object-cache' ) . '</th>';
+			echo '<th scope="col" class="right">' . esc_html__( 'Size', 'sqlite-object-cache' ) . '</th>';
+			echo '</tr></thead><tbody>' . PHP_EOL;
+			/* totals row */
+			echo '<tr>';
+			echo '<th scope="row" class="right">' . esc_html__( 'Total', 'sqlite-object-cache' ) . '</th>';
+			echo '<td class="right">' . esc_html( number_format_i18n( $count, 0 ) ) . '</td>';
+			$sizemib = $length * 0.000001;
+			echo '<td class="right">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';
+			echo '</tr>' . PHP_EOL;
+			foreach ( $groups as $group ) {
+				/* detail row */
+				echo '<tr>';
+				echo '<th scope="row" class="right">' . esc_html( $group ) . '</th>';
+				echo '<td class="right">' . esc_html( number_format_i18n( $groupcount[ $group ], 0 ) ) . '</td>';
+				$sizemib = $grouplength[ $group ] * 0.000001;
+				echo '<td class="right">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';
+				echo '</tr>' . PHP_EOL;
+			}
+
+			echo '</tbody></table>' . PHP_EOL;
+		} else {
+			echo '<p>' . esc_html__( 'No cache items found.', 'sqlite-object-cache' ) . '</p>';
+		}
 	}
 }
