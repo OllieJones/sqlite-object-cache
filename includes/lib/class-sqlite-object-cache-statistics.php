@@ -322,7 +322,8 @@ class SQLite_Object_Cache_Statistics {
 			}
 			echo '</tr></tbody></table>' . PHP_EOL;
 		} else {
-			echo '<p>' . esc_html__( 'No cache statistics recorded yet.', 'sqlite-object-cache' ) . '</p>';
+			echo '<p>' . esc_html__( 'No cache performance statistics measured yet.', 'sqlite-object-cache' ) . '</p>';
+			echo '<p>' . esc_html__( 'You may enable performance measuring on the Settings tab.', 'sqlite-object-cache' ) . '</p>';
 		}
 
 		if ( is_array( $this->selected_names ) && count( $this->selected_names ) > 0 ) {
