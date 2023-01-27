@@ -449,7 +449,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 */
 		private function actual_open_connection() {
 			$start        = $this->time_usec();
-			$this->sqlite = new SQLite3( $this->sqlite_path, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE, null );
+			$this->sqlite = new SQLite3( $this->sqlite_path, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE, '' );
 			$this->sqlite->enableExceptions( true );
 			$this->sqlite->busyTimeout( $this->sqlite_timeout );
 
@@ -968,7 +968,7 @@ SET value=excluded.value, expires=excluded.expires;";
 					$expires = $row->expires;
 					if ( $expires >= self::NOEXPIRE_TIMESTAMP_OFFSET ) {
 						$expires -= self::NOEXPIRE_TIMESTAMP_OFFSET;
-					} 
+					}
 					$row->expires = $expires;
 				}
 				yield $row;
