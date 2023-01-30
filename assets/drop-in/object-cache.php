@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache Drop-In
- * Version: 1.1.1
+ * Version: 1.2.0
  * Note: This Version number must match the one in the ctor for SQLite_Object_Cache.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -33,47 +33,6 @@ defined( '\\ABSPATH' ) || exit;
 
 // phpcs:disable Generic.WhiteSpace.ScopeIndent.IncorrectExact, Generic.WhiteSpace.ScopeIndent.Incorrect
 if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_DISABLED ) :
-
-	class SQLite_Object_Cache_Exception extends Exception {
-
-		/**
-		 * Custom exception for the SQLite Object Cache.
-		 *
-		 * @param string  $note Description of the operation causing the exception.
-		 * @param SQLite3 $sqlite SQLite connection object.
-		 * @param float   $start Start time in microseconds.
-		 */
-		public function __construct( $note, $sqlite, $start = null ) {
-			if ( $start ) {
-				$duration = round( 1000.0 * ( $this->time_usec() - $start ) );
-				$note     .= ' (' . $duration . ')';
-			}
-			if ( ! function_exists( '__' ) ) {
-				wp_load_translations_early();
-			}
-
-			parent::__construct( $note . ': ' . $sqlite->lastErrorMsg(), $sqlite->lastErrorCode(), null );
-		}
-
-		/**
-		 * Get the current time.
-		 *
-		 * @return float Current time in microseconds (relative to some arbitrary epoch, not UNIX's epoch.)
-		 */
-		private function time_usec() {
-
-			if ( function_exists( 'hrtime' ) ) {
-				/** @noinspection PhpMethodParametersCountMismatchInspection */
-				return hrtime( true ) * 0.001;
-			}
-			if ( function_exists( 'microtime' ) ) {
-				return microtime( true );
-			}
-
-			return time() * 1000000.0;
-		}
-
-	}
 
 	/**
 	 * Object Cache API: WP_Object_Cache class, reworked for SQLite3 drop-in.
@@ -398,7 +357,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				? WP_SQLITE_OBJECT_CACHE_DB_FILE
 				: WP_CONTENT_DIR . '/' . self::SQLITE_PATH;
 
-			$this->sqlite_timeout =  defined( 'WP_SQLITE_OBJECT_CACHE_TIMEOUT' )
+			$this->sqlite_timeout = defined( 'WP_SQLITE_OBJECT_CACHE_TIMEOUT' )
 				? WP_SQLITE_OBJECT_CACHE_TIMEOUT
 				: self::SQLITE_TIMEOUT;
 
@@ -418,6 +377,36 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$this->has_microtime = function_exists( 'microtime' );
 		}
 
+		private function drop_dead() {
+			die ( 1 );
+		}
+
+		/**
+		 * Log an error.
+		 *
+		 * @param string    $msg
+		 * @param Exception $exception
+		 *
+		 * @return void
+		 */
+		private function error_log( $msg, $exception = null ) {
+			$msgs    = [];
+			$msgs [] = 'SQLite Object Cache:';
+			$msgs [] = $msg;
+			if ( $this->sqlite ) {
+				if ( $this->sqlite->lastErrorMsg() ) {
+					$msgs [] = $this->sqlite->lastErrorMsg();
+					$msgs [] = '(' . $this->sqlite->lastErrorCode() . ')';
+				}
+			}
+			if ( $exception ) {
+				$msgs[]  = $exception->getMessage();
+				$msgs [] = '(' . $exception->getCode() . ')';
+				$msgs [] = $exception->getTraceAsString();
+			}
+			error_log( implode( ' ', $msgs ) );
+		}
+
 		/**
 		 * Open SQLite3 connection.
 		 * @return void
@@ -435,7 +424,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 					return;
 				} catch ( Exception $ex ) {
 					/* something went wrong opening */
-					error_log( $ex );
+					$this->error_log( 'open_connection failure', $ex );
 					$this->delete_offending_files( $retries );
 				}
 			}
@@ -445,7 +434,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * Open SQLite3 connection.
 		 *
 		 * @return void
-		 * @throws SQLite_Object_Cache_Exception Announce SQLite failure.
+		 * @throws Exception Announce SQLite failure.
 		 */
 		private function actual_open_connection() {
 			$start        = $this->time_usec();
@@ -460,10 +449,10 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			 * That's OK, because it's faster, and because we have an error
 			 * recovery procedure that deletes and recreates a corrupt database file.
 			 */
-			$this->exec( 'PRAGMA synchronous = OFF' );
-			$this->exec( "PRAGMA journal_mode = $this->sqlite_journal_mode" );
-			$this->exec( "PRAGMA encoding = 'UTF-8'" );
-			$this->exec( 'PRAGMA case_sensitive_like = true' );
+			$this->sqlite->exec( 'PRAGMA synchronous = OFF' );
+			$this->sqlite->exec( "PRAGMA journal_mode = $this->sqlite_journal_mode" );
+			$this->sqlite->exec( "PRAGMA encoding = 'UTF-8'" );
+			$this->sqlite->exec( 'PRAGMA case_sensitive_like = true' );
 
 			$this->create_object_cache_table();
 			$this->prepare_statements( $this->cache_table_name );
@@ -510,36 +499,18 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		}
 
 		/**
-		 * Wrapper for exec, to check for errors.
-		 *
-		 * @param string $query The SQL Statement.
-		 *
-		 * @return bool
-		 * @throws SQLite_Object_Cache_Exception If something failed.
-		 */
-		public function exec( $query ) {
-			$start  = $this->time_usec();
-			$result = $this->sqlite->exec( $query );
-			if ( ! $result ) {
-				throw new SQLite_Object_Cache_Exception( 'exec', $this->sqlite, $start );
-			}
-
-			return true;
-		}
-
-		/**
 		 * Do the necessary Data Definition Language work.
 		 *
 		 * @return void
-		 * @throws SQLite_Object_Cache_Exception If something fails.
+		 * @throws Exception If something fails.
 		 * @noinspection SqlResolve
 		 */
 		private function create_object_cache_table() {
 			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
-			$this->exec( 'BEGIN;' );
+			$this->sqlite->exec( 'BEGIN;' );
 			/* does our table exist?  */
 			$q = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND tbl_name = '$this->cache_table_name';";
-			$r = $this->querySingle( $q );
+			$r = $this->sqlite->querySingle( $q );
 			if ( 0 === $r ) {
 				/* later versions of SQLite3 have clustered primary keys, "WITHOUT ROWID" */
 				if ( version_compare( $this->sqlite_get_version(), '3.8.2' ) < 0 ) {
@@ -563,9 +534,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 						CREATE INDEX IF NOT EXISTS expires ON $this->cache_table_name (expires);";
 				}
 
-				$this->exec( $t );
+				$this->sqlite->exec( $t );
 			}
-			$this->exec( 'COMMIT;' );
+			$this->sqlite->exec( 'COMMIT;' );
 		}
 
 		/**
@@ -574,15 +545,15 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @param string $tbl The name of the table.
 		 *
 		 * @return void
-		 * @throws SQLite_Object_Cache_Exception If something fails.
+		 * @throws Exception If something fails.
 		 * @noinspection SqlResolve
 		 */
 		private function maybe_create_stats_table( $tbl ) {
 			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
-			$this->exec( 'BEGIN;' );
+			$this->sqlite->exec( 'BEGIN;' );
 			/* does our table exist?  */
 			$q = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND tbl_name = '$tbl';";
-			$r = $this->querySingle( $q );
+			$r = $this->sqlite->querySingle( $q );
 			if ( 0 === $r ) {
 				/* @noinspection SqlIdentifier */
 				$t = "
@@ -591,28 +562,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 						   timestamp INT
 						);
 						CREATE INDEX IF NOT EXISTS expires ON $tbl (timestamp);";
-				$this->exec( $t );
+				$this->sqlite->exec( $t );
 			}
-			$this->exec( 'COMMIT;' );
-		}
-
-		/**
-		 * Wrapper for querySingle, to detect if something failed.
-		 *
-		 * @param string $query The query.
-		 * @param bool   $entire_row If false, give back the first column.
-		 *
-		 * @return mixed
-		 * @throws SQLite_Object_Cache_Exception Announce database failure.
-		 */
-		public function querySingle( $query, $entire_row = false ) {
-			$start  = $this->time_usec();
-			$result = $this->sqlite->querySingle( $query, $entire_row );
-			if ( false === $result ) {
-				throw new SQLite_Object_Cache_Exception( 'querySingle', $this->sqlite, $start );
-			}
-
-			return $result;
+			$this->sqlite->exec( 'COMMIT;' );
 		}
 
 		/**
@@ -621,7 +573,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @param string $tbl Table name.
 		 *
 		 * @return void
-		 * @throws SQLite_Object_Cache_Exception Announce failure.
+		 * @throws Exception Announce failure.
 		 * @noinspection SqlResolve
 		 */
 		private function prepare_statements( $tbl ) {
@@ -640,9 +592,9 @@ SET value=excluded.value, expires=excluded.expires;";
 			$deleteone   = "DELETE FROM $tbl WHERE name = :name;";
 			$deletegroup = "DELETE FROM $tbl WHERE name LIKE :group || '.%';";
 
-			$this->getone      = $this->prepare( $getone );
-			$this->deleteone   = $this->prepare( $deleteone );
-			$this->deletegroup = $this->prepare( $deletegroup );
+			$this->getone      = $this->sqlite->prepare( $getone );
+			$this->deleteone   = $this->sqlite->prepare( $deleteone );
+			$this->deletegroup = $this->sqlite->prepare( $deletegroup );
 			/*
 			 * Some versions of SQLite3 built into php predate the 3.38 advent of unixepoch() (2022-02-22).
 			 * And, others predate the 3.24 advent of UPSERT (that is, ON CONFLICT) syntax.
@@ -650,29 +602,11 @@ SET value=excluded.value, expires=excluded.expires;";
 			 */
 			$has_upsert = version_compare( $this->sqlite_get_version(), '3.24', 'ge' );
 			if ( $has_upsert ) {
-				$this->upsertone = $this->prepare( $upsertone );
+				$this->upsertone = $this->sqlite->prepare( $upsertone );
 			} else {
-				$this->insertone = $this->prepare( $insertone );
-				$this->updateone = $this->prepare( $updateone );
+				$this->insertone = $this->sqlite->prepare( $insertone );
+				$this->updateone = $this->sqlite->prepare( $updateone );
 			}
-		}
-
-		/**
-		 * Wrapper around prepare()
-		 *
-		 * @param string $query Statement to prepare.
-		 *
-		 * @return SQLite3Stmt
-		 * @throws SQLite_Object_Cache_Exception Announce failure.
-		 */
-		public function prepare( $query ) {
-			$start  = $this->time_usec();
-			$result = $this->sqlite->prepare( $query );
-			if ( false === $result ) {
-				throw new SQLite_Object_Cache_Exception( 'prepare', $this->sqlite, $start );
-			}
-
-			return $result;
 		}
 
 		/**
@@ -746,6 +680,7 @@ SET value=excluded.value, expires=excluded.expires;";
 					wp_load_translations_early();
 				}
 
+				//TODO THIS goes someplace else
 				return sprintf( /* translators: 1: WP_CONTENT_DIR */ __( 'The SQLite Object Cache cannot be activated because the %s directory is not writable.', 'sqlite-object-cache' ), $directory );
 			}
 
@@ -818,16 +753,11 @@ SET value=excluded.value, expires=excluded.expires;";
 		public function close() {
 			$result = true;
 			if ( $this->sqlite ) {
-				try {
-					if ( $this->is_sample() ) {
-						$this->capture( $this->monitoring_options );
-					}
-					$result       = $this->sqlite->close();
-					$this->sqlite = null;
-				} catch ( Exception $ex ) {
-					error_log( $ex );
-					$this->delete_offending_files();
+				if ( $this->is_sample() ) {
+					$this->capture( $this->monitoring_options );
 				}
+				$result       = $this->sqlite->close();
+				$this->sqlite = null;
 			}
 
 			return $result;
@@ -866,25 +796,28 @@ SET value=excluded.value, expires=excluded.expires;";
 		 * @param int|null $age Number of seconds' worth to retain. Default: retain none.
 		 *
 		 * @return void
-		 * @throws SQLite_Object_Cache_Exception Announce database error.
 		 */
 		public function sqlite_reset_statistics( $age = null ) {
-			if ( ! $this->sqlite ) {
-				$this->open_connection();
+			try {
+				if ( ! $this->sqlite ) {
+					$this->open_connection();
+				}
+				$object_stats = self::OBJECT_STATS_TABLE;
+				$this->maybe_create_stats_table( $object_stats );
+				/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
+				if ( ! is_numeric( $age ) ) {
+					/* @noinspection SqlWithoutWhere */
+					$sql = "DELETE FROM $object_stats;";
+				} else {
+					$expires = (int) ( time() - $age );
+					/* @noinspection SqlResolve */
+					$sql =
+						"DELETE FROM $object_stats WHERE timestamp < $expires;";
+				}
+				$this->sqlite->exec( $sql );
+			} catch ( Exception $ex ) {
+				$this->error_log( 'SQLite Object Cache exception resetting statistics. ', $ex );
 			}
-			$object_stats = self::OBJECT_STATS_TABLE;
-			$this->maybe_create_stats_table( $object_stats );
-			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
-			if ( ! is_numeric( $age ) ) {
-				/* @noinspection SqlWithoutWhere */
-				$sql = "DELETE FROM $object_stats;";
-			} else {
-				$expires = (int) ( time() - $age );
-				/* @noinspection SqlResolve */
-				$sql =
-					"DELETE FROM $object_stats WHERE timestamp < $expires;";
-			}
-			$this->exec( $sql );
 		}
 
 		/**
@@ -904,39 +837,34 @@ SET value=excluded.value, expires=excluded.expires;";
 					$this->open_connection();
 				}
 				if ( $use_transaction ) {
-					$this->exec( 'BEGIN;' );
+					$this->sqlite->exec( 'BEGIN;' );
 				}
 				/* Remove items with definite expirations, like transients */
 				$sql  = "DELETE FROM $this->cache_table_name WHERE expires <= :now;";
-				$stmt = $this->prepare( $sql );
+				$stmt = $this->sqlite->prepare( $sql );
 				$stmt->bindValue( ':now', time(), SQLITE3_INTEGER );
 				$result = $stmt->execute();
-				if ( false !== $result ) {
-					$result->finalize();
-				}
+				$result->finalize();
 				/* Remove old items. We use the most recent update time. Tracking use time is too expensive. */
 				$retention = is_numeric( $retention ) ? $retention : $this->max_lifetime;
 				$sql       = "DELETE FROM $this->cache_table_name WHERE expires BETWEEN :offset AND :end;";
-				$stmt      = $this->prepare( $sql );
+				$stmt      = $this->sqlite->prepare( $sql );
 				$offset    = $this->noexpire_timestamp_offset;
 				$end       = time() + $offset - $retention;
 				$stmt->bindValue( ':offset', $offset, SQLITE3_INTEGER );
 				$stmt->bindValue( ':end', $end, SQLITE3_INTEGER );
 				$result = $stmt->execute();
-				if ( false !== $result ) {
-					$result->finalize();
-					if ( $use_transaction ) {
-						$this->exec( 'COMMIT;' );
-					}
+				$result->finalize();
+				if ( $use_transaction ) {
+					$this->sqlite->exec( 'COMMIT;' );
 				}
 				if ( $vacuum ) {
-					$this->exec( 'VACUUM;' );
-					$this->exec( 'PRAGMA analysis_limit=400;' );
-					$this->exec( 'PRAGMA optimize;' );
+					$this->sqlite->exec( 'VACUUM;' );
+					$this->sqlite->exec( 'PRAGMA analysis_limit=400;' );
+					$this->sqlite->exec( 'PRAGMA optimize;' );
 				}
-			} catch ( SQLite_Object_Cache_Exception $ex ) {
-				error_log( $ex );
-				$this->delete_offending_files( 0 );
+			} catch ( Exception $ex ) {
+				$this->error_log( 'sqlite_clean_up_cache', $ex );
 			}
 		}
 
@@ -946,7 +874,7 @@ SET value=excluded.value, expires=excluded.expires;";
 		 * @param $timestamps true If the timestamps returned should be expirations, false means raw
 		 *
 		 * @return Generator of name/length/timestamp rows.
-		 * @throws SQLite_Object_Cache_Exception Announce SQLite failure.
+		 * @throws Exception Announce SQLite failure.
 		 * @noinspection SqlResolve
 		 */
 		public function sqlite_load_usages( $timestamps = true ) {
@@ -956,7 +884,7 @@ SET value=excluded.value, expires=excluded.expires;";
 
 			$object_cache = self::OBJECT_CACHE_TABLE;
 			$sql          = "SELECT name, LENGTH(value) length, expires FROM $object_cache";
-			$stmt         = $this->prepare( $sql );
+			$stmt         = $this->sqlite->prepare( $sql );
 			$resultset    = $stmt->execute();
 			while ( true ) {
 				$row = $resultset->fetchArray( SQLITE3_ASSOC );
@@ -964,7 +892,7 @@ SET value=excluded.value, expires=excluded.expires;";
 					break;
 				}
 				$row = (object) $row;
-				if ($timestamps) {
+				if ( $timestamps ) {
 					$expires = $row->expires;
 					if ( $expires >= self::NOEXPIRE_TIMESTAMP_OFFSET ) {
 						$expires -= self::NOEXPIRE_TIMESTAMP_OFFSET;
@@ -980,7 +908,7 @@ SET value=excluded.value, expires=excluded.expires;";
 		 * Read rows from the stored statistics.
 		 *
 		 * @return Generator
-		 * @throws SQLite_Object_Cache_Exception Announce SQLite failure.
+		 * @throws Exception Announce SQLite failure.
 		 * @noinspection SqlResolve
 		 */
 		public function sqlite_load_statistics() {
@@ -991,7 +919,7 @@ SET value=excluded.value, expires=excluded.expires;";
 			$object_stats = self::OBJECT_STATS_TABLE;
 			$this->maybe_create_stats_table( $object_stats );
 			$sql       = "SELECT value FROM $object_stats;";
-			$stmt      = $this->prepare( $sql );
+			$stmt      = $this->sqlite->prepare( $sql );
 			$resultset = $stmt->execute();
 			while ( true ) {
 				$row = $resultset->fetchArray( SQLITE3_NUM );
@@ -1042,16 +970,13 @@ SET value=excluded.value, expires=excluded.expires;";
 				$this->maybe_create_stats_table( $object_stats );
 				$sql  =
 					"INSERT INTO $object_stats (value, timestamp) VALUES (:value, :timestamp);";
-				$stmt = $this->prepare( $sql );
+				$stmt = $this->sqlite->prepare( $sql );
 				$stmt->bindValue( ':value', $this->maybe_serialize( $record ), SQLITE3_BLOB );
 				$stmt->bindValue( ':timestamp', time(), SQLITE3_INTEGER );
 				$result = $stmt->execute();
-				if ( $result ) {
-					$result->finalize();
-				}
+				$result->finalize();
 			} catch ( Exception $ex ) {
-				error_log( $ex );
-				$this->delete_offending_files( 0 );
+				$this->error_log( 'error capturing performance stats, skipping.', $ex );
 			}
 			unset( $record, $stmt );
 		}
@@ -1144,14 +1069,25 @@ SET value=excluded.value, expires=excluded.expires;";
 		 *
 		 * @return bool[] Array of return values, grouped by key. Each value is either
 		 *                true on success, or false if cache key and group already exist.
-		 * @throws SQLite_Object_Cache_Exception Announce database failure.
 		 * @since 6.0.0
 		 */
 		public function add_multiple( array $data, $group = '', $expire = 0 ) {
 			$values = [];
+			try {
+				if ( ! $this->sqlite ) {
+					$this->open_connection();
+				}
 
-			foreach ( $data as $key => $value ) {
-				$values[ $key ] = $this->add( $key, $value, $group, $expire );
+				/* use a transaction to accelerate add_multiple */
+				$this->sqlite->exec( 'BEGIN;' );
+				foreach ( $data as $key => $value ) {
+					$values[ $key ] = $this->add( $key, $value, $group, $expire );
+				}
+				$this->sqlite->exec( 'COMMIT;' );
+			} catch ( Exception $ex ) {
+				$this->error_log( 'add_multiple', $ex );
+				$this->delete_offending_files();
+				$this->drop_dead();
 			}
 
 			return $values;
@@ -1167,7 +1103,7 @@ SET value=excluded.value, expires=excluded.expires;";
 		 *                           Default 0 (no expiration).
 		 *
 		 * @return bool True on success, false if cache key and group already exist.
-		 * @throws SQLite_Object_Cache_Exception Announce database failure.
+		 * @throws Exception Announce database failure.
 		 * @since 2.0.0
 		 *
 		 * @uses WP_Object_Cache::cache_item_exists() Checks to see if the cache already has data.
@@ -1239,7 +1175,7 @@ SET value=excluded.value, expires=excluded.expires;";
 		 * @param string     $group Cache group for the key existence check.
 		 *
 		 * @return bool Whether the key exists in the cache for the given group.
-		 * @throws SQLite_Object_Cache_Exception Announce database failure.
+		 * @throws Exception Announce database failure.
 		 * @since 3.4.0
 		 */
 		protected function cache_item_exists( $key, $group ) {
@@ -1269,38 +1205,37 @@ SET value=excluded.value, expires=excluded.expires;";
 		 * @param string $group Group name.
 		 *
 		 * @return mixed|null Cached item, or null if not found. (Cached item can be false.)
-		 * @throws SQLite_Object_Cache_Exception Announce database failure.
+		 * @throws Exception Announce database failure.
 		 */
 		private function getone( $key, $group ) {
-			if ( ! $this->sqlite ) {
-				$this->open_connection();
-			}
-			$start = $this->time_usec();
-			$name  = $this->name_from_key_group( $key, $group );
-			if ( array_key_exists( $name, $this->not_in_persistent_cache ) ) {
-				return null;
-			}
-			$stmt = $this->getone;
-			$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
+			$data = null;
 			try {
-				$result = $stmt->execute();
-				if ( false === $result ) {
-					unset( $this->in_persistent_cache[ $name ] );
-					$this->not_in_persistent_cache [ $name ] = true;
-					throw new SQLite_Object_Cache_Exception( 'stmt->execute', $this->sqlite, $start );
+				if ( ! $this->sqlite ) {
+					$this->open_connection();
 				}
+				$start = $this->time_usec();
+				$name  = $this->name_from_key_group( $key, $group );
+				if ( array_key_exists( $name, $this->not_in_persistent_cache ) ) {
+					return null;
+				}
+				$stmt = $this->getone;
+				$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
+				$result = $stmt->execute();
+				$row    = $result->fetchArray( SQLITE3_NUM );
+				$data   = false !== $row && is_array( $row ) && 1 === count( $row ) ? $row[0] : null;
+				if ( null !== $data ) {
+					$data                                = $this->maybe_unserialize( $data );
+					$this->in_persistent_cache [ $name ] = true;
+				} else {
+					$this->not_in_persistent_cache [ $name ] = true;
+				}
+				$result->finalize();
 			} catch ( Exception $ex ) {
 				unset( $this->in_persistent_cache[ $name ] );
 				$this->not_in_persistent_cache [ $name ] = true;
-				throw $ex;
-			}
-			$row  = $result->fetchArray( SQLITE3_NUM );
-			$data = false !== $row && is_array( $row ) && 1 === count( $row ) ? $row[0] : null;
-			if ( null !== $data ) {
-				$data                                = $this->maybe_unserialize( $data );
-				$this->in_persistent_cache [ $name ] = true;
-			} else {
-				$this->not_in_persistent_cache [ $name ] = true;
+				$this->error_log( 'getone', $ex );
+				$this->delete_offending_files();
+				$this->drop_dead();
 			}
 
 			$this->select_times[] = $this->time_usec() - $start;
@@ -1327,9 +1262,9 @@ SET value=excluded.value, expires=excluded.expires;";
 		 * @param int        $expire Optional. Not used.
 		 *
 		 * @return bool True if contents were set, false if key is invalid.
+		 * @since 2.0.0
 		 * @since 6.1.0 Returns false if cache key is invalid.
 		 *
-		 * @since 2.0.0
 		 */
 		public function set( $key, $data, $group = 'default', $expire = 0 ) {
 			if ( ! $this->is_valid_key( $key ) ) {
@@ -1363,70 +1298,54 @@ SET value=excluded.value, expires=excluded.expires;";
 		 * @param int        $expire Optional. Not used.
 		 *
 		 * @return void
-		 * @throws SQLite_Object_Cache_Exception    Announce database failure.
 		 */
 		private function handle_put( $key, $data, $group, $expire ) {
-			if ( ! $this->sqlite ) {
-				$this->open_connection();
-			}
-
 			if ( $this->is_ignored_group( $group ) ) {
 				return;
 			}
-			$name    = $this->name_from_key_group( $key, $group );
-			$start   = $this->time_usec();
-			$value   = $this->maybe_serialize( $data );
-			$expires = $expire ?: $this->noexpire_timestamp_offset;
-			if ( $this->upsertone ) {
-				$stmt = $this->upsertone;
-				$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
-				$stmt->bindValue( ':value', $value, SQLITE3_BLOB );
-				$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
-				$result = $stmt->execute();
-				if ( false === $result ) {
-					$this->delete_offending_files( 0 );
-					throw new SQLite_Object_Cache_Exception( 'upsert: ' . $name, $this->sqlite, $start );
+			try {
+				if ( ! $this->sqlite ) {
+					$this->open_connection();
 				}
-				$result->finalize();
-			} else {
-				try {
+
+				$name    = $this->name_from_key_group( $key, $group );
+				$start   = $this->time_usec();
+				$value   = $this->maybe_serialize( $data );
+				$expires = $expire ?: $this->noexpire_timestamp_offset;
+				if ( $this->upsertone ) {
+					$stmt = $this->upsertone;
+					$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
+					$stmt->bindValue( ':value', $value, SQLITE3_BLOB );
+					$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
+					$result = $stmt->execute();
+					$result->finalize();
+				} else {
 					/* Pre-upsert version (pre- 3.24) of SQLite,
 					 * Need to try update, then do insert if need be.
 					 * Race conditions are possible, hence BEGIN / COMMIT
 					 */
-					$this->exec( 'BEGIN;' );
+					$this->sqlite->exec( 'BEGIN;' );
 					$stmt = $this->updateone;
 					$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
 					$stmt->bindValue( ':value', $value, SQLITE3_BLOB );
 					$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
 					$result = $stmt->execute();
-					if ( false === $result ) {
-						$this->exec( 'ROLLBACK;' );
-						$this->delete_offending_files( 0 );
-						throw new SQLite_Object_Cache_Exception( 'update: ' . $name, $this->sqlite, $start );
-					}
 					$result->finalize();
 					if ( 0 === $this->sqlite->changes() ) {
-						/* Updated no rows:  need insert. */
-						$start2 = $this->time_usec();
-						$stmt   = $this->insertone;
+						/* Updated zero rows, so we need an insert. */
+						$stmt = $this->insertone;
 						$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
 						$stmt->bindValue( ':value', $value, SQLITE3_BLOB );
 						$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
 						$result = $stmt->execute();
-						if ( false === $result ) {
-							$this->exec( 'ROLLBACK;' );
-							$this->delete_offending_files( 0 );
-							throw new SQLite_Object_Cache_Exception( 'insert: ' . $name, $this->sqlite, $start2 );
-						}
 						$result->finalize();
 					}
-					$this->exec( 'COMMIT;' );
-				} catch ( Exception $e ) {
-					$this->exec( 'ROLLBACK;' );
-					$this->delete_offending_files( 0 );
-					throw new SQLite_Object_Cache_Exception( 'insert: ' . $name, $this->sqlite, $start2 );
+					$this->sqlite->exec( 'COMMIT;' );
 				}
+			} catch ( Exception $ex ) {
+				$this->error_log( 'handle_put', $ex );
+				$this->delete_offending_files();
+				$this->drop_dead();
 			}
 			unset( $this->not_in_persistent_cache[ $name ] );
 			$this->in_persistent_cache[ $name ] = true;
@@ -1484,9 +1403,21 @@ SET value=excluded.value, expires=excluded.expires;";
 		 */
 		public function set_multiple( array $data, $group = '', $expire = 0 ) {
 			$values = [];
+			try {
+				if ( ! $this->sqlite ) {
+					$this->open_connection();
+				}
 
-			foreach ( $data as $key => $value ) {
-				$values[ $key ] = $this->set( $key, $value, $group, $expire );
+				/* use a transaction to accelerate set_multiple */
+				$this->sqlite->exec( 'BEGIN;' );
+
+				foreach ( $data as $key => $value ) {
+					$values[ $key ] = $this->set( $key, $value, $group, $expire );
+				}
+			} catch ( Exception $ex ) {
+				$this->error_log( 'set_multiple', $ex );
+				$this->delete_offending_files();
+				$this->drop_dead();
 			}
 
 			return $values;
@@ -1502,14 +1433,26 @@ SET value=excluded.value, expires=excluded.expires;";
 		 *
 		 * @return array Array of return values, grouped by key. Each value is either
 		 *               the cache contents on success, or false on failure.
-		 * @throws SQLite_Object_Cache_Exception Announce database failure.
 		 * @since 5.5.5
 		 */
 		public function get_multiple( $keys, $group = 'default', $force = false ) {
 			$values = [];
+			try {
+				if ( ! $this->sqlite ) {
+					$this->open_connection();
+				}
 
-			foreach ( $keys as $key ) {
-				$values[ $key ] = $this->get( $key, $group, $force );
+				/* use a transaction to accelerate get_multiple */
+				$this->sqlite->exec( 'BEGIN;' );
+
+				foreach ( $keys as $key ) {
+					$values[ $key ] = $this->get( $key, $group, $force );
+				}
+				$this->sqlite->exec( 'COMMIT;' );
+			} catch ( Exception $ex ) {
+				$this->error_log( 'get_multiple', $ex );
+				$this->delete_offending_files();
+				$this->drop_dead();
 			}
 
 			return $values;
@@ -1532,7 +1475,6 @@ SET value=excluded.value, expires=excluded.expires;";
 		 *                          Disambiguates a return of false, a storable value. Default null.
 		 *
 		 * @return mixed|false The cache contents on success, false on failure to retrieve contents.
-		 * @throws SQLite_Object_Cache_Exception Announce database failure.
 		 * @since 2.0.0
 		 */
 		public function get( $key, $group = 'default', $force = false, &$found = null ) {
@@ -1552,14 +1494,20 @@ SET value=excluded.value, expires=excluded.expires;";
 				unset( $this->cache[ $group ][ $key ] );
 			}
 
-			if ( $this->cache_item_exists( $key, $group ) ) {
-				$found = true;
-				++ $this->cache_hits;
-				if ( is_object( $this->cache[ $group ][ $key ] ) ) {
-					return clone $this->cache[ $group ][ $key ];
-				}
+			try {
+				if ( $this->cache_item_exists( $key, $group ) ) {
+					$found = true;
+					++ $this->cache_hits;
+					if ( is_object( $this->cache[ $group ][ $key ] ) ) {
+						return clone $this->cache[ $group ][ $key ];
+					}
 
-				return $this->cache[ $group ][ $key ];
+					return $this->cache[ $group ][ $key ];
+				}
+			} catch ( Exception $ex ) {
+				$this->delete_offending_files();
+
+				return false;
 			}
 
 			$found = false;
@@ -1598,7 +1546,6 @@ SET value=excluded.value, expires=excluded.expires;";
 		 * @param bool       $deprecated Optional. Unused. Default false.
 		 *
 		 * @return bool True on success, false if the contents were not deleted.
-		 * @throws SQLite_Object_Cache_Exception Announce database failure
 		 * @since 2.0.0
 		 *
 		 */
@@ -1615,8 +1562,15 @@ SET value=excluded.value, expires=excluded.expires;";
 				$key = $this->blog_prefix . $key;
 			}
 
-			if ( ! $this->cache_item_exists( $key, $group ) ) {
-				return false;
+			try {
+
+				if ( ! $this->cache_item_exists( $key, $group ) ) {
+					return false;
+				}
+			} catch ( Exception $ex ) {
+				$this->delete_offending_files();
+
+				return true;
 			}
 
 			unset( $this->cache[ $group ][ $key ] );
@@ -1632,22 +1586,21 @@ SET value=excluded.value, expires=excluded.expires;";
 		 * @param string     $group Optional. Where to group the cache contents. Default 'default'.
 		 *
 		 * @return void
-		 * @throws SQLite_Object_Cache_Exception Announce database failure
 		 */
 		private function handle_delete( $key, $group ) {
-			if ( ! $this->sqlite ) {
-				$this->open_connection();
-			}
 			$name  = $this->name_from_key_group( $key, $group );
 			$start = $this->time_usec();
 			$stmt  = $this->deleteone;
-			$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
-			$result = $stmt->execute();
-			if ( false === $result ) {
-				$this->delete_offending_files( 0 );
-				throw new SQLite_Object_Cache_Exception( 'delete: ' . $name, $this->sqlite, $start );
+			try {
+				if ( ! $this->sqlite ) {
+					$this->open_connection();
+				}
+				$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
+				$result = $stmt->execute();
+				$result->finalize();
+			} catch ( Exception $ex ) {
+				$this->delete_offending_files();
 			}
-			$result->finalize();
 			unset( $this->in_persistent_cache[ $name ] );
 			$this->not_in_persistent_cache[ $name ] = true;
 			/* track how long it took. */
@@ -1747,7 +1700,6 @@ SET value=excluded.value, expires=excluded.expires;";
 		/**
 		 * Clears the object cache of all data.
 		 *
-		 * @param bool $keep_performance_data True to retain performance data.
 		 * @param bool $vacuum True to do a VACUUM operation.
 		 *
 		 * @return bool Always returns true.
@@ -1777,14 +1729,15 @@ SET value=excluded.value, expires=excluded.expires;";
 				/* @noinspection SqlConstantCondition, SqlConstantExpression */
 				$sql =
 					'DELETE FROM ' . $this->cache_table_name . ' WHERE 1=1 AND ' . implode( ' AND ', $clauses ) . ';';
-				$this->exec( $sql );
+				$this->sqlite->exec( $sql );
 
 				if ( $vacuum ) {
-					$this->exec( 'VACUUM;' );
+					$this->sqlite->exec( 'VACUUM;' );
 				}
 			} catch ( Exception $ex ) {
-				error_log( $ex );
-				$this->delete_offending_files( 0 );
+				$this->error_log( 'flush', $ex );
+				$this->delete_offending_files();
+				$this->drop_dead();
 			}
 
 			return true;
@@ -1799,20 +1752,22 @@ SET value=excluded.value, expires=excluded.expires;";
 		 * @since 6.1.0
 		 */
 		public function flush_group( $group ) {
-			if ( ! $this->sqlite ) {
-				$this->open_connection();
-			}
+			try {
+				if ( ! $this->sqlite ) {
+					$this->open_connection();
+				}
 
-			$start = $this->time_usec();
-			unset( $this->cache[ $group ] );
-			$stmt = $this->deletegroup;
-			$stmt->bindValue( ':group', $group, SQLITE3_TEXT );
-			$result = $stmt->execute();
-			if ( false === $result ) {
-				$this->delete_offending_files( 0 );
-				error_log( new SQLite_Object_Cache_Exception( 'deletegroup', $this->sqlite, $start ) );
+				$start = $this->time_usec();
+				unset( $this->cache[ $group ] );
+				$stmt = $this->deletegroup;
+				$stmt->bindValue( ':group', $group, SQLITE3_TEXT );
+				$result = $stmt->execute();
+				$result->finalize();
+			} catch ( Exception $ex ) {
+				$this->error_log( 'flush_group', $ex );
+				$this->delete_offending_files();
+				$this->drop_dead();
 			}
-
 			/* remove hints about what is in the persistent cache */
 			$this->not_in_persistent_cache = [];
 			$this->in_persistent_cache     = [];
@@ -1944,7 +1899,7 @@ SET value=excluded.value, expires=excluded.expires;";
 		 * @return void
 		 */
 		private function delete_offending_files( $retries = 0 ) {
-			error_log( "sqlite_object_cache connection failure, deleting sqlite files to retry. $retries" );
+			error_log( "sqlite_object_cache failure, deleting sqlite files to retry. $retries" );
 			require_once ABSPATH . 'wp-admin/includes/file.php';
 			ob_start();
 			$credentials = request_filesystem_credentials( '' );
@@ -1981,7 +1936,7 @@ SET value=excluded.value, expires=excluded.expires;";
 			// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 			$GLOBALS['wp_object_cache'] = new WP_Object_Cache();
 		} else {
-			throw new \RuntimeException( $message );
+			throw new RuntimeException( $message );
 		}
 	}
 

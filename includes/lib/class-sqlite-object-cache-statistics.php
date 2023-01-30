@@ -385,7 +385,6 @@ class SQLite_Object_Cache_Statistics {
 	 * Render the usage display.
 	 *
 	 * @return void
-	 * @throws SQLite_Object_Cache_Exception
 	 */
 	public function render_usage() {
 
@@ -402,21 +401,26 @@ class SQLite_Object_Cache_Statistics {
 		$earliest    = PHP_INT_MAX;
 		$latest      = PHP_INT_MIN;
 
-		foreach ( $wp_object_cache->sqlite_load_usages( true ) as $item ) {
-			$length   += $item->length;
-			$ts       = $item->expires;
-			$earliest = min( $earliest, $ts );
-			$latest   = max( $latest, $ts );
-			$splits   = explode( '|', $item->name, 2 );
-			$group    = $splits[0];
-			if ( ! array_key_exists( $group, $grouplength ) ) {
-				$grouplength[ $group ] = 0;
-				$groupcount[ $group ]  = 0;
+		try {
+
+			foreach ( $wp_object_cache->sqlite_load_usages( true ) as $item ) {
+				$length   += $item->length;
+				$ts       = $item->expires;
+				$earliest = min( $earliest, $ts );
+				$latest   = max( $latest, $ts );
+				$splits   = explode( '|', $item->name, 2 );
+				$group    = $splits[0];
+				if ( ! array_key_exists( $group, $grouplength ) ) {
+					$grouplength[ $group ] = 0;
+					$groupcount[ $group ]  = 0;
+				}
+				$length += $item->length;
+				$count ++;
+				$grouplength[ $group ] += $item->length;
+				$groupcount[ $group ] ++;
 			}
-			$length += $item->length;
-			$count ++;
-			$grouplength[ $group ] += $item->length;
-			$groupcount[ $group ] ++;
+		} catch (Exception $ex) {
+			echo '<p>' . esc_html__( 'Cannot load some or all cache items.', 'sqlite-object-cache' ) . '</p>';
 		}
 
 		if ( $count > 0 ) {
@@ -438,9 +442,9 @@ class SQLite_Object_Cache_Statistics {
 			/* totals row */
 			echo '<tr>';
 			echo '<th scope="row" class="right">' . esc_html__( 'Total', 'sqlite-object-cache' ) . '</th>';
-			echo '<td class="right">' . esc_html( number_format_i18n( $count, 0 ) ) . '</td>';
+			echo '<td class="right total">' . esc_html( number_format_i18n( $count, 0 ) ) . '</td>';
 			$sizemib = $length * 0.000001;
-			echo '<td class="right">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';
+			echo '<td class="right total">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';
 			echo '</tr>' . PHP_EOL;
 			foreach ( $groups as $group ) {
 				/* detail row */

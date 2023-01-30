@@ -18,6 +18,10 @@
     border-style: dotted;
 }
 
+#sqlite_object_cache_settings table.sql-object-cache-stats > tbody > tr > td.right.total {
+    font-weight: bold;
+}
+
 #sqlite_object_cache_settings table.sql-object-cache-stats > tbody > tr > td {
     text-align: right;
     padding: 2px;

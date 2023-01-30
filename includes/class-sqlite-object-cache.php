@@ -121,7 +121,7 @@ class SQLite_Object_Cache {
 	 * @param string $file File constructor.
 	 * @param string $version Plugin version.
 	 */
-	public function __construct( $file = '', $version = '1.1.1' ) {
+	public function __construct( $file = '', $version = '1.2.0' ) {
 		$this->_version = $version;
 		$this->_token   = 'sqlite_object_cache';
 
@@ -207,9 +207,9 @@ class SQLite_Object_Cache {
 	 */
 	public function on_activation() {
 		/* make sure the autoloaded option is set when activating; avoid an extra dbms or cache hit to fetch it */
-		$option = get_option(  $this->_token . '_settings', 'default' );
+		$option = get_option( $this->_token . '_settings', 'default' );
 		if ( 'default' === $option ) {
-			update_option(  $this->_token . '_settings', [], true );
+			update_option( $this->_token . '_settings', [], true );
 		}
 		if ( true === $this->has_sqlite() ) {
 			add_action( 'shutdown', [ $this, 'update_dropin' ] );

@@ -5,8 +5,8 @@ Tags: cache, sqlite, performance
 Requires at least: 5.5
 Requires PHP: 5.6
 Tested up to: 6.1.1
-Version: 1.1.1
-Stable tag: 1.1.1
+Version: 1.2.0
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache
@@ -143,6 +143,11 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 == Changelog ==
 
+= 1.2.0 =
+
+* Better exception handling.
+* More secure storage of database files.
+
 = 1.1.1 =
 
 * Switch from MEMORY to WAL for SQLite's journaling mode.
@@ -154,7 +159,7 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
   WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE Default: ‘WAL’. Possible values DELETE | TRUNCATE | PERSIST | MEMORY | WAL | NONE. See https://www.sqlite.org/pragma.html#pragma_journal_mode
 
-= 1.1.1 =
+= 1.1.0 =
 
 * Increase the SQLite wait timeout from 0.5sec to 5.0sec, trying to deal with rare long wait to perform an SQLite operation. #10.
 * Switch SQLite's journaling mode from MEMORY to WAL trying to reduce contention between readers and writers.
@@ -166,8 +171,6 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 * Show availability of the space-saving igbinary serialization on dashboard panels.
 
 This application of SQLite puts its concurrency-handling code to the test.
-
-
 
 = 1.0.0 =
 
