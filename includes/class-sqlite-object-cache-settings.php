@@ -528,7 +528,7 @@ class SQLite_Object_Cache_Settings {
 		$this->support_links();
 		$this->versions();
 
-		$stats = new SQLite_Object_Cache_Statistics ();
+		$stats   = new SQLite_Object_Cache_Statistics ( get_option( $this->parent->_token . '_settings', [] ) );
 		$stats->init();
 		$stats->render();
 		$stats->render_usage();

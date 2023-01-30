@@ -737,7 +737,11 @@ SET value=excluded.value, expires=excluded.expires;";
 					$samplerate = $options['samplerate'] * 0.01;
 					if ( $samplerate > 0.0 ) {
 						/* a random sample at $samplerate */
-						return ( $samplerate >= 1.0 || $samplerate >= lcg_value() );
+						if ( $samplerate >= 1.0 ) {
+							return true;
+						}
+
+						return $samplerate >= lcg_value();
 					}
 				}
 			}

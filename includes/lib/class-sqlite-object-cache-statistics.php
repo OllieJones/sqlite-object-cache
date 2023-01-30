@@ -35,6 +35,14 @@ class SQLite_Object_Cache_Statistics {
 	 * @var string
 	 */
 	private $end_time;
+	/**
+	 * @var array
+	 */
+	private $options;
+
+	public function __construct( $options ) {
+		$this->options = $options;
+	}
 
 	/**
 	 * Initialize and load data.
@@ -118,23 +126,9 @@ class SQLite_Object_Cache_Statistics {
 
 			$this->descriptions   = $descriptions;
 			$this->selected_names = $selected_names;
-			$date_format          = get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
 			$this->start_time     = $this->format_datestamp( $first );
 			$this->end_time       = $this->format_datestamp( $last );
 		}
-	}
-
-	/**
-	 * Format a UNIX timestamp using WP settings.
-	 *
-	 * @param $stamp
-	 *
-	 * @return false|string
-	 */
-	private function format_datestamp( $stamp ) {
-		$date_format = get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
-
-		return wp_date( $date_format, (int) $stamp );
 	}
 
 	/**
@@ -289,6 +283,19 @@ class SQLite_Object_Cache_Statistics {
 	}
 
 	/**
+	 * Format a UNIX timestamp using WP settings.
+	 *
+	 * @param $stamp
+	 *
+	 * @return false|string
+	 */
+	private function format_datestamp( $stamp ) {
+		$date_format = get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
+
+		return wp_date( $date_format, (int) $stamp );
+	}
+
+	/**
 	 * Render the statistics display.
 	 *
 	 * @return void
@@ -322,8 +329,17 @@ class SQLite_Object_Cache_Statistics {
 			}
 			echo '</tr></tbody></table>' . PHP_EOL;
 		} else {
-			echo '<p>' . esc_html__( 'No cache performance statistics measured yet.', 'sqlite-object-cache' ) . '</p>';
-			echo '<p>' . esc_html__( 'You may enable performance measuring on the Settings tab.', 'sqlite-object-cache' ) . '</p>';
+			if ( is_array( $this->options ) && array_key_exists( 'capture', $this->options ) && 'on' === $this->options['capture'] ) {
+				echo '<p>' . esc_html__( 'No cache performance statistics have been captured.', 'sqlite-object-cache' ) . ' ';
+				/* translators: 1: a percentage */
+				$message =
+					__( 'The plugin is capturing a random sample of %s%% of requests. It is possible no samples have yet been captured.', 'sqlite-object-cache' );
+				$samplerate = is_numeric($this->options['samplerate'] ) ? $this->options['samplerate'] : 1;
+				echo esc_html( sprintf( $message, $samplerate ) ) . '</p>';
+			} else {
+				echo '<p>' . esc_html__( 'Cache performance measurement is not enabled.', 'sqlite-object-cache' ) . ' ';
+				echo esc_html__( 'You may enable it on the Settings tab.', 'sqlite-object-cache' ) . '</p>';
+			}
 		}
 
 		if ( is_array( $this->selected_names ) && count( $this->selected_names ) > 0 ) {
@@ -419,7 +435,7 @@ class SQLite_Object_Cache_Statistics {
 				$grouplength[ $group ] += $item->length;
 				$groupcount[ $group ] ++;
 			}
-		} catch (Exception $ex) {
+		} catch ( Exception $ex ) {
 			echo '<p>' . esc_html__( 'Cannot load some or all cache items.', 'sqlite-object-cache' ) . '</p>';
 		}
 
