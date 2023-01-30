@@ -377,8 +377,19 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$this->has_microtime = function_exists( 'microtime' );
 		}
 
-		private function drop_dead() {
-			die ( 1 );
+		/**
+		 * @param string|null $msg
+		 *
+		 * @return void
+		 */
+		public static function drop_dead( $msg = null ) {
+			if ( ! $msg ) {
+				if ( ! function_exists( '__' ) ) {
+					wp_load_translations_early();
+				}
+				$msg = __( 'The SQLite Object Cache temporarily failed. Please try again now.', 'sqlite-object-cache' );
+			}
+			wp_die( esc_html( $msg ) );
 		}
 
 		/**
@@ -400,8 +411,10 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				}
 			}
 			if ( $exception ) {
-				$msgs[]  = $exception->getMessage();
-				$msgs [] = '(' . $exception->getCode() . ')';
+				if ( $exception->getMessage() !== $this->sqlite->lastErrorMsg() ) {
+					$msgs[]  = $exception->getMessage();
+					$msgs [] = '(' . $exception->getCode() . ')';
+				}
 				$msgs [] = $exception->getTraceAsString();
 			}
 			error_log( implode( ' ', $msgs ) );
@@ -1091,7 +1104,7 @@ SET value=excluded.value, expires=excluded.expires;";
 			} catch ( Exception $ex ) {
 				$this->error_log( 'add_multiple', $ex );
 				$this->delete_offending_files();
-				$this->drop_dead();
+				self::drop_dead();
 			}
 
 			return $values;
@@ -1212,15 +1225,15 @@ SET value=excluded.value, expires=excluded.expires;";
 		 * @throws Exception Announce database failure.
 		 */
 		private function getone( $key, $group ) {
+			$start = $this->time_usec();
+			$name  = $this->name_from_key_group( $key, $group );
+			if ( array_key_exists( $name, $this->not_in_persistent_cache ) ) {
+				return null;
+			}
 			$data = null;
 			try {
 				if ( ! $this->sqlite ) {
 					$this->open_connection();
-				}
-				$start = $this->time_usec();
-				$name  = $this->name_from_key_group( $key, $group );
-				if ( array_key_exists( $name, $this->not_in_persistent_cache ) ) {
-					return null;
 				}
 				$stmt = $this->getone;
 				$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
@@ -1239,7 +1252,7 @@ SET value=excluded.value, expires=excluded.expires;";
 				$this->not_in_persistent_cache [ $name ] = true;
 				$this->error_log( 'getone', $ex );
 				$this->delete_offending_files();
-				$this->drop_dead();
+				self::drop_dead();
 			}
 
 			$this->select_times[] = $this->time_usec() - $start;
@@ -1349,7 +1362,7 @@ SET value=excluded.value, expires=excluded.expires;";
 			} catch ( Exception $ex ) {
 				$this->error_log( 'handle_put', $ex );
 				$this->delete_offending_files();
-				$this->drop_dead();
+				self::drop_dead();
 			}
 			unset( $this->not_in_persistent_cache[ $name ] );
 			$this->in_persistent_cache[ $name ] = true;
@@ -1421,7 +1434,7 @@ SET value=excluded.value, expires=excluded.expires;";
 			} catch ( Exception $ex ) {
 				$this->error_log( 'set_multiple', $ex );
 				$this->delete_offending_files();
-				$this->drop_dead();
+				self::drop_dead();
 			}
 
 			return $values;
@@ -1456,7 +1469,7 @@ SET value=excluded.value, expires=excluded.expires;";
 			} catch ( Exception $ex ) {
 				$this->error_log( 'get_multiple', $ex );
 				$this->delete_offending_files();
-				$this->drop_dead();
+				self::drop_dead();
 			}
 
 			return $values;
@@ -1741,7 +1754,7 @@ SET value=excluded.value, expires=excluded.expires;";
 			} catch ( Exception $ex ) {
 				$this->error_log( 'flush', $ex );
 				$this->delete_offending_files();
-				$this->drop_dead();
+				self::drop_dead();
 			}
 
 			return true;
@@ -1770,7 +1783,7 @@ SET value=excluded.value, expires=excluded.expires;";
 			} catch ( Exception $ex ) {
 				$this->error_log( 'flush_group', $ex );
 				$this->delete_offending_files();
-				$this->drop_dead();
+				self::drop_dead();
 			}
 			/* remove hints about what is in the persistent cache */
 			$this->not_in_persistent_cache = [];
@@ -1940,7 +1953,7 @@ SET value=excluded.value, expires=excluded.expires;";
 			// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
 			$GLOBALS['wp_object_cache'] = new WP_Object_Cache();
 		} else {
-			throw new RuntimeException( $message );
+			WP_Object_Cache::drop_dead( $message );
 		}
 	}
 
