@@ -65,6 +65,10 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		const JOURNAL_MODE = 'WAL';  /* or 'MEMORY' */
 
 		/**
+		 * @var bool True if a transaction is active.
+		 */
+		private $transaction_active = false;
+		/**
 		 * Path to SQLite file.
 		 *
 		 * @var string
@@ -520,13 +524,14 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 */
 		private function create_object_cache_table() {
 			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
-			$this->sqlite->exec( 'BEGIN;' );
+			$this->sqlite->exec( 'BEGIN' );
 			/* does our table exist?  */
 			$q = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND tbl_name = '$this->cache_table_name';";
 			$r = $this->sqlite->querySingle( $q );
 			if ( 0 === $r ) {
 				/* later versions of SQLite3 have clustered primary keys, "WITHOUT ROWID" */
-				if ( version_compare( $this->sqlite_get_version(), '3.8.2' ) < 0 ) {
+				$uses_rowid =  version_compare( $this->sqlite_get_version(), '3.8.2' ) < 0;
+				if ( $uses_rowid ) {
 					/* @noinspection SqlIdentifier */
 					$t = "
 						CREATE TABLE IF NOT EXISTS $this->cache_table_name (
@@ -549,7 +554,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 
 				$this->sqlite->exec( $t );
 			}
-			$this->sqlite->exec( 'COMMIT;' );
+			$this->sqlite->exec( 'COMMIT' );
 		}
 
 		/**
@@ -563,7 +568,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 */
 		private function maybe_create_stats_table( $tbl ) {
 			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
-			$this->sqlite->exec( 'BEGIN;' );
+			$this->sqlite->exec( 'BEGIN' );
 			/* does our table exist?  */
 			$q = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND tbl_name = '$tbl';";
 			$r = $this->sqlite->querySingle( $q );
@@ -577,7 +582,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 						CREATE INDEX IF NOT EXISTS expires ON $tbl (timestamp);";
 				$this->sqlite->exec( $t );
 			}
-			$this->sqlite->exec( 'COMMIT;' );
+			$this->sqlite->exec( 'COMMIT' );
 		}
 
 		/**
@@ -593,21 +598,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
 
 			$now       = time();
-			$updateone = "UPDATE $tbl SET value = :value, expires = $now + :expires WHERE name = :name;";
-			$insertone = "INSERT INTO $tbl (name, value, expires) VALUES (:name, :value, $now + :expires);";
-			/* @noinspection SqlResolve */
-			$upsertone   = "
-INSERT INTO $tbl (name, value, expires) 
-VALUES (:name, :value, $now + :expires) 
-ON CONFLICT(name) DO UPDATE
-SET value=excluded.value, expires=excluded.expires;";
-			$getone      = "SELECT value FROM $tbl WHERE name = :name AND expires >= $now;";
-			$deleteone   = "DELETE FROM $tbl WHERE name = :name;";
-			$deletegroup = "DELETE FROM $tbl WHERE name LIKE :group || '.%';";
-
-			$this->getone      = $this->sqlite->prepare( $getone );
-			$this->deleteone   = $this->sqlite->prepare( $deleteone );
-			$this->deletegroup = $this->sqlite->prepare( $deletegroup );
+			$this->getone      = $this->sqlite->prepare( "SELECT value FROM $tbl WHERE name = :name AND expires >= $now;" );
+			$this->deleteone   = $this->sqlite->prepare( "DELETE FROM $tbl WHERE name = :name;" );
+			$this->deletegroup = $this->sqlite->prepare( "DELETE FROM $tbl WHERE name LIKE :group || '.%';" );
 			/*
 			 * Some versions of SQLite3 built into php predate the 3.38 advent of unixepoch() (2022-02-22).
 			 * And, others predate the 3.24 advent of UPSERT (that is, ON CONFLICT) syntax.
@@ -615,10 +608,10 @@ SET value=excluded.value, expires=excluded.expires;";
 			 */
 			$has_upsert = version_compare( $this->sqlite_get_version(), '3.24', 'ge' );
 			if ( $has_upsert ) {
-				$this->upsertone = $this->sqlite->prepare( $upsertone );
+				$this->upsertone = $this->sqlite->prepare( "INSERT INTO $tbl (name, value, expires) VALUES (:name, :value, $now + :expires) ON CONFLICT(name) DO UPDATE SET value=excluded.value, expires=excluded.expires;" );
 			} else {
-				$this->insertone = $this->sqlite->prepare( $insertone );
-				$this->updateone = $this->sqlite->prepare( $updateone );
+				$this->insertone = $this->sqlite->prepare( "INSERT INTO $tbl (name, value, expires) VALUES (:name, :value, $now + :expires);" );
+				$this->updateone = $this->sqlite->prepare( "UPDATE $tbl SET value = :value, expires = $now + :expires WHERE name = :name;" );
 			}
 		}
 
@@ -854,7 +847,7 @@ SET value=excluded.value, expires=excluded.expires;";
 					$this->open_connection();
 				}
 				if ( $use_transaction ) {
-					$this->sqlite->exec( 'BEGIN;' );
+					$this->sqlite->exec( 'BEGIN' );
 				}
 				/* Remove items with definite expirations, like transients */
 				$sql  = "DELETE FROM $this->cache_table_name WHERE expires <= :now;";
@@ -873,12 +866,12 @@ SET value=excluded.value, expires=excluded.expires;";
 				$result = $stmt->execute();
 				$result->finalize();
 				if ( $use_transaction ) {
-					$this->sqlite->exec( 'COMMIT;' );
+					$this->sqlite->exec( 'COMMIT' );
 				}
 				if ( $vacuum ) {
-					$this->sqlite->exec( 'VACUUM;' );
-					$this->sqlite->exec( 'PRAGMA analysis_limit=400;' );
-					$this->sqlite->exec( 'PRAGMA optimize;' );
+					$this->sqlite->exec( 'VACUUM' );
+					$this->sqlite->exec( 'PRAGMA analysis_limit=400' );
+					$this->sqlite->exec( 'PRAGMA optimize' );
 				}
 			} catch ( Exception $ex ) {
 				$this->error_log( 'sqlite_clean_up_cache', $ex );
@@ -1096,11 +1089,13 @@ SET value=excluded.value, expires=excluded.expires;";
 				}
 
 				/* use a transaction to accelerate add_multiple */
-				$this->sqlite->exec( 'BEGIN;' );
+				$this->transaction_active = true;
+				$this->sqlite->exec( 'BEGIN' );
 				foreach ( $data as $key => $value ) {
 					$values[ $key ] = $this->add( $key, $value, $group, $expire );
 				}
-				$this->sqlite->exec( 'COMMIT;' );
+				$this->sqlite->exec( 'COMMIT' );
+				$this->transaction_active = false;
 			} catch ( Exception $ex ) {
 				$this->error_log( 'add_multiple', $ex );
 				$this->delete_offending_files();
@@ -1341,7 +1336,9 @@ SET value=excluded.value, expires=excluded.expires;";
 					 * Need to try update, then do insert if need be.
 					 * Race conditions are possible, hence BEGIN / COMMIT
 					 */
-					$this->sqlite->exec( 'BEGIN;' );
+					if (! $this->transaction_active) {
+						$this->sqlite->exec( 'BEGIN' );
+					}
 					$stmt = $this->updateone;
 					$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
 					$stmt->bindValue( ':value', $value, SQLITE3_BLOB );
@@ -1357,7 +1354,9 @@ SET value=excluded.value, expires=excluded.expires;";
 						$result = $stmt->execute();
 						$result->finalize();
 					}
-					$this->sqlite->exec( 'COMMIT;' );
+					if (! $this->transaction_active) {
+						$this->sqlite->exec( 'COMMIT' );
+					}
 				}
 			} catch ( Exception $ex ) {
 				$this->error_log( 'handle_put', $ex );
@@ -1426,11 +1425,14 @@ SET value=excluded.value, expires=excluded.expires;";
 				}
 
 				/* use a transaction to accelerate set_multiple */
-				$this->sqlite->exec( 'BEGIN;' );
+				$this->transaction_active = true;
+				$this->sqlite->exec( 'BEGIN' );
 
 				foreach ( $data as $key => $value ) {
 					$values[ $key ] = $this->set( $key, $value, $group, $expire );
 				}
+				$this->sqlite->exec( 'COMMIT' );
+				$this->transaction_active = false;
 			} catch ( Exception $ex ) {
 				$this->error_log( 'set_multiple', $ex );
 				$this->delete_offending_files();
@@ -1460,12 +1462,14 @@ SET value=excluded.value, expires=excluded.expires;";
 				}
 
 				/* use a transaction to accelerate get_multiple */
-				$this->sqlite->exec( 'BEGIN;' );
+				$this->transaction_active = true;
+				$this->sqlite->exec( 'BEGIN' );
 
 				foreach ( $keys as $key ) {
 					$values[ $key ] = $this->get( $key, $group, $force );
 				}
-				$this->sqlite->exec( 'COMMIT;' );
+				$this->sqlite->exec( 'COMMIT' );
+				$this->transaction_active = false;
 			} catch ( Exception $ex ) {
 				$this->error_log( 'get_multiple', $ex );
 				$this->delete_offending_files();
