@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: SQLite Object Cache Drop-In
+ * Plugin Name: SQLite Object Cache (Drop-in)
  * Version: 1.2.0
  * Note: This Version number must match the one in the ctor for SQLite_Object_Cache.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
@@ -1876,6 +1876,15 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				echo '<li><strong>Group:</strong> ' . esc_html( $item ) . '</li>';
 			}
 			echo '</ul>';
+		}
+
+		/**
+		 * Return the cache type. For use by "wp-cli cache type" and other display code.
+		 *
+		 * @return string The type of cache, "SQLite".
+		 */
+		public function get_cache_type () {
+			return 'SQLite';
 		}
 
 		/**

@@ -332,9 +332,9 @@ class SQLite_Object_Cache_Statistics {
 			if ( is_array( $this->options ) && array_key_exists( 'capture', $this->options ) && 'on' === $this->options['capture'] ) {
 				echo '<p>' . esc_html__( 'No cache performance statistics have been captured.', 'sqlite-object-cache' ) . ' ';
 				/* translators: 1: a percentage */
-				$message =
+				$message    =
 					__( 'The plugin is capturing a random sample of %s%% of requests. It is possible no samples have yet been captured.', 'sqlite-object-cache' );
-				$samplerate = is_numeric($this->options['samplerate'] ) ? $this->options['samplerate'] : 1;
+				$samplerate = is_numeric( $this->options['samplerate'] ) ? $this->options['samplerate'] : 1;
 				echo esc_html( sprintf( $message, $samplerate ) ) . '</p>';
 			} else {
 				echo '<p>' . esc_html__( 'Cache performance measurement is not enabled.', 'sqlite-object-cache' ) . ' ';
@@ -420,7 +420,8 @@ class SQLite_Object_Cache_Statistics {
 		try {
 
 			foreach ( $wp_object_cache->sqlite_load_usages( true ) as $item ) {
-				$length   += $item->length;
+				$length += $item->length;
+				$count ++;
 				$ts       = $item->expires;
 				$earliest = min( $earliest, $ts );
 				$latest   = max( $latest, $ts );
@@ -430,8 +431,6 @@ class SQLite_Object_Cache_Statistics {
 					$grouplength[ $group ] = 0;
 					$groupcount[ $group ]  = 0;
 				}
-				$length += $item->length;
-				$count ++;
 				$grouplength[ $group ] += $item->length;
 				$groupcount[ $group ] ++;
 			}
