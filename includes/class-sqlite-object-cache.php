@@ -140,9 +140,11 @@ class SQLite_Object_Cache {
 		register_activation_hook( $this->file, [ $this, 'on_activation' ] );
 		register_deactivation_hook( $this->file, [ $this, 'on_deactivation' ] );
 
-		// Load API for generic admin functions.
 		if ( is_admin() ) {
+			// Load API for generic admin functions.
 			$this->admin = new SQLite_Object_Cache_Admin_API();
+			// Suppress backups
+			$this->suppress_backups();
 		}
 
 		// Handle localization.
@@ -154,6 +156,21 @@ class SQLite_Object_Cache {
 		add_action( self::CLEAN_EVENT_HOOK, [ $this, 'clean' ], 10, 0 );
 		if ( ! wp_next_scheduled( self::CLEAN_EVENT_HOOK ) ) {
 			wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', self::CLEAN_EVENT_HOOK );
+		}
+	}
+
+	/**
+	 * Suppress backups and cloning by popular plugins.
+	 *
+	 * @return void
+	 */
+	private function suppress_backups() {
+		global $wp_object_cache;
+		if ( property_exists( $wp_object_cache, 'sqlite_path' ) ) {
+			add_filter( 'updraftplus_exclude_file', [ $this, 'updraftplus_exclude_file' ], 10, 2 );
+			add_filter( 'backwpup_file_exclude', [ $this, 'backwpup_file_exclude' ], 10, 1 );
+			add_filter( 'wpstg_clone_excluded_files', [ $this, 'wpstg_clone_excluded_files' ], 10, 1 );
+			add_filter( 'wpstg_push_excluded_files', [ $this, 'wpstg_clone_excluded_files' ], 10, 1 );
 		}
 	}
 
@@ -171,6 +188,68 @@ class SQLite_Object_Cache {
 
 		load_textdomain( $domain, WP_LANG_DIR . '/' . $domain . '/' . $domain . '-' . $locale . '.mo' );
 		load_plugin_textdomain( $domain, false, dirname( plugin_basename( $this->file ) ) . '/languages/' );
+	}
+
+	/**
+	 * Filter for Updraft Plus backup exclusion
+	 *
+	 * @param $filter
+	 * @param $file
+	 *
+	 * @return bool|mixed
+	 */
+	function updraftplus_exclude_file( $filter, $file ) {
+		global $wp_object_cache;
+		if ( property_exists( $wp_object_cache, 'sqlite_path' ) ) {
+			$basename = basename( $wp_object_cache->sqlite_path );
+			foreach ( [ '', '-wal', '-shm' ] as $suffix ) {
+				if ( $basename . $suffix === basename( $file ) ) {
+					return true;
+				}
+			}
+		}
+
+		return $filter;
+	}
+
+	/**
+	 * Filter for BackWPUp backup exclusion
+	 *
+	 * @param string $list Comma-separated list of files to skip.
+	 *
+	 * @return string  Comma-separated list of files to skip.
+	 */
+	public function backwpup_file_exclude( $list ) {
+		global $wp_object_cache;
+		$files    = [];
+		$files [] = $list;
+		if ( property_exists( $wp_object_cache, 'sqlite_path' ) ) {
+			$basename = basename( $wp_object_cache->sqlite_path );
+			foreach ( [ '', '-wal', '-shm' ] as $suffix ) {
+				$files [] = $basename . $suffix;
+			}
+		}
+
+		return implode( ',', $files );
+	}
+
+	/**
+	 * Filter for WP STAGING cloning and pushing exclusion
+	 *
+	 * @param array $files
+	 *
+	 * @return array
+	 */
+	public function wpstg_clone_excluded_files( $files ) {
+		global $wp_object_cache;
+		if ( property_exists( $wp_object_cache, 'sqlite_path' ) ) {
+			$basename = basename( $wp_object_cache->sqlite_path );
+			foreach ( [ '', '-wal', '-shm' ] as $suffix ) {
+				$files [] = $basename . $suffix;
+			}
+		}
+
+		return $files;
 	}
 
 	/**

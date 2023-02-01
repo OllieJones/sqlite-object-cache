@@ -73,7 +73,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 *
 		 * @var string
 		 */
-		private $sqlite_path;
+		public $sqlite_path;
 
 		/**
 		 * SQLite's journal mode.

@@ -75,7 +75,7 @@ But many hosting providers don't offer either redis or memcached, while they do 
 
 = Is this plugin compatible with my version of redis or memcached? =
 
-Please **do not use** this plugin if you have access to redis or memcached. Instead, use the [Redis Object Cache](https://wordpress.org/plugins/redis-cache/) or [Memcached Object Cache](https://wordpress.org/plugins/memcached/) plugin.
+It does not use either. Please **do not use** this plugin if you have access to redis or memcached. Instead, use the [Redis Object Cache](https://wordpress.org/plugins/redis-cache/) or [Memcached Object Cache](https://wordpress.org/plugins/memcached/) plugin.
 
 = Why not use the site's main MariaDB or MySql database server for the object cache? =
 
@@ -84,6 +84,12 @@ In WordPress, as in many web frameworks, your database server is a performance b
 = Do I have to back up the data in SQLite? =
 
 **No.** It's a cache, and everything in it is ephemeral. When WordPress cannot find what it needs in the cache, it simply recomputes it or refetches it from the database.
+
+To avoid backing up SQLite files, tell your backup plugin to skip the files named `*.sqlite`, `*.sqlite-wal`, and `*.sqlite-shm`.
+
+This plugin automatically suppresses backing up your SQLite data when you use the [Updraft Plus](https://wordpress.org/plugins/updraftplus/), [BackWPUp](https://wordpress.org/plugins/backwpup/), or [WP STAGING](https://wordpress.org/plugins/wp-staging/) plugins.
+
+If you use some other backup or cloning plugin, please let the author know by creating a [support topic](https://wordpress.org/support/plugin/sqlite-object-cache/).
 
 = If I already have another persistent object cache, can I use this one? =
 
@@ -115,7 +121,7 @@ On Linux and other UNIX-derived operating systems, you must give the command `ls
 
 = I want to store my cached data in a more secure place. How do I do that?
 
-If you define the constant `WP_SQLITE_OBJECT_CACHE_DB_FILE` in `wp_config.php` the plugin uses that for the file name instead. For example, if `wp_config.php` contains this line
+It is good security practice to put your .sqlite files outside your site's document root, and this is how you do it. If you define the constant `WP_SQLITE_OBJECT_CACHE_DB_FILE` in `wp_config.php` the plugin uses that for the file name instead. For example, if `wp_config.php` contains this line
 
 `define( 'WP_SQLITE_OBJECT_CACHE_DB_FILE', '/var/tmp/mysite-object-cache.sqlite' );`
 
@@ -182,6 +188,8 @@ This application of SQLite puts its concurrency-handling code to the test.
 
 == Upgrade Notice ==
 
+This release suppresses backups of the SQLite data in common backup plugins.
+
 This release allows you to use `wp-config.php` settings to configure SQLite's timeout, journaliing mode, and file name. And, it changes the timeout and journaliing mode attempting to cope with rare long SQLite waits.
 
-Thanks, dear users, especially @spaceling and @ss88_uk, for letting me know about errors you found, and for your patience as I figure this out.
+Thanks, dear users, especially @spacedmonkey, @spaceling and @ss88_uk, for letting me know about errors you found, and for your patience as I figure this out. All remaining errors are solely the responsibility of the author.
