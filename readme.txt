@@ -22,9 +22,9 @@ A [persistent object cache](https://developer.wordpress.org/reference/classes/wp
 
 [Caches](https://en.wikipedia.org/wiki/Cache_(computing)) are ubiquitous in computing, and WordPress has its own caching subsystem. Caches contain short-term copies of the results of expensive database lookups or computations, and allow software to use the copy rather than repeating the expensive operation. This plugin (like other object-caching plugins) extends WordPress's caching subsystem to save those short-term copies from page view to page view. WordPress's cache happens to be a [memoization](https://en.wikipedia.org/wiki/Cache_(computing)#Memoization) cache.
 
-Without a persistent object cache, every WordPress page view must use your MariaDB or MySQL database server to retrieve everything about your site. When a user requests a page, WordPress starts from scratch and gets everything it needs from your database server. Only then can it deliver content to your user. With a persistent object cache, WordPress has immediate access to much of the information it needs. This lightens the load on your  database server and delivers content to your users faster.
+Without a persistent object cache, every WordPress page view must use your MariaDB or MySQL database server to retrieve everything about your site. When a user requests a page, WordPress starts from scratch and loads everything it needs from your database server. Only then can it deliver content to your user. With a persistent object cache, WordPress immediately loads much of the information it needs. This lightens the load on your  database server and delivers content to your users faster.
 
-Thanks to [Till Krüss](https://profiles.wordpress.org/tillkruess/). His [Redis Object Cache](https://wordpress.org/plugins/redis-cache/) plugin serves as a model for this one. And thanks to [Ari Stathopoulos](https://profiles.wordpress.org/aristath/) for reviewing this. (All defects are, of course, entirely the author's responsibility.)
+Thanks to [Till Krüss](https://profiles.wordpress.org/tillkruess/). His [Redis Object Cache](https://wordpress.org/plugins/redis-cache/) plugin serves as a model for this one. And thanks to [Ari Stathopoulos](https://profiles.wordpress.org/aristath/) and [Jonny Harris](https://profiles.wordpress.org/spacedmonkey/) for reviewing this. (All defects are, of course, entirely the author's responsibility.)
 
 == Installation ==
 
@@ -121,11 +121,18 @@ On Linux and other UNIX-derived operating systems, you must give the command `ls
 
 = I want to store my cached data in a more secure place. How do I do that?
 
-It is good security practice to put your .sqlite files outside your site's document root, and this is how you do it. If you define the constant `WP_SQLITE_OBJECT_CACHE_DB_FILE` in `wp_config.php` the plugin uses that for the file name instead. For example, if `wp_config.php` contains this line
+Putting your .sqlite files outside your site's document root is good security practice. This is how you do it. If you define the constant `WP_SQLITE_OBJECT_CACHE_DB_FILE` in `wp_config.php` the plugin uses that for sqlite's file pathname instead. For example, if `wp-config.php` contains this line
 
 `define( 'WP_SQLITE_OBJECT_CACHE_DB_FILE', '/var/tmp/mysite-object-cache.sqlite' );`
 
 your object cache data goes into the `/var/tmp` folder in a file named `mysite-object-cache.sqlite`.
+
+You can also define `WP_CACHE_KEY_SALT` to be a text string. Continuing the example, this line
+
+`define( 'WP_CACHE_KEY_SALT', 'qrstuv' );`
+
+causes your object cache data to go into the `/var/tmp` folder in a file named `mysite-object-cache.qrstuv.sqlite`.
+
 
 = Is there a joke somewhere in this? =
 

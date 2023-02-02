@@ -331,8 +331,8 @@ class SQLite_Object_Cache_Statistics {
 		} else {
 			if ( is_array( $this->options ) && array_key_exists( 'capture', $this->options ) && 'on' === $this->options['capture'] ) {
 				echo '<p>' . esc_html__( 'No cache performance statistics have been captured.', 'sqlite-object-cache' ) . ' ';
-				/* translators: 1: a percentage */
 				$message    =
+					/* translators: 1: a percentage */
 					__( 'The plugin is capturing a random sample of %s%% of requests. It is possible no samples have yet been captured.', 'sqlite-object-cache' );
 				$samplerate = is_numeric( $this->options['samplerate'] ) ? $this->options['samplerate'] : 1;
 				echo esc_html( sprintf( $message, $samplerate ) ) . '</p>';

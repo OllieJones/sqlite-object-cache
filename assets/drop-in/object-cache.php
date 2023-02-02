@@ -14,14 +14,16 @@
  * NOTE: This uses the file .../wp-content/.ht.object_cache.sqlite
  * and the associated files .../wp-content/.ht.object_cache.sqlite-shm
  * and .../wp-content/.ht.object_cache.sqlite-wal to hold cached data.
- * These start with .ht. for security: Web servers block requests
+ * These start with .ht. for security: Most web servers block requests
  * for files with that prefix. Use the UNIX ls -a command to
  * see these files from your command line.
  *
- * If you define WP_SQLITE_OBJECT_CACHE_DB_FILE this plugin uses it as the name of the sqlite file
- * in place of .../wp-content/.ht.object_cache.sqlite .
- * If you define WP_SQLITE_OBJECT_CACHE_TIMEOUT this plugin uses it as the SQLite timeout in place of 5000 milliseconds.
- * If you define WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE this plugin uses it as the SQLite journal mode in place of 'WAL'.
+ * Some config settings control this.
+ * WP_SQLITE_OBJECT_CACHE_DB_FILE, if defined, is the cache file path.
+ *      /var/tmp/cache.sqlite puts the cache file outside the document root.
+ * WP_CACHE_KEY_SALT is used as part of the cache file.
+ * WP_SQLITE_OBJECT_CACHE_TIMEOUT is the SQLite timeout in place of 5000 milliseconds.
+ * WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE is the SQLite journal mode in place of 'WAL'.
  *   It can be DELETE | TRUNCATE | PERSIST | MEMORY | WAL. See https://www.sqlite.org/pragma.html#pragma_journal_mode
  *
  * Credit: Till Krüss's https://wordpress.org/plugins/redis-cache/ plugin. Thanks, Till!
@@ -61,7 +63,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		const NOEXPIRE_TIMESTAMP_OFFSET = 500000000000;
 		const MAX_LIFETIME = DAY_IN_SECONDS * 2;
 		const SQLITE_TIMEOUT = 5000;
-		const SQLITE_PATH = '.ht.object-cache.sqlite';
+		const SQLITE_FILENAME = '.ht.object-cache.sqlite';
 		const JOURNAL_MODE = 'WAL';  /* or 'MEMORY' */
 
 		/**
@@ -357,9 +359,12 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 
 			$this->cache_group_types();
 
-			$this->sqlite_path = defined( 'WP_SQLITE_OBJECT_CACHE_DB_FILE' )
-				? WP_SQLITE_OBJECT_CACHE_DB_FILE
-				: WP_CONTENT_DIR . '/' . self::SQLITE_PATH;
+			$this->has_hrtime    = function_exists( 'hrtime' );
+			$this->has_microtime = function_exists( 'microtime' );
+			$this->has_igbinary  =
+				function_exists( 'igbinary_serialize' ) && function_exists( 'igbinary_unserialize' );
+
+			$this->sqlite_path = $this->create_database_path();
 
 			$this->sqlite_timeout = defined( 'WP_SQLITE_OBJECT_CACHE_TIMEOUT' )
 				? WP_SQLITE_OBJECT_CACHE_TIMEOUT
@@ -374,11 +379,38 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$this->cache_table_name          = self::OBJECT_CACHE_TABLE;
 			$this->noexpire_timestamp_offset = self::NOEXPIRE_TIMESTAMP_OFFSET;
 			$this->max_lifetime              = self::MAX_LIFETIME;
+		}
 
-			$this->has_igbinary  =
-				function_exists( 'igbinary_serialize' ) && function_exists( 'igbinary_unserialize' );
-			$this->has_hrtime    = function_exists( 'hrtime' );
-			$this->has_microtime = function_exists( 'microtime' );
+		/**
+		 * Create the pathname for the sqlite database.
+		 *
+		 * This is based on WP_SQLITE_OBJECT_CACHE_DB_FILE, WP_CACHE_KEY_SALT,
+		 * and whether igbinary is available.
+		 * It may have -wal and -shm appended to it by the SQLite engine.
+		 *
+		 * @return string Full filesystem pathname for SQLite database.
+		 */
+		private function create_database_path() {
+
+			$result = defined( 'WP_SQLITE_OBJECT_CACHE_DB_FILE' )
+				? WP_SQLITE_OBJECT_CACHE_DB_FILE
+				: WP_CONTENT_DIR . '/' . self::SQLITE_FILENAME;
+
+			$salt = defined( 'WP_CACHE_KEY_SALT' ) ? WP_CACHE_KEY_SALT : '';
+			$salt .= $this->has_igbinary ? '' : '-a';
+
+			if ( strlen( $salt ) > 0 ) {
+				$splits = explode( '.', $result );
+				if ( count( $splits ) >= 2 && 'sqlite' === $splits [ count( $splits ) - 1 ] ) {
+					$splits[ count( $splits ) - 1 ] = $salt;
+					$splits []                      = 'sqlite';
+					$result                         = implode( '.', $splits );
+				} else {
+					$result .= '.' . $salt . '.sqlite';
+				}
+			}
+
+			return $result;
 		}
 
 		/**
@@ -530,7 +562,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$r = $this->sqlite->querySingle( $q );
 			if ( 0 === $r ) {
 				/* later versions of SQLite3 have clustered primary keys, "WITHOUT ROWID" */
-				$uses_rowid =  version_compare( $this->sqlite_get_version(), '3.8.2' ) < 0;
+				$uses_rowid = version_compare( $this->sqlite_get_version(), '3.8.2' ) < 0;
 				if ( $uses_rowid ) {
 					/* @noinspection SqlIdentifier */
 					$t = "
@@ -597,8 +629,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		private function prepare_statements( $tbl ) {
 			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
 
-			$now       = time();
-			$this->getone      = $this->sqlite->prepare( "SELECT value FROM $tbl WHERE name = :name AND expires >= $now;" );
+			$now               = time();
+			$this->getone      =
+				$this->sqlite->prepare( "SELECT value FROM $tbl WHERE name = :name AND expires >= $now;" );
 			$this->deleteone   = $this->sqlite->prepare( "DELETE FROM $tbl WHERE name = :name;" );
 			$this->deletegroup = $this->sqlite->prepare( "DELETE FROM $tbl WHERE name LIKE :group || '.%';" );
 			/*
@@ -608,10 +641,13 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			 */
 			$has_upsert = version_compare( $this->sqlite_get_version(), '3.24', 'ge' );
 			if ( $has_upsert ) {
-				$this->upsertone = $this->sqlite->prepare( "INSERT INTO $tbl (name, value, expires) VALUES (:name, :value, $now + :expires) ON CONFLICT(name) DO UPDATE SET value=excluded.value, expires=excluded.expires;" );
+				$this->upsertone =
+					$this->sqlite->prepare( "INSERT INTO $tbl (name, value, expires) VALUES (:name, :value, $now + :expires) ON CONFLICT(name) DO UPDATE SET value=excluded.value, expires=excluded.expires;" );
 			} else {
-				$this->insertone = $this->sqlite->prepare( "INSERT INTO $tbl (name, value, expires) VALUES (:name, :value, $now + :expires);" );
-				$this->updateone = $this->sqlite->prepare( "UPDATE $tbl SET value = :value, expires = $now + :expires WHERE name = :name;" );
+				$this->insertone =
+					$this->sqlite->prepare( "INSERT INTO $tbl (name, value, expires) VALUES (:name, :value, $now + :expires);" );
+				$this->updateone =
+					$this->sqlite->prepare( "UPDATE $tbl SET value = :value, expires = $now + :expires WHERE name = :name;" );
 			}
 		}
 
@@ -1336,7 +1372,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 					 * Need to try update, then do insert if need be.
 					 * Race conditions are possible, hence BEGIN / COMMIT
 					 */
-					if (! $this->transaction_active) {
+					if ( ! $this->transaction_active ) {
 						$this->sqlite->exec( 'BEGIN' );
 					}
 					$stmt = $this->updateone;
@@ -1354,7 +1390,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 						$result = $stmt->execute();
 						$result->finalize();
 					}
-					if (! $this->transaction_active) {
+					if ( ! $this->transaction_active ) {
 						$this->sqlite->exec( 'COMMIT' );
 					}
 				}
@@ -1883,7 +1919,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 *
 		 * @return string The type of cache, "SQLite".
 		 */
-		public function get_cache_type () {
+		public function get_cache_type() {
 			return 'SQLite';
 		}
 
@@ -1928,11 +1964,12 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 *
 		 * @return Generator Name of one of the possible SQLite files.
 		 */
-		public function sqlite_files () {
+		public function sqlite_files() {
 			foreach ( [ '', '-shm', '-wal' ] as $suffix ) {
 				yield $this->sqlite_path . $suffix;
 			}
 		}
+
 		/**
 		 * Delete sqlite files in hopes of recovering from trouble.
 		 *
@@ -1947,7 +1984,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$credentials = request_filesystem_credentials( '' );
 			WP_Filesystem( $credentials );
 			global $wp_filesystem;
-			foreach ($this->sqlite_files() as $file)  {
+			foreach ( $this->sqlite_files() as $file ) {
 				$wp_filesystem->delete( $file );
 			}
 			ob_end_clean();
