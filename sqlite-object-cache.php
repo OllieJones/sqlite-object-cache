@@ -27,6 +27,7 @@ if ( is_admin() ) {
 	require_once 'includes/class-sqlite-object-cache-settings.php';
 	require_once 'includes/lib/class-sqlite-object-cache-admin-api.php';
 	require_once 'includes/lib/class-sqlite-object-cache-statistics.php';
+	require_once 'includes/lib/class-sqlite-backup-exclusion.php';
 }
 /**
  * Returns the main instance of SQLite_Object_Cache to prevent the need to use globals.

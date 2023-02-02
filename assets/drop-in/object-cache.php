@@ -1922,6 +1922,18 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		}
 
 		/**
+		 * Get the names of the SQLite files.
+		 *
+		 * Notice there are, possibly, multiple files used to hold sqlite data.
+		 *
+		 * @return Generator Name of one of the possible SQLite files.
+		 */
+		public function sqlite_files () {
+			foreach ( [ '', '-shm', '-wal' ] as $suffix ) {
+				yield $this->sqlite_path . $suffix;
+			}
+		}
+		/**
 		 * Delete sqlite files in hopes of recovering from trouble.
 		 *
 		 * @param int $retries
@@ -1935,8 +1947,8 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$credentials = request_filesystem_credentials( '' );
 			WP_Filesystem( $credentials );
 			global $wp_filesystem;
-			foreach ( [ '', '-shm', '-wal' ] as $suffix ) {
-				$wp_filesystem->delete( $this->sqlite_path . $suffix );
+			foreach ($this->sqlite_files() as $file)  {
+				$wp_filesystem->delete( $file );
 			}
 			ob_end_clean();
 		}

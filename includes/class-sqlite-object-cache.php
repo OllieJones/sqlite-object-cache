@@ -144,7 +144,7 @@ class SQLite_Object_Cache {
 			// Load API for generic admin functions.
 			$this->admin = new SQLite_Object_Cache_Admin_API();
 			// Suppress backups
-			$this->suppress_backups();
+			new SQLite_Backup_Exclusion();
 		}
 
 		// Handle localization.
@@ -156,21 +156,6 @@ class SQLite_Object_Cache {
 		add_action( self::CLEAN_EVENT_HOOK, [ $this, 'clean' ], 10, 0 );
 		if ( ! wp_next_scheduled( self::CLEAN_EVENT_HOOK ) ) {
 			wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', self::CLEAN_EVENT_HOOK );
-		}
-	}
-
-	/**
-	 * Suppress backups and cloning by popular plugins.
-	 *
-	 * @return void
-	 */
-	private function suppress_backups() {
-		global $wp_object_cache;
-		if ( property_exists( $wp_object_cache, 'sqlite_path' ) ) {
-			add_filter( 'updraftplus_exclude_file', [ $this, 'updraftplus_exclude_file' ], 10, 2 );
-			add_filter( 'backwpup_file_exclude', [ $this, 'backwpup_file_exclude' ], 10, 1 );
-			add_filter( 'wpstg_clone_excluded_files', [ $this, 'wpstg_clone_excluded_files' ], 10, 1 );
-			add_filter( 'wpstg_push_excluded_files', [ $this, 'wpstg_clone_excluded_files' ], 10, 1 );
 		}
 	}
 
@@ -191,73 +176,12 @@ class SQLite_Object_Cache {
 	}
 
 	/**
-	 * Filter for Updraft Plus backup exclusion
-	 *
-	 * @param $filter
-	 * @param $file
-	 *
-	 * @return bool|mixed
-	 */
-	function updraftplus_exclude_file( $filter, $file ) {
-		global $wp_object_cache;
-		if ( property_exists( $wp_object_cache, 'sqlite_path' ) ) {
-			$basename = basename( $wp_object_cache->sqlite_path );
-			foreach ( [ '', '-wal', '-shm' ] as $suffix ) {
-				if ( $basename . $suffix === basename( $file ) ) {
-					return true;
-				}
-			}
-		}
-
-		return $filter;
-	}
-
-	/**
-	 * Filter for BackWPUp backup exclusion
-	 *
-	 * @param string $list Comma-separated list of files to skip.
-	 *
-	 * @return string  Comma-separated list of files to skip.
-	 */
-	public function backwpup_file_exclude( $list ) {
-		global $wp_object_cache;
-		$files    = [];
-		$files [] = $list;
-		if ( property_exists( $wp_object_cache, 'sqlite_path' ) ) {
-			$basename = basename( $wp_object_cache->sqlite_path );
-			foreach ( [ '', '-wal', '-shm' ] as $suffix ) {
-				$files [] = $basename . $suffix;
-			}
-		}
-
-		return implode( ',', $files );
-	}
-
-	/**
-	 * Filter for WP STAGING cloning and pushing exclusion
-	 *
-	 * @param array $files
-	 *
-	 * @return array
-	 */
-	public function wpstg_clone_excluded_files( $files ) {
-		global $wp_object_cache;
-		if ( property_exists( $wp_object_cache, 'sqlite_path' ) ) {
-			$basename = basename( $wp_object_cache->sqlite_path );
-			foreach ( [ '', '-wal', '-shm' ] as $suffix ) {
-				$files [] = $basename . $suffix;
-			}
-		}
-
-		return $files;
-	}
-
-	/**
 	 * WP_Cron task to clean cache entries.
 	 *
 	 * @return void
 	 */
-	public function clean() {
+	public
+	function clean() {
 		global $wp_object_cache;
 		$option = get_option( $this->_token . '_settings', [] );
 		if ( method_exists( $wp_object_cache, 'sqlite_clean_up_cache' ) ) {
@@ -284,7 +208,8 @@ class SQLite_Object_Cache {
 	 *
 	 * @return void
 	 */
-	public function on_activation() {
+	public
+	function on_activation() {
 		/* make sure the autoloaded option is set when activating; avoid an extra dbms or cache hit to fetch it */
 		$option = get_option( $this->_token . '_settings', 'default' );
 		if ( 'default' === $option ) {
@@ -300,7 +225,8 @@ class SQLite_Object_Cache {
 	 *
 	 * @return bool|string true, or an error message.
 	 */
-	public function has_sqlite() {
+	public
+	function has_sqlite() {
 		if ( ! class_exists( 'SQLite3' ) || ! extension_loaded( 'sqlite3' ) ) {
 			return __( 'You cannot use the SQLite Object Cache plugin. Your server does not have php\'s SQLite3 extension installed.', 'sqlite-object-cache' );
 		}
@@ -321,7 +247,8 @@ class SQLite_Object_Cache {
 	 *
 	 * @return string|false  SQLite's version number.
 	 */
-	public function sqlite_get_version() {
+	public
+	function sqlite_get_version() {
 
 		if ( class_exists( 'SQLite3' ) ) {
 			$version = SQLite3::version();
@@ -339,7 +266,8 @@ class SQLite_Object_Cache {
 	 * @return  void
 	 * @since   1.0.0
 	 */
-	public function load_localization() {
+	public
+	function load_localization() {
 		load_plugin_textdomain( 'sqlite-object-cache', false, dirname( plugin_basename( $this->file ) ) . '/languages/' );
 	}
 
@@ -350,7 +278,8 @@ class SQLite_Object_Cache {
 	 * @author Till Krüss
 	 *
 	 */
-	public function test_filesystem_writing() {
+	public
+	function test_filesystem_writing() {
 		global $wp_filesystem;
 
 		if ( ! $this->initialize_filesystem( '', true ) ) {
@@ -402,7 +331,10 @@ class SQLite_Object_Cache {
 	 * @author Till Krüss
 	 *
 	 */
-	public function initialize_filesystem( $url, $silent = false ) {
+	public
+	function initialize_filesystem(
+		$url, $silent = false
+	) {
 		require_once ABSPATH . 'wp-admin/includes/file.php';
 		if ( $silent ) {
 			ob_start();
@@ -437,7 +369,8 @@ class SQLite_Object_Cache {
 	 * @return void
 	 * @author Till Krüss
 	 */
-	public function maybe_update_dropin() {
+	public
+	function maybe_update_dropin() {
 		if ( defined( 'WP_SQLITE_OBJECT_CACHE_DISABLE_DROPIN_AUTOUPDATE' ) && WP_SQLITE_OBJECT_CACHE_DISABLE_DROPIN_AUTOUPDATE ) {
 			return;
 		}
@@ -454,7 +387,8 @@ class SQLite_Object_Cache {
 	 * @author Till Krüss
 	 *
 	 */
-	public function object_cache_dropin_needs_updating() {
+	public
+	function object_cache_dropin_needs_updating() {
 		if ( ! $this->object_cache_dropin_exists() ) {
 			return true;
 		}
@@ -475,7 +409,8 @@ class SQLite_Object_Cache {
 	 * @return bool
 	 * @author Till Krüss
 	 */
-	public function object_cache_dropin_exists() {
+	public
+	function object_cache_dropin_exists() {
 		return @file_exists( $this->dropinfiledest );
 	}
 
@@ -485,7 +420,8 @@ class SQLite_Object_Cache {
 	 * @return void
 	 * @author Till Krüss
 	 */
-	public function update_dropin() {
+	public
+	function update_dropin() {
 		global $wp_filesystem;
 		$has = $this->has_sqlite();
 		if ( true === $has && $this->initialize_filesystem( '', true ) ) {
@@ -505,20 +441,15 @@ class SQLite_Object_Cache {
 
 	private function delete_sqlite_files() {
 		global $wp_filesystem;
-
-		/* the former filename */
-		$old_file = WP_CONTENT_DIR . '/object-cache.sqlite';
-		$db_file  = WP_CONTENT_DIR . '/.ht.object-cache.sqlite';
-		if ( defined( 'WP_SQLITE_OBJECT_CACHE_DB_FILE' ) ) {
-			$db_file = WP_SQLITE_OBJECT_CACHE_DB_FILE;
-		}
+		global $wp_object_cache;
 
 		ob_start();
 
-		if ( $this->validate_object_cache_dropin() && $this->initialize_filesystem( '', true ) ) {
-			foreach ( [ '', '-shm', '-wal' ] as $suffix ) {
-				$wp_filesystem->delete( $db_file . $suffix );
-				$wp_filesystem->delete( $old_file . $suffix );
+		if ( method_exists( $wp_object_cache, 'sqlite_files' ) ) {
+			if ( $this->validate_object_cache_dropin() && $this->initialize_filesystem( '', true ) ) {
+				foreach ( $wp_object_cache->sqlite_files() as $file ) {
+					$wp_filesystem->delete( $file );
+				}
 			}
 		}
 
@@ -564,7 +495,10 @@ class SQLite_Object_Cache {
 	 * @return void
 	 * @author Till Krüss
 	 */
-	public function on_deactivation( $plugin ) {
+	public
+	function on_deactivation(
+		$plugin
+	) {
 		wp_cache_flush();
 
 		wp_unschedule_hook( self::CLEAN_EVENT_HOOK );
@@ -572,7 +506,8 @@ class SQLite_Object_Cache {
 		$this->delete_dropin();
 	}
 
-	private function delete_dropin() {
+	private
+	function delete_dropin() {
 		global $wp_filesystem;
 		ob_start();
 
