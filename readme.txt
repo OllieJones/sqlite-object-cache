@@ -123,16 +123,27 @@ On Linux and other UNIX-derived operating systems, you must give the command `ls
 
 Putting your .sqlite files outside your site's document root is good security practice. This is how you do it. If you define the constant `WP_SQLITE_OBJECT_CACHE_DB_FILE` in `wp_config.php` the plugin uses that for sqlite's file pathname instead. For example, if `wp-config.php` contains this line
 
-`define( 'WP_SQLITE_OBJECT_CACHE_DB_FILE', '/var/tmp/mysite-object-cache.sqlite' );`
+`define( 'WP_SQLITE_OBJECT_CACHE_DB_FILE', '/tmp/mysite-object-cache.sqlite' );`
 
-your object cache data goes into the `/var/tmp` folder in a file named `mysite-object-cache.sqlite`.
+your object cache data goes into the `/tmp` folder in a file named `mysite-object-cache.sqlite`.
 
 You can also define `WP_CACHE_KEY_SALT` to be a text string. Continuing the example, this line
 
 `define( 'WP_CACHE_KEY_SALT', 'qrstuv' );`
 
-causes your object cache data to go into the `/var/tmp` folder in a file named `mysite-object-cache.qrstuv.sqlite`.
+causes your object cache data to go into the `/tmp` folder in a file named `mysite-object-cache.qrstuv.sqlite`.
 
+= I sometimes get timeout errors from SQLite. How can I fix them? =
+
+Some sites occasionally generate error messages looking like this one:
+
+`Unable to execute statement: database is locked in /var/www/wp-content/object-cache.php:1234`
+
+This can happen if your server places your WordPress files on network-attached storage (that is, on a network drive). To solve this, store your cached data on a locally attached drive. See the question here about storing your data in a more secure place.
+
+= What do the Statistics mean? =
+
+Please [read this](https://www.plumislandmedia.net/wordpress-plugins/sqlite-object-cache/statistics-from-sqlite-object-cache/).
 
 = Is there a joke somewhere in this? =
 
