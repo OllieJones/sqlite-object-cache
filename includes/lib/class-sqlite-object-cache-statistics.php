@@ -472,9 +472,9 @@ class SQLite_Object_Cache_Statistics {
 			/* filesize row */
 			if ($filesize) {
 				echo '<tr>';
-				echo '<th scope="row" class="right">' . esc_html__( 'File Size', 'sqlite-object-cache' ) . '</th>';
+				echo '<th scope="row" class="right">' . esc_html__( 'Cache File Size', 'sqlite-object-cache' ) . '</th>';
 				echo '<td class="right total"></td>';
-				$sizemib = $length / (1024 * 1024);
+				$sizemib = $filesize / (1024 * 1024);
 				echo '<td class="right total">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';
 				echo '</tr>' . PHP_EOL;
 			}
