@@ -418,10 +418,9 @@ class SQLite_Object_Cache_Statistics {
 					break;
 				}
 			}
-		} catch (Exception $ex) {
+		} catch ( Exception $ex ) {
 			$filesize = null;
 		}
-
 
 		echo '<h3>' . esc_html__( 'Cache usage', 'sqlite-object-cache' ) . '</h3>';
 		$grouplength = [];
@@ -441,6 +440,7 @@ class SQLite_Object_Cache_Statistics {
 				$latest   = max( $latest, $ts );
 				$splits   = explode( '|', $item->name, 2 );
 				$group    = $splits[0];
+				$group    = preg_replace( '/_[ 0-9._]+$/', '_*', $group );
 				if ( ! array_key_exists( $group, $grouplength ) ) {
 					$grouplength[ $group ] = 0;
 					$groupcount[ $group ]  = 0;
@@ -470,11 +470,11 @@ class SQLite_Object_Cache_Statistics {
 			echo '</tr></thead><tbody>' . PHP_EOL;
 
 			/* filesize row */
-			if ($filesize) {
+			if ( $filesize ) {
 				echo '<tr>';
 				echo '<th scope="row" class="right">' . esc_html__( 'Cache File Size', 'sqlite-object-cache' ) . '</th>';
 				echo '<td class="right total"></td>';
-				$sizemib = $filesize / (1024 * 1024);
+				$sizemib = $filesize / ( 1024 * 1024 );
 				echo '<td class="right total">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';
 				echo '</tr>' . PHP_EOL;
 			}
@@ -482,7 +482,7 @@ class SQLite_Object_Cache_Statistics {
 			echo '<tr>';
 			echo '<th scope="row" class="right">' . esc_html__( 'All Groups', 'sqlite-object-cache' ) . '</th>';
 			echo '<td class="right total">' . esc_html( number_format_i18n( $count, 0 ) ) . '</td>';
-			$sizemib = $length / (1024 * 1024);
+			$sizemib = $length / ( 1024 * 1024 );
 			echo '<td class="right total">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';
 			echo '</tr>' . PHP_EOL;
 			foreach ( $groups as $group ) {
@@ -490,7 +490,7 @@ class SQLite_Object_Cache_Statistics {
 				echo '<tr>';
 				echo '<th scope="row" class="right">' . esc_html( $group ) . '</th>';
 				echo '<td class="right">' . esc_html( number_format_i18n( $groupcount[ $group ], 0 ) ) . '</td>';
-				$sizemib = $grouplength[ $group ] / (1024 * 1024);
+				$sizemib = $grouplength[ $group ] / ( 1024 * 1024 );
 				echo '<td class="right">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';
 				echo '</tr>' . PHP_EOL;
 			}
