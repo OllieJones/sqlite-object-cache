@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache (Drop-in)
- * Version: 1.2.0
+ * Version: 1.2.1
  * Note: This Version number must match the one in the ctor for SQLite_Object_Cache.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -1775,17 +1775,20 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				$selective =
 					defined( 'WP_SQLITE_OBJECT_CACHE_SELECTIVE_FLUSH' ) ? WP_SQLITE_OBJECT_CACHE_SELECTIVE_FLUSH : null;
 
-				$clauses    = [];
-				$clauses [] = "(name <> 'sqlite_object_cache|created')";
-				if ( $selective && is_array( $this->unflushable_groups ) ) {
+				if ( $selective && is_array( $this->unflushable_groups ) && count( $this->unflushable_groups ) > 0 ) {
+					$clauses = [];
 					foreach ( $this->unflushable_groups as $unflushable_group ) {
 						$unflushable_group = sanitize_key( $unflushable_group );
 						$clauses []        = "(name NOT LIKE '$unflushable_group|%')";
 					}
+					/* @noinspection SqlConstantCondition, SqlConstantExpression */
+					$sql =
+						'DELETE FROM ' . $this->cache_table_name . ' WHERE ' . implode( ' AND ', $clauses ) . ';';
+				} else {
+					/* SQLite's TRUNCATE TABLE equivalent */
+					$sql =
+						'DELETE FROM ' . $this->cache_table_name . ';';
 				}
-				/* @noinspection SqlConstantCondition, SqlConstantExpression */
-				$sql =
-					'DELETE FROM ' . $this->cache_table_name . ' WHERE 1=1 AND ' . implode( ' AND ', $clauses ) . ';';
 				$this->sqlite->exec( $sql );
 
 				if ( $vacuum ) {
@@ -1796,6 +1799,20 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				$this->delete_offending_files();
 				self::drop_dead();
 			}
+
+			return true;
+		}
+
+		/**
+		 * Clears the in-memory cache of all data leaving the external cache untouched.
+		 *
+		 * @return bool Always returns true.
+		 * @since 2.0.0
+		 */
+		public function flush_runtime() {
+			$this->cache                   = [];
+			$this->not_in_persistent_cache = [];
+			$this->in_persistent_cache     = [];
 
 			return true;
 		}
@@ -2279,7 +2296,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	 *
 	 */
 	function wp_cache_flush_runtime() {
-		return wp_cache_flush();
+		global $wp_object_cache;
+
+		return $wp_object_cache->flush_runtime();
 	}
 
 	/**

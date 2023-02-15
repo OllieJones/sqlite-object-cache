@@ -5,8 +5,8 @@ Tags: cache, sqlite, performance
 Requires at least: 5.5
 Requires PHP: 5.6
 Tested up to: 6.1.1
-Version: 1.2.0
-Stable tag: 1.2.0
+Version: 1.2.1
+Stable tag: 1.2.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache
@@ -167,6 +167,10 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 == Changelog ==
 
+= 1.2.1 =
+
+* Implement wp_cache_flush_runtime() correctly.
+
 = 1.2.0 =
 
 * Better exception handling.
@@ -206,8 +210,10 @@ This application of SQLite puts its concurrency-handling code to the test.
 
 == Upgrade Notice ==
 
-This release suppresses backups of the SQLite data in common backup plugins.
+This release corrects a defect in `wp_cache_flush_runtime()`, which should not flush the persistent cache. That function is used by the action scheduler.
 
-This release allows you to use `wp-config.php` settings to configure SQLite's timeout, journaliing mode, and file name. And, it changes the timeout and journaliing mode attempting to cope with rare long SQLite waits.
+It suppresses backups of the SQLite data in common backup plugins.
+
+It allows you to use `wp-config.php` settings to configure SQLite's timeout, journaliing mode, and file name. And, it changes the timeout and journaliing mode attempting to cope with rare long SQLite waits.
 
 Thanks, dear users, especially @spacedmonkey, @spaceling and @ss88_uk, for letting me know about errors you found, and for your patience as I figure this out. All remaining errors are solely the responsibility of the author.
