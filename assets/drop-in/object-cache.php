@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache (Drop-in)
- * Version: 1.2.1
- * Note: This Version number must match the one in the ctor for SQLite_Object_Cache.
+ * Version: 1.2.2
+ * Note: This Version number must match the one in SQLite_Object_Cache::_construct.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
  * Author:  Oliver Jones
@@ -420,10 +420,16 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 */
 		public static function drop_dead( $msg = null ) {
 			if ( ! $msg ) {
-				if ( ! function_exists( '__' ) ) {
-					wp_load_translations_early();
+				try {
+					if ( ! function_exists( '__' ) ) {
+						wp_load_translations_early();
+					}
+					$msg =
+						__( 'The SQLite Object Cache temporarily failed. Please try again now.', 'sqlite-object-cache' );
+				} catch (Exception $ex) {
+					/* Can't load translations for some reason */
+					$msg =  'The SQLite Object Cache temporarily failed. Please try again now.';
 				}
-				$msg = __( 'The SQLite Object Cache temporarily failed. Please try again now.', 'sqlite-object-cache' );
 			}
 			wp_die( esc_html( $msg ) );
 		}
@@ -437,20 +443,20 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @return void
 		 */
 		private function error_log( $msg, $exception = null ) {
-			$msgs    = [];
-			$msgs [] = 'SQLite Object Cache:';
-			$msgs [] = $msg;
+			$log_exception = ! ! $exception;
+			$msgs          = [];
+			$msgs []       = 'SQLite Object Cache:';
+			$msgs []       = $msg;
 			if ( $this->sqlite ) {
 				if ( $this->sqlite->lastErrorMsg() ) {
-					$msgs [] = $this->sqlite->lastErrorMsg();
-					$msgs [] = '(' . $this->sqlite->lastErrorCode() . ')';
+					$msgs []       = $this->sqlite->lastErrorMsg();
+					$msgs []       = '(' . $this->sqlite->lastErrorCode() . ')';
+					$log_exception = $log_exception && $this->sqlite->lastErrorMsg() !== $exception->getMessage();
 				}
 			}
-			if ( $exception ) {
-				if ( $exception->getMessage() !== $this->sqlite->lastErrorMsg() ) {
-					$msgs[]  = $exception->getMessage();
-					$msgs [] = '(' . $exception->getCode() . ')';
-				}
+			if ( $log_exception ) {
+				$msgs[]  = $exception->getMessage();
+				$msgs [] = '(' . $exception->getCode() . ')';
 				$msgs [] = $exception->getTraceAsString();
 			}
 			error_log( implode( ' ', $msgs ) );

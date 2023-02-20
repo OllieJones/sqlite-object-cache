@@ -2,14 +2,14 @@
 # This file is distributed under the same license as the SQLite Object Cache plugin.
 msgid ""
 msgstr ""
-"Project-Id-Version: SQLite Object Cache 1.2.1\n"
+"Project-Id-Version: SQLite Object Cache 1.2.2\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/sqlite-object-cache\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2023-02-15T09:20:19-05:00\n"
+"POT-Creation-Date: 2023-02-20T10:06:03-05:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.6.0\n"
 "X-Domain: sqlite-object-cache\n"
@@ -34,16 +34,16 @@ msgstr ""
 msgid "https://github.com/OllieJones/"
 msgstr ""
 
-#: assets/drop-in/object-cache.php:426
+#: assets/drop-in/object-cache.php:428
 msgid "The SQLite Object Cache temporarily failed. Please try again now."
 msgstr ""
 
 #. translators: 1: WP_CONTENT_DIR
-#: assets/drop-in/object-cache.php:726
+#: assets/drop-in/object-cache.php:732
 msgid "The SQLite Object Cache cannot be activated because the %s directory is not writable."
 msgstr ""
 
-#: assets/drop-in/object-cache.php:734
+#: assets/drop-in/object-cache.php:740
 msgid "The SQLite Object Cache cannot be activated because the SQLite3 extension is not loaded."
 msgstr ""
 
@@ -297,7 +297,7 @@ msgstr ""
 msgid "Count"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:426
+#: includes/lib/class-sqlite-object-cache-statistics.php:425
 msgid "Cache usage"
 msgstr ""
 
