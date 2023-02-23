@@ -345,6 +345,12 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		private $monitoring_options;
 
 		/**
+		 * Recursion count.
+		 *
+		 * @var int Recursion in the get command.
+		 */
+		private $get_depth = 31;
+		/**
 		 * Database object.
 		 * @var SQLite3 instance.
 		 */
@@ -426,9 +432,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 					}
 					$msg =
 						__( 'The SQLite Object Cache temporarily failed. Please try again now.', 'sqlite-object-cache' );
-				} catch (Exception $ex) {
+				} catch ( Exception $ex ) {
 					/* Can't load translations for some reason */
-					$msg =  'The SQLite Object Cache temporarily failed. Please try again now.';
+					$msg = 'The SQLite Object Cache temporarily failed. Please try again now.';
 				}
 			}
 			wp_die( esc_html( $msg ) );
@@ -1541,7 +1547,13 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @since 2.0.0
 		 */
 		public function get( $key, $group = 'default', $force = false, &$found = null ) {
+			if ( -- $this->get_depth <= 0 ) {
+				return false;
+			}
+
 			if ( ! $this->is_valid_key( $key ) ) {
+				++ $this->get_depth;
+
 				return false;
 			}
 
@@ -1565,16 +1577,22 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 						return clone $this->cache[ $group ][ $key ];
 					}
 
+					++ $this->get_depth;
+
 					return $this->cache[ $group ][ $key ];
 				}
 			} catch ( Exception $ex ) {
 				$this->delete_offending_files();
+
+				++ $this->get_depth;
 
 				return false;
 			}
 
 			$found = false;
 			$this->cache_misses ++;
+
+			++ $this->get_depth;
 
 			return false;
 		}
