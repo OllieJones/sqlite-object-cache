@@ -15,6 +15,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 class SQLite_Object_Cache_Statistics {
 
 	/**
+	 * Show the overrun message.
+	 * @var bool Overrun detected, show message.
+	 */
+	private $overrun_message = false;
+	/**
 	 * Associative array with selected cache items names most frequent first.
 	 *
 	 * @var array
@@ -92,13 +97,23 @@ class SQLite_Object_Cache_Statistics {
 			$DISKratio               = $data->DISKhits / ( $data->DISKhits + $data->DISKmisses );
 			$DISKratios[]            = $DISKratio;
 			$opens []                = $data->open;
-			$selects []              = $data->selects;
-			$inserts []              = $data->inserts;
-			$SavesPerRequest []      = count( $data->inserts );
+			array_push( $selects, ...$data->selects );
+			array_push( $inserts, ...$data->inserts );
+			$SavesPerRequest [] = count( $data->inserts );
 			if ( property_exists( $data, 'DBMSqueries' ) && is_numeric( $data->DBMSqueries ) ) {
 				$DBMSqueriesPerRequest [] = $data->DBMSqueries;
 			}
-			$deletes[] = $data->deletes;
+			array_push( $deletes, ...$data->deletes );
+
+			$this->truncate_if_too_long( $DISKLookupsPerRequest );
+			$this->truncate_if_too_long( $RAMratios );
+			$this->truncate_if_too_long( $DISKratios );
+			$this->truncate_if_too_long( $opens );
+			$this->truncate_if_too_long( $selects );
+			$this->truncate_if_too_long( $inserts );
+			$this->truncate_if_too_long( $SavesPerRequest );
+			$this->truncate_if_too_long( $DBMSqueriesPerRequest );
+			$this->truncate_if_too_long( $deletes );
 
 			if ( property_exists( $data, 'select_names' ) && is_array( $data->select_names ) ) {
 				foreach ( $data->select_names as $name ) {
@@ -119,9 +134,9 @@ class SQLite_Object_Cache_Statistics {
 				__( 'Disk saves/request', 'sqlite-object-cache' )    => $this->descriptive_stats( $SavesPerRequest ),
 				__( 'MySQL queries/request', 'sqlite-object-cache' ) => $this->descriptive_stats( $DBMSqueriesPerRequest ),
 				__( 'Initialization times', 'sqlite-object-cache' )  => $this->descriptive_stats( $opens ),
-				__( 'Lookup times', 'sqlite-object-cache' )          => $this->descriptive_stats( array_merge( ...$selects ) ),
-				__( 'Save times', 'sqlite-object-cache' )            => $this->descriptive_stats( array_merge( ...$inserts ) ),
-				__( 'Delete times', 'sqlite-object-cache' )          => $this->descriptive_stats( array_merge( ...$deletes ) ),
+				__( 'Lookup times', 'sqlite-object-cache' )          => $this->descriptive_stats( $selects ),
+				__( 'Save times', 'sqlite-object-cache' )            => $this->descriptive_stats( $inserts ),
+				__( 'Delete times', 'sqlite-object-cache' )          => $this->descriptive_stats( $deletes ),
 			];
 
 			$this->descriptions   = $descriptions;
@@ -132,13 +147,29 @@ class SQLite_Object_Cache_Statistics {
 	}
 
 	/**
+	 * Truncate an array to a particular length.
+	 *
+	 * @param array $observations The array to truncate in place.
+	 * @param int $limit Target array length.
+	 *
+	 * @return void
+	 */
+	public function truncate_if_too_long( &$observations, $limit = 999999 ) {
+		if ( count( $observations ) > $limit ) {
+			$this->overrun_message = true;
+			array_splice( $observations, $limit );
+		}
+	}
+
+	/**
 	 * Descriptive statistics for an array of numbers.
 	 *
 	 * @param array $a The array.
 	 *
 	 * @return array
 	 */
-	public function descriptive_stats( array $a ) {
+	public function descriptive_stats( array &$a ) {
+		sort( $a );
 		$min = $this->minimum( $a );
 		$max = $this->maximum( $a );
 
@@ -161,12 +192,11 @@ class SQLite_Object_Cache_Statistics {
 	/**
 	 * The smallest value in an array.
 	 *
-	 * @param array $a The array.
+	 * @param array $a The array. Must be sorted.
 	 *
 	 * @return mixed|null
 	 */
 	public function minimum( array $a ) {
-		sort( $a );
 
 		return count( $a ) > 0 ? $a[0] : null;
 	}
@@ -174,19 +204,18 @@ class SQLite_Object_Cache_Statistics {
 	/**
 	 * The largest value in an array.
 	 *
-	 * @param array $a The array.
+	 * @param array $a The array. Must be sorted.
 	 *
 	 * @return mixed|null
 	 */
 	public function maximum( array $a ) {
-		sort( $a );
 
 		return count( $a ) > 0 ? $a[ count( $a ) - 1 ] : null;
 	}
 
 	/** Percentile.
 	 *
-	 * @param array  $a dataset.
+	 * @param array  $a dataset. Must be sorted.
 	 * @param number $p percentile as fraction 0-1.
 	 *
 	 * @return float
@@ -196,7 +225,6 @@ class SQLite_Object_Cache_Statistics {
 		if ( ! $n ) {
 			return null;
 		}
-		sort( $a );
 		$i = (int) floor( $n * $p );
 		if ( $i >= $n ) {
 			$i = $n - 1;
@@ -328,6 +356,14 @@ class SQLite_Object_Cache_Statistics {
 				echo '</tr>' . PHP_EOL;
 			}
 			echo '</tr></tbody></table>' . PHP_EOL;
+			if ($this->overrun_message) {
+				echo '<p>';
+				esc_html_e ( 'Some statistics were not processed. Processing them all uses too much RAM.', 'sqlite-object-cache');
+				echo ' ';
+				esc_html_e ( 'Try measuring a smaller random sample of requests.', 'sqlite-object-cache');
+					echo '</p>'. PHP_EOL;
+				$this->overrun_message = false;
+			}
 		} else {
 			if ( is_array( $this->options ) && array_key_exists( 'capture', $this->options ) && 'on' === $this->options['capture'] ) {
 				echo '<p>' . esc_html__( 'No cache performance statistics have been captured.', 'sqlite-object-cache' ) . ' ';

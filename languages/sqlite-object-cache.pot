@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2023-02-20T10:06:03-05:00\n"
+"POT-Creation-Date: 2023-02-23T13:52:03-05:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.6.0\n"
 "X-Domain: sqlite-object-cache\n"
@@ -214,122 +214,130 @@ msgstr ""
 msgid "Copied test file couldn’t be deleted."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:116
+#: includes/lib/class-sqlite-object-cache-statistics.php:127
 msgid "RAM hit ratio"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:117
+#: includes/lib/class-sqlite-object-cache-statistics.php:128
 msgid "Disk hit ratio"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:118
+#: includes/lib/class-sqlite-object-cache-statistics.php:129
 msgid "Disk lookups/request"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:119
+#: includes/lib/class-sqlite-object-cache-statistics.php:130
 msgid "Disk saves/request"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:120
+#: includes/lib/class-sqlite-object-cache-statistics.php:131
 msgid "MySQL queries/request"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:121
+#: includes/lib/class-sqlite-object-cache-statistics.php:132
 msgid "Initialization times"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:122
+#: includes/lib/class-sqlite-object-cache-statistics.php:133
 msgid "Lookup times"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:123
+#: includes/lib/class-sqlite-object-cache-statistics.php:134
 msgid "Save times"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:124
+#: includes/lib/class-sqlite-object-cache-statistics.php:135
 msgid "Delete times"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:305
+#: includes/lib/class-sqlite-object-cache-statistics.php:321
 msgid "Cache performance"
 msgstr ""
 
 #. translators:  1 start time   2 end time both in localized format
-#: includes/lib/class-sqlite-object-cache-statistics.php:309
+#: includes/lib/class-sqlite-object-cache-statistics.php:325
 msgid "From %1$s to %2$s."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:310
+#: includes/lib/class-sqlite-object-cache-statistics.php:326
 msgid "Times in microseconds."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:333
+#: includes/lib/class-sqlite-object-cache-statistics.php:349
+msgid "Some statistics were not processed. Processing them all uses too much RAM."
+msgstr ""
+
+#: includes/lib/class-sqlite-object-cache-statistics.php:351
+msgid "Try measuring a smaller random sample of requests."
+msgstr ""
+
+#: includes/lib/class-sqlite-object-cache-statistics.php:357
 msgid "No cache performance statistics have been captured."
 msgstr ""
 
 #. translators: 1: a percentage
-#: includes/lib/class-sqlite-object-cache-statistics.php:336
+#: includes/lib/class-sqlite-object-cache-statistics.php:360
 msgid "The plugin is capturing a random sample of %s%% of requests. It is possible no samples have yet been captured."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:340
+#: includes/lib/class-sqlite-object-cache-statistics.php:364
 msgid "Cache performance measurement is not enabled."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:341
+#: includes/lib/class-sqlite-object-cache-statistics.php:365
 msgid "You may enable it on the Settings tab."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:371
+#: includes/lib/class-sqlite-object-cache-statistics.php:395
 msgid "Most frequently looked up cache items"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:379
-#: includes/lib/class-sqlite-object-cache-statistics.php:467
+#: includes/lib/class-sqlite-object-cache-statistics.php:403
+#: includes/lib/class-sqlite-object-cache-statistics.php:491
 msgid "Cache Group"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:380
+#: includes/lib/class-sqlite-object-cache-statistics.php:404
 msgid "Cache Key"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:381
+#: includes/lib/class-sqlite-object-cache-statistics.php:405
 msgid "Count"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:425
+#: includes/lib/class-sqlite-object-cache-statistics.php:449
 msgid "Cache usage"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:452
+#: includes/lib/class-sqlite-object-cache-statistics.php:476
 msgid "Cannot load some or all cache items."
 msgstr ""
 
 #. translators:  1 start time   2 end time both in localized format
-#: includes/lib/class-sqlite-object-cache-statistics.php:461
+#: includes/lib/class-sqlite-object-cache-statistics.php:485
 msgid "Expirations from %1$s to %2$s."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:462
+#: includes/lib/class-sqlite-object-cache-statistics.php:486
 msgid "Sizes in MiB."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:468
+#: includes/lib/class-sqlite-object-cache-statistics.php:492
 msgid "Items"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:469
+#: includes/lib/class-sqlite-object-cache-statistics.php:493
 msgid "Size"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:475
+#: includes/lib/class-sqlite-object-cache-statistics.php:499
 msgid "Cache File Size"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:483
+#: includes/lib/class-sqlite-object-cache-statistics.php:507
 msgid "All Groups"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:500
+#: includes/lib/class-sqlite-object-cache-statistics.php:524
 msgid "No cache items found."
 msgstr ""
