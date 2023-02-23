@@ -5,8 +5,8 @@ Tags: cache, sqlite, performance
 Requires at least: 5.5
 Requires PHP: 5.6
 Tested up to: 6.1.1
-Version: 1.2.2
-Stable tag: 1.2.2
+Version: 1.2.3
+Stable tag: 1.2.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache
@@ -139,7 +139,13 @@ Some sites occasionally generate error messages looking like this one:
 
 `Unable to execute statement: database is locked in /var/www/wp-content/object-cache.php:1234`
 
-This can happen if your server places your WordPress files on network-attached storage (that is, on a network drive). To solve this, store your cached data on a locally attached drive. See the question here about storing your data in a more secure place.
+This can happen if your server places your WordPress files on network-attached storage (that is, on a network drive). To solve this, store your cached data on a locally attached drive. See the question about storing your data in a more secure place.
+
+= Why do I get errors when I use WP-CLI to administer my site? =
+
+Sometimes [WP-CLI](https://wp-cli.org/) commands issued from a shell run with a different user from the web server. This plugin creates one or more object-cache files. An object-cache file may not be readable or writeable by the web server if it was created by the wp-cli user. Or the other way around.
+
+On Linux, you can run your WP-CLI shell commands like this:  `sudo -u www-data wp config list`  This ensures they run with the same user as the web server.
 
 = What do the Statistics mean? =
 
@@ -166,6 +172,11 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 
 == Changelog ==
+
+= 1.2.3 =
+
+* Sanitize the WP_CACHE_KEY_SALT value.
+* Avoid using up all the RAM when reporting on many statistics.
 
 = 1.2.2 =
 
@@ -216,6 +227,8 @@ This application of SQLite puts its concurrency-handling code to the test.
 == Upgrade Notice ==
 
 This release corrects a defect in `wp_cache_flush_runtime()`, which should not flush the persistent cache. That function is used by the action scheduler.
+
+If WP_CACHE_KEY_SALT is provided, it uses it correctly (sanitizing it before using it in a filename).
 
 It suppresses backups of the SQLite data in common backup plugins.
 

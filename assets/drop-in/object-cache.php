@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache (Drop-in)
- * Version: 1.2.2
+ * Version: 1.2.3
  * Note: This Version number must match the one in SQLite_Object_Cache::_construct.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -402,7 +402,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				? WP_SQLITE_OBJECT_CACHE_DB_FILE
 				: WP_CONTENT_DIR . '/' . self::SQLITE_FILENAME;
 
-			$salt = defined( 'WP_CACHE_KEY_SALT' ) ? WP_CACHE_KEY_SALT : '';
+			$salt = defined( 'WP_CACHE_KEY_SALT' )
+				? preg_replace( '/[^-_A-Za-z0-9]/', '', WP_CACHE_KEY_SALT )
+				: '';
 			$salt .= $this->has_igbinary ? '' : '-a';
 
 			if ( strlen( $salt ) > 0 ) {
@@ -1574,9 +1576,10 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 					$found = true;
 					++ $this->cache_hits;
 					if ( is_object( $this->cache[ $group ][ $key ] ) ) {
+						++ $this->get_depth;
+
 						return clone $this->cache[ $group ][ $key ];
 					}
-
 					++ $this->get_depth;
 
 					return $this->cache[ $group ][ $key ];
