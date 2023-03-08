@@ -133,23 +133,23 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 *
 		 * @var array
 		 */
-		public $unflushable_groups = [];
+		public $unflushable_groups = array();
 		/**
 		 * List of groups not saved to cache.
 		 *
 		 * @var array
 		 */
-		public $ignored_groups = [
+		public $ignored_groups = array(
 			'counts',
 			'plugins',
 			'themes',
-		];
+		);
 		/**
 		 * List of groups and their types.
 		 *
 		 * @var array
 		 */
-		public $group_type = [];
+		public $group_type = array();
 		/**
 		 * Prefix used for global groups.
 		 *
@@ -161,7 +161,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 *
 		 * @var array
 		 */
-		protected $global_groups = [
+		protected $global_groups = array(
 			'blog-details',
 			'blog-id-cache',
 			'blog-lookup',
@@ -179,14 +179,14 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			'usermeta',
 			'user_meta',
 			'userslugs',
-		];
+		);
 		/**
 		 * Holds the cached objects.
 		 *
 		 * @since 2.0.0
 		 * @var array
 		 */
-		private $cache = [];
+		private $cache = array();
 		/**
 		 * Holds the value of is_multisite().
 		 *
@@ -242,13 +242,13 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 *
 		 * @var array Keys are names, values don't matter.
 		 */
-		private $not_in_persistent_cache = [];
+		private $not_in_persistent_cache = array();
 		/**
 		 * Associative array of items we know ARE in SQLite.
 		 *
 		 * @var array Keys are names, values don't matter.
 		 */
-		private $in_persistent_cache = [];
+		private $in_persistent_cache = array();
 		/**
 		 * Cache table name.
 		 *
@@ -298,31 +298,31 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 *
 		 * @var array[float]
 		 */
-		private $select_times = [];
+		private $select_times = array();
 		/**
 		 * An array of elapsed times for each cache-insertion / update operation.
 		 *
 		 * @var array[float]
 		 */
-		private $insert_times = [];
+		private $insert_times = array();
 		/**
 		 * An array of item names for each cache-retrieval operation.
 		 *
 		 * @var array[string]
 		 */
-		private $select_names = [];
+		private $select_names = array();
 		/**
 		 * An array of item names for each cache-insertion / update operation.
 		 *
 		 * @var array[float]
 		 */
-		private $insert_names = [];
+		private $insert_names = array();
 		/**
 		 * An array of elapsed times for each single-row cache deletion operation.
 		 *
 		 * @var array[float]
 		 */
-		private $delete_times = [];
+		private $delete_times = array();
 		/**
 		 * The time it took to open the db.
 		 *
@@ -452,7 +452,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 */
 		private function error_log( $msg, $exception = null ) {
 			$log_exception = ! ! $exception;
-			$msgs          = [];
+			$msgs          = array();
 			$msgs []       = 'SQLite Object Cache:';
 			$msgs []       = $msg;
 			if ( $this->sqlite ) {
@@ -675,17 +675,17 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 */
 		public function preload( $tbl ) {
 			$list =
-				[
+				array(
 					'options|%',
 					'default|%',
 					'posts|last_changed',
 					'terms|last_changed',
 					'site_options|%notoptions',
 					'transient|doing_cron',
-				];
+				);
 
 			$sql     = '';
-			$clauses = [];
+			$clauses = array();
 			foreach ( $list as $item ) {
 				/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
 				$clauses [] = "SELECT name, value FROM $tbl WHERE name LIKE '$item'";
@@ -783,7 +783,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$options = get_option( 'sqlite_object_cache_settings', 'missing_option' );
 			if ( 'missing_option' === $options ) {
 				/* set an absent option to the empty array, so we don't repeatedly hammer the cache looking for a missing option */
-				update_option( 'sqlite_object_cache_settings', [], true );
+				update_option( 'sqlite_object_cache_settings', array(), true );
 
 				return false;
 			}
@@ -1005,7 +1005,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		private function capture( $options ) {
 			$now = microtime( true );
 			global $wpdb;
-			$record = [
+			$record = array(
 				'time'        => $now,
 				'RAMhits'     => $this->cache_hits,
 				'RAMmisses'   => $this->cache_misses,
@@ -1016,7 +1016,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				'inserts'     => $this->insert_times,
 				'deletes'     => $this->delete_times,
 				'DBMSqueries' => $wpdb->num_queries,
-			];
+			);
 			if ( is_array( $options ) && $options['verbose'] ) {
 				$record ['select_names'] = $this->select_names;
 				$record ['delete_names'] = $this->insert_names;
@@ -1132,7 +1132,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @since 6.0.0
 		 */
 		public function add_multiple( array $data, $group = '', $expire = 0 ) {
-			$values = [];
+			$values = array();
 			try {
 				if ( ! $this->sqlite ) {
 					$this->open_connection();
@@ -1247,7 +1247,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				$val = $this->getone( $key, $group );
 				if ( null !== $val ) {
 					if ( ! array_key_exists( $group, $this->cache ) ) {
-						$this->cache [ $group ] = [];
+						$this->cache [ $group ] = array();
 					}
 					$this->cache[ $group ][ $key ] = $val;
 					$exists                        = true;
@@ -1468,7 +1468,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @since 6.0.0
 		 */
 		public function set_multiple( array $data, $group = '', $expire = 0 ) {
-			$values = [];
+			$values = array();
 			try {
 				if ( ! $this->sqlite ) {
 					$this->open_connection();
@@ -1505,7 +1505,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @since 5.5.5
 		 */
 		public function get_multiple( $keys, $group = 'default', $force = false ) {
-			$values = [];
+			$values = array();
 			try {
 				if ( ! $this->sqlite ) {
 					$this->open_connection();
@@ -1611,7 +1611,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @since 6.0.0
 		 */
 		public function delete_multiple( array $keys, $group = '' ) {
-			$values = [];
+			$values = array();
 
 			foreach ( $keys as $key ) {
 				$values[ $key ] = $this->delete( $key, $group );
@@ -1796,14 +1796,14 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 					$this->open_connection();
 				}
 
-				$this->cache                   = [];
-				$this->not_in_persistent_cache = [];
+				$this->cache                   = array();
+				$this->not_in_persistent_cache = array();
 
 				$selective =
 					defined( 'WP_SQLITE_OBJECT_CACHE_SELECTIVE_FLUSH' ) ? WP_SQLITE_OBJECT_CACHE_SELECTIVE_FLUSH : null;
 
 				if ( $selective && is_array( $this->unflushable_groups ) && count( $this->unflushable_groups ) > 0 ) {
-					$clauses = [];
+					$clauses = array();
 					foreach ( $this->unflushable_groups as $unflushable_group ) {
 						$unflushable_group = sanitize_key( $unflushable_group );
 						$clauses []        = "(name NOT LIKE '$unflushable_group|%')";
@@ -1837,9 +1837,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @since 2.0.0
 		 */
 		public function flush_runtime() {
-			$this->cache                   = [];
-			$this->not_in_persistent_cache = [];
-			$this->in_persistent_cache     = [];
+			$this->cache                   = array();
+			$this->not_in_persistent_cache = array();
+			$this->in_persistent_cache     = array();
 
 			return true;
 		}
@@ -1870,8 +1870,8 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				self::drop_dead();
 			}
 			/* remove hints about what is in the persistent cache */
-			$this->not_in_persistent_cache = [];
-			$this->in_persistent_cache     = [];
+			$this->not_in_persistent_cache = array();
+			$this->in_persistent_cache     = array();
 
 			return true;
 		}
@@ -2009,7 +2009,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @return Generator Name of one of the possible SQLite files.
 		 */
 		public function sqlite_files() {
-			foreach ( [ '', '-shm', '-wal' ] as $suffix ) {
+			foreach ( array( '', '-shm', '-wal' ) as $suffix ) {
 				yield $this->sqlite_path . $suffix;
 			}
 		}

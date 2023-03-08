@@ -137,8 +137,8 @@ class SQLite_Object_Cache {
 
 		$this->script_suffix = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
 
-		register_activation_hook( $this->file, [ $this, 'on_activation' ] );
-		register_deactivation_hook( $this->file, [ $this, 'on_deactivation' ] );
+		register_activation_hook( $this->file, array( $this, 'on_activation' ) );
+		register_deactivation_hook( $this->file, array( $this, 'on_deactivation' ) );
 
 		if ( is_admin() ) {
 			// Load API for generic admin functions.
@@ -149,11 +149,11 @@ class SQLite_Object_Cache {
 
 		// Handle localization.
 		$this->load_plugin_textdomain();
-		add_action( 'admin-init', [ $this, 'load_localization' ], 0 );
-		add_action( 'admin_init', [ $this, 'maybe_update_dropin' ] );
+		add_action( 'admin-init', array( $this, 'load_localization' ), 0 );
+		add_action( 'admin_init', array( $this, 'maybe_update_dropin' ) );
 
 		/* handle cron cache cleanup */
-		add_action( self::CLEAN_EVENT_HOOK, [ $this, 'clean' ], 10, 0 );
+		add_action( self::CLEAN_EVENT_HOOK, array( $this, 'clean' ), 10, 0 );
 		if ( ! wp_next_scheduled( self::CLEAN_EVENT_HOOK ) ) {
 			wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', self::CLEAN_EVENT_HOOK );
 		}
@@ -183,7 +183,7 @@ class SQLite_Object_Cache {
 	public
 	function clean() {
 		global $wp_object_cache;
-		$option = get_option( $this->_token . '_settings', [] );
+		$option = get_option( $this->_token . '_settings', array() );
 		if ( method_exists( $wp_object_cache, 'sqlite_clean_up_cache' ) ) {
 			$retention = array_key_exists( 'retention', $option ) ? $option['retention'] : 24;
 			try {
@@ -213,10 +213,10 @@ class SQLite_Object_Cache {
 		/* make sure the autoloaded option is set when activating; avoid an extra dbms or cache hit to fetch it */
 		$option = get_option( $this->_token . '_settings', 'default' );
 		if ( 'default' === $option ) {
-			update_option( $this->_token . '_settings', [], true );
+			update_option( $this->_token . '_settings', array(), true );
 		}
 		if ( true === $this->has_sqlite() ) {
-			add_action( 'shutdown', [ $this, 'update_dropin' ] );
+			add_action( 'shutdown', array( $this, 'update_dropin' ) );
 		}
 	}
 
@@ -308,7 +308,7 @@ class SQLite_Object_Cache {
 			return new WP_Error( 'exists', __( 'Copied test file doesn’t exist.', 'sqlite-object-cache' ) );
 		}
 
-		$meta = get_file_data( $testfiledest, [ 'Version' => 'Version' ] );
+		$meta = get_file_data( $testfiledest, array( 'Version' => 'Version' ) );
 
 		if ( $meta['Version'] !== $this->_version ) {
 			return new WP_Error( 'version', __( 'Couldn’t verify test file contents.', 'sqlite-object-cache' ) );
@@ -377,7 +377,7 @@ class SQLite_Object_Cache {
 
 		$has = $this->has_sqlite();
 		if ( ( true === $has ) && $this->object_cache_dropin_needs_updating() ) {
-			add_action( 'shutdown', [ $this, 'update_dropin' ] );
+			add_action( 'shutdown', array( $this, 'update_dropin' ) );
 		}
 	}
 

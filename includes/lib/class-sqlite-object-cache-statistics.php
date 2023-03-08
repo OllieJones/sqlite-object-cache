@@ -61,18 +61,18 @@ class SQLite_Object_Cache_Statistics {
 		$first = PHP_INT_MAX;
 		$last  = PHP_INT_MIN;
 
-		$selected_names        = [];
-		$opens                 = [];
-		$selects               = [];
-		$inserts               = [];
-		$deletes               = [];
-		$RAMratios             = [];
+		$selected_names        = array();
+		$opens                 = array();
+		$selects               = array();
+		$inserts               = array();
+		$deletes               = array();
+		$RAMratios             = array();
 		$RAMhits               = 0;
 		$RAMmisses             = 0;
-		$DISKratios            = [];
-		$DISKLookupsPerRequest = [];
-		$SavesPerRequest       = [];
-		$DBMSqueriesPerRequest = [];
+		$DISKratios            = array();
+		$DISKLookupsPerRequest = array();
+		$SavesPerRequest       = array();
+		$DBMSqueriesPerRequest = array();
 		$DISKhits              = 0;
 		$DISKmisses            = 0;
 
@@ -127,7 +127,7 @@ class SQLite_Object_Cache_Statistics {
 		$duration = $last - $first;
 		if ( $duration > 0 ) {
 			arsort( $selected_names );
-			$descriptions = [
+			$descriptions = array(
 				__( 'RAM hit ratio', 'sqlite-object-cache' )         => $this->descriptive_stats( $RAMratios ),
 				__( 'Disk hit ratio', 'sqlite-object-cache' )        => $this->descriptive_stats( $DISKratios ),
 				__( 'Disk lookups/request', 'sqlite-object-cache' )  => $this->descriptive_stats( $DISKLookupsPerRequest ),
@@ -137,7 +137,7 @@ class SQLite_Object_Cache_Statistics {
 				__( 'Lookup times', 'sqlite-object-cache' )          => $this->descriptive_stats( $selects ),
 				__( 'Save times', 'sqlite-object-cache' )            => $this->descriptive_stats( $inserts ),
 				__( 'Delete times', 'sqlite-object-cache' )          => $this->descriptive_stats( $deletes ),
-			];
+			);
 
 			$this->descriptions   = $descriptions;
 			$this->selected_names = $selected_names;
@@ -173,7 +173,7 @@ class SQLite_Object_Cache_Statistics {
 		$min = $this->minimum( $a );
 		$max = $this->maximum( $a );
 
-		return [
+		return array(
 			'n'      => count( $a ),
 			'[min'   => $min,
 			'p1'     => $this->percentile( $a, 0.01 ),
@@ -186,7 +186,7 @@ class SQLite_Object_Cache_Statistics {
 			'range'  => $max - $min,
 			'mad'    => $this->mad( $a ),
 			'stdev'  => $this->stdev( $a ),
-		];
+		);
 	}
 
 	/**
@@ -459,8 +459,8 @@ class SQLite_Object_Cache_Statistics {
 		}
 
 		echo '<h3>' . esc_html__( 'Cache usage', 'sqlite-object-cache' ) . '</h3>';
-		$grouplength = [];
-		$groupcount  = [];
+		$grouplength = array();
+		$groupcount  = array();
 		$length      = 0;
 		$count       = 0;
 		$earliest    = PHP_INT_MAX;

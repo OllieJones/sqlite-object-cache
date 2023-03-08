@@ -18,10 +18,10 @@ class SQLite_Backup_Exclusion {
 	public function __construct() {
 		global $wp_object_cache;
 		if ( method_exists( $wp_object_cache, 'sqlite_files' ) ) {
-			add_filter( 'updraftplus_exclude_file', [ $this, 'updraftplus_exclude_file' ], 10, 2 );
-			add_filter( 'backwpup_file_exclude', [ $this, 'backwpup_file_exclude' ], 10, 1 );
-			add_filter( 'wpstg_clone_excluded_files', [ $this, 'wpstg_clone_excluded_files' ], 10, 1 );
-			add_filter( 'wpstg_push_excluded_files', [ $this, 'wpstg_clone_excluded_files' ], 10, 1 );
+			add_filter( 'updraftplus_exclude_file', array( $this, 'updraftplus_exclude_file' ), 10, 2 );
+			add_filter( 'backwpup_file_exclude', array( $this, 'backwpup_file_exclude' ), 10, 1 );
+			add_filter( 'wpstg_clone_excluded_files', array( $this, 'wpstg_clone_excluded_files' ), 10, 1 );
+			add_filter( 'wpstg_push_excluded_files', array( $this, 'wpstg_clone_excluded_files' ), 10, 1 );
 		}
 	}
 
@@ -57,7 +57,7 @@ class SQLite_Backup_Exclusion {
 	 */
 	public function backwpup_file_exclude( $list ) {
 		global $wp_object_cache;
-		$files    = [];
+		$files    = array();
 		$files [] = $list;
 		if ( method_exists( $wp_object_cache, 'sqlite_files' ) ) {
 			foreach ( $wp_object_cache->sqlite_files() as $file ) {

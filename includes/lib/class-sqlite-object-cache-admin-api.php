@@ -18,7 +18,7 @@ class SQLite_Object_Cache_Admin_API {
 	 * Constructor function
 	 */
 	public function __construct() {
-		add_action( 'save_post', [ $this, 'save_meta_boxes' ], 10, 1 );
+		add_action( 'save_post', array( $this, 'save_meta_boxes' ), 10, 1 );
 	}
 
 	/**
@@ -33,16 +33,16 @@ class SQLite_Object_Cache_Admin_API {
 	 *
 	 * @return void
 	 */
-	public function add_meta_box( $id = '', $title = '', $post_types = [], $context = 'advanced', $priority = 'default', $callback_args = null ) {
+	public function add_meta_box( $id = '', $title = '', $post_types = array(), $context = 'advanced', $priority = 'default', $callback_args = null ) {
 
 		// Get post type(s).
 		if ( ! is_array( $post_types ) ) {
-			$post_types = [ $post_types ];
+			$post_types = array( $post_types );
 		}
 
 		// Generate each metabox.
 		foreach ( $post_types as $post_type ) {
-			add_meta_box( $id, $title, [ $this, 'meta_box_content' ], $post_type, $context, $priority, $callback_args );
+			add_meta_box( $id, $title, array( $this, 'meta_box_content' ), $post_type, $context, $priority, $callback_args );
 		}
 	}
 
@@ -56,7 +56,7 @@ class SQLite_Object_Cache_Admin_API {
 	 */
 	public function meta_box_content( $post, $args ) {
 
-		$fields = apply_filters( $post->post_type . '_custom_fields', [], $post->post_type );
+		$fields = apply_filters( $post->post_type . '_custom_fields', array(), $post->post_type );
 
 		if ( ! is_array( $fields ) || 0 === count( $fields ) ) {
 			return;
@@ -71,7 +71,7 @@ class SQLite_Object_Cache_Admin_API {
 			}
 
 			if ( ! is_array( $field['metabox'] ) ) {
-				$field['metabox'] = [ $field['metabox'] ];
+				$field['metabox'] = array( $field['metabox'] );
 			}
 
 			if ( in_array( $args['id'], $field['metabox'], true ) ) {
@@ -90,7 +90,7 @@ class SQLite_Object_Cache_Admin_API {
 	 *
 	 * @return void
 	 */
-	public function display_meta_box_field( $field = [], $post = null ) {
+	public function display_meta_box_field( $field = array(), $post = null ) {
 
 		if ( ! is_array( $field ) || 0 === count( $field ) ) {
 			return;
@@ -106,7 +106,7 @@ class SQLite_Object_Cache_Admin_API {
 	 * @param mixed  $data Data array.
 	 * @param object $post Post object.
 	 */
-	public function echo_field( $data = [], $post = null ) {
+	public function echo_field( $data = array(), $post = null ) {
 
 		// Get field info.
 		if ( isset( $data['field'] ) ) {
@@ -125,7 +125,7 @@ class SQLite_Object_Cache_Admin_API {
 		$data     = null;
 
 		/* Data to display, if set */
-		$option = get_option( $option_name, [] );
+		$option = get_option( $option_name, array() );
 		if ( is_array( $option ) && array_key_exists( $field_id, $option ) ) {
 			$data = $option[ $field_id ];
 		}
@@ -143,9 +143,9 @@ class SQLite_Object_Cache_Admin_API {
 		}
 
 		/* CSS class array */
-		$classes = [];
+		$classes = array();
 		if ( array_key_exists( 'cssclass', $field ) ) {
-			$classes = is_array( $field['cssclass'] ) ? $field['cssclass'] : [ $field['cssclass'] ];
+			$classes = is_array( $field['cssclass'] ) ? $field['cssclass'] : array( $field['cssclass'] );
 		}
 
 		echo '<input ';
@@ -239,7 +239,7 @@ class SQLite_Object_Cache_Admin_API {
 
 		$post_type = get_post_type( $post_id );
 
-		$fields = apply_filters( $post_type . '_custom_fields', [], $post_type );
+		$fields = apply_filters( $post_type . '_custom_fields', array(), $post_type );
 
 		if ( ! is_array( $fields ) || 0 === count( $fields ) ) {
 			return;

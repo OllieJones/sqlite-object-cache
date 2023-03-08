@@ -35,7 +35,7 @@ class SQLite_Object_Cache_Settings {
 	 *
 	 * @var     array
 	 */
-	public $settings = [];
+	public $settings = array();
 
 	/**
 	 * SQLite3 is available.
@@ -55,28 +55,28 @@ class SQLite_Object_Cache_Settings {
 		$this->base   = 'sqlite_object_cache_';
 
 		// Initialise settings.
-		add_action( 'init', [ $this, 'init_settings' ], 11 );
+		add_action( 'init', array( $this, 'init_settings' ), 11 );
 
 		// Register plugin settings.
-		add_action( 'admin_init', [ $this, 'register_my_settings' ] );
+		add_action( 'admin_init', array( $this, 'register_my_settings' ) );
 
 		// Add settings page to menu.
-		add_action( 'admin_menu', [ $this, 'add_menu_item' ] );
+		add_action( 'admin_menu', array( $this, 'add_menu_item' ) );
 
 		// Add settings link to plugins page.
 		add_filter(
 			'plugin_action_links_' . plugin_basename( $this->parent->file ),
-			[
+			array(
 				$this,
 				'add_settings_link',
-			]
+			)
 		);
 
 		// Configure placement of plugin settings page. See readme for implementation.
-		add_filter( $this->base . 'menu_settings', [ $this, 'configure_settings' ] );
+		add_filter( $this->base . 'menu_settings', array( $this, 'configure_settings' ) );
 
 		// Load admin JS & CSS.
-		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_assets' ], 10, 1 );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ), 10, 1 );
 	}
 
 	/**
@@ -95,22 +95,22 @@ class SQLite_Object_Cache_Settings {
 	 */
 	private function settings_fields() {
 
-		$settings['standard'] = [
+		$settings['standard'] = array(
 			'title'                 => __( 'Settings', 'sqlite-object-cache' ),
 			'submit'                => __( 'Save Settings', 'sqlite-object-cache' ),
 			'description'           => '',
-			'render_section_header' => [ $this, 'settings_section_header' ],
-			'form_post_callback'    => [ $this, 'validate_settings' ],
-			'fields'                => [
-				[
+			'render_section_header' => array( $this, 'settings_section_header' ),
+			'form_post_callback'    => array( $this, 'validate_settings' ),
+			'fields'                => array(
+				array(
 					'id'          => 'flush',
 					'label'       => __( 'Flush now', 'sqlite-object-cache' ),
 					'description' => __( 'Check to flush the cache (delete all its entries).', 'sqlite-object-cache' ),
 					'type'        => 'checkbox',
 					'default'     => '',
 					'reset'       => '',
-				],
-				[
+				),
+				array(
 					'id'          => 'retention',
 					'label'       => __( 'Cached data expires after', 'sqlite-object-cache' ),
 					'description' => __( 'hours.', 'sqlite-object-cache' ),
@@ -121,23 +121,23 @@ class SQLite_Object_Cache_Settings {
 					'step'        => 'any',
 					'cssclass'    => 'narrow',
 					'placeholder' => __( 'Hours to retain.', 'sqlite-object-cache' ),
-				],
-				[
+				),
+				array(
 					'id'          => 'cleanup',
 					'label'       => __( 'Clean up now', 'sqlite-object-cache' ),
 					'description' => __( 'Check to clean up the cache (delete expired data).', 'sqlite-object-cache' ),
 					'type'        => 'checkbox',
 					'default'     => '',
 					'reset'       => '',
-				],
-				[
+				),
+				array(
 					'id'          => 'capture',
 					'label'       => __( 'Measure performance', 'sqlite-object-cache' ),
 					'description' => __( 'Check to measure cache performance. ', 'sqlite-object-cache' ),
 					'type'        => 'checkbox',
 					'default'     => '',
-				],
-				[
+				),
+				array(
 					'id'          => 'samplerate',
 					'label'       => __( 'Measure', 'sqlite-object-cache' ),
 					'description' => __( 'percent of requests, randomly sampled.', 'sqlite-object-cache' ),
@@ -148,8 +148,8 @@ class SQLite_Object_Cache_Settings {
 					'step'        => 'any',
 					'cssclass'    => 'narrow',
 					'placeholder' => __( 'Sampling percentage.', 'sqlite-object-cache' ),
-				],
-				[
+				),
+				array(
 					'id'          => 'retainmeasurements',
 					'label'       => __( 'Retain measurements for', 'sqlite-object-cache' ),
 					'description' => __( 'hours.', 'sqlite-object-cache' ),
@@ -159,16 +159,16 @@ class SQLite_Object_Cache_Settings {
 					'step'        => 'any',
 					'cssclass'    => 'narrow',
 					'placeholder' => __( 'Hours to retain.', 'sqlite-object-cache' ),
-				],
-			],
-		];
+				),
+			),
+		);
 
-		$settings['stats'] = [
+		$settings['stats'] = array(
 			'title'                 => __( 'Statistics', 'sqlite-object-cache' ),
 			'submit'                => __( 'Reset Statistics', 'sqlite-object-cache' ),
-			'render_section_header' => [ $this, 'stats_section_header' ],
-			'form_post_callback'    => [ $this, 'validate_reset_stats' ],
-		];
+			'render_section_header' => array( $this, 'stats_section_header' ),
+			'form_post_callback'    => array( $this, 'validate_reset_stats' ),
+		);
 
 		return apply_filters( $this->parent->_token . '_settings_fields', $settings );
 	}
@@ -287,7 +287,7 @@ class SQLite_Object_Cache_Settings {
 				default:
 					return;
 			}
-			add_action( 'admin_print_styles-' . $page, [ $this, 'settings_assets' ] );
+			add_action( 'admin_print_styles-' . $page, array( $this, 'settings_assets' ) );
 		}
 	}
 
@@ -301,17 +301,17 @@ class SQLite_Object_Cache_Settings {
 
 		return apply_filters(
 			$this->base . 'menu_settings',
-			[
+			array(
 				'location'    => 'options', // Possible settings: options, menu, submenu.
 				'parent_slug' => 'options-general.php',
 				'page_title'  => __( 'SQLite Persistent Object Cache', 'sqlite-object-cache' ),
 				'menu_title'  => __( 'Object Cache', 'sqlite-object-cache' ),
 				'capability'  => 'manage_options',
 				'menu_slug'   => $this->parent->_token . '_settings',
-				'function'    => [ $this, 'settings_page' ],
+				'function'    => array( $this, 'settings_page' ),
 				'icon_url'    => '',
 				'position'    => null,
-			]
+			)
 		);
 	}
 
@@ -358,7 +358,7 @@ class SQLite_Object_Cache_Settings {
 	 *
 	 * @return array
 	 */
-	public function configure_settings( $settings = [] ) {
+	public function configure_settings( $settings = array() ) {
 		return $settings;
 	}
 
@@ -405,7 +405,7 @@ class SQLite_Object_Cache_Settings {
 			/* get the tab chosen by the user ('standard' or 'stats') */
 			$tab = isset ( $_REQUEST['tab'] ) ? sanitize_key( $_REQUEST['tab'] ) : 'standard';
 
-			$default_option = [];
+			$default_option = array();
 			$option_name    = $this->base . 'settings';
 
 			foreach ( $this->settings as $section => $data ) {
@@ -414,10 +414,10 @@ class SQLite_Object_Cache_Settings {
 					continue;
 				}
 
-				$setting_args = [
+				$setting_args = array(
 					'description' => $data['title'],
 					'default'     => $default_option,
-				];
+				);
 
 				// Validation callback for section.
 				if ( isset( $data['form_post_callback'] ) ) {
@@ -439,13 +439,13 @@ class SQLite_Object_Cache_Settings {
 						add_settings_field(
 							$field['id'],
 							$field['label'],
-							[ $this->parent->admin, 'echo_field' ],
+							array( $this->parent->admin, 'echo_field' ),
 							$this->parent->_token . '_settings',
 							$section,
-							[
+							array(
 								'field'  => $field,
 								'option' => $option_name,
-							]
+							)
 						);
 					}
 				}
@@ -528,7 +528,7 @@ class SQLite_Object_Cache_Settings {
 		$this->support_links();
 		$this->versions();
 
-		$stats   = new SQLite_Object_Cache_Statistics ( get_option( $this->parent->_token . '_settings', [] ) );
+		$stats   = new SQLite_Object_Cache_Statistics ( get_option( $this->parent->_token . '_settings', array() ) );
 		$stats->init();
 		$stats->render();
 		$stats->render_usage();
@@ -566,7 +566,7 @@ class SQLite_Object_Cache_Settings {
 				}
 
 				// Set tab link.
-				$tab_link = add_query_arg( [ 'tab' => $section ] );
+				$tab_link = add_query_arg( array( 'tab' => $section ) );
 				$tab_link = remove_query_arg( 'settings-updated', $tab_link );
 
 				// Output tab.
@@ -600,7 +600,7 @@ class SQLite_Object_Cache_Settings {
 	public function enqueue_assets( $hook = '' ) {
 		wp_register_style( $this->parent->_token . '-admin',
 			esc_url( $this->parent->assets_url ) . 'css/admin.css',
-			[], $this->parent->_version );
+			array(), $this->parent->_version );
 		wp_enqueue_style( $this->parent->_token . '-admin' );
 	}
 }
