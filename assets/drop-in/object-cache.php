@@ -1408,16 +1408,16 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 						$this->sqlite->exec( 'COMMIT' );
 					}
 				}
+				unset( $this->not_in_persistent_cache[ $name ] );
+				$this->in_persistent_cache[ $name ] = true;
+				/* track how long it took. */
+				$this->insert_times[] = $this->time_usec() - $start;
+				$this->insert_names[] = $name;
 			} catch ( Exception $ex ) {
 				$this->error_log( 'handle_put', $ex );
 				$this->delete_offending_files();
 				self::drop_dead();
 			}
-			unset( $this->not_in_persistent_cache[ $name ] );
-			$this->in_persistent_cache[ $name ] = true;
-			/* track how long it took. */
-			$this->insert_times[] = $this->time_usec() - $start;
-			$this->insert_names[] = $name;
 		}
 
 		/**
