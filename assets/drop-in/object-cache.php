@@ -63,7 +63,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		const OBJECT_CACHE_TABLE = 'object_cache';
 		const NOEXPIRE_TIMESTAMP_OFFSET = 500000000000;
 		const INTKEY_LENGTH = 8;
-		const INTKEY_SENTINEL = "\x1f";  //TODO should be some control character
+		const INTKEY_SENTINEL = "\x1f"; /* Only one character allowed here. */
 		const MAX_LIFETIME = DAY_IN_SECONDS * 2;
 		const SQLITE_TIMEOUT = 5000;
 		const SQLITE_FILENAME = '.ht.object-cache.sqlite';
@@ -334,6 +334,30 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 */
 		private $delete_times = array();
 		/**
+		 * The times for individual get_multiple operations.
+		 *
+		 * @var array[float]
+		 */
+		private $get_multiple_times = array();
+		/**
+		 * The times for individual get_multiple operations.
+		 *
+		 * @var array[int]
+		 */
+		private $get_multiple_keys = array();
+		/**
+		 * The number of runs of consecutive items in get_multiple.
+		 *
+		 * @var array[int]
+		 */
+		private $run_lengths = array();
+		/**
+		 * The length of consecutive items in get_multiple
+		 *
+		 * @var array[int]
+		 */
+		private $runs = array();
+		/**
 		 * The time it took to open the db.
 		 *
 		 * @var float
@@ -467,15 +491,18 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				$previous = null !== $previous ? $previous : $intkey;
 				$runstart = null !== $runstart ? $runstart : $intkey;
 				if ( $intkey > $previous + 1 ) {
-					$runs[ $runstart ] = $previous;
-					$runstart          = $intkey;
+					$this->run_lengths[] = 1 + $previous - $runstart;
+					$runs[ $runstart ]   = $previous;
+					$runstart            = $intkey;
 				}
 				$previous = $intkey;
 			}
 			if ( null !== $runstart ) {
-				$runs[ $runstart ] = $previous;
+				$this->run_lengths[] = 1 + $previous - $runstart;
+				$runs[ $runstart ]   = $previous;
 			}
 
+			$this->runs [] = count( $runs );
 			return $runs;
 		}
 
@@ -1112,16 +1139,20 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$now = microtime( true );
 			global $wpdb;
 			$record = array(
-				'time'        => $now,
-				'RAMhits'     => $this->cache_hits,
-				'RAMmisses'   => $this->cache_misses,
-				'DISKhits'    => $this->persistent_hits,
-				'DISKmisses'  => $this->persistent_misses,
-				'open'        => $this->open_time,
-				'selects'     => $this->select_times,
-				'inserts'     => $this->insert_times,
-				'deletes'     => $this->delete_times,
-				'DBMSqueries' => $wpdb->num_queries,
+				'time'              => $now,
+				'RAMhits'           => $this->cache_hits,
+				'RAMmisses'         => $this->cache_misses,
+				'DISKhits'          => $this->persistent_hits,
+				'DISKmisses'        => $this->persistent_misses,
+				'open'              => $this->open_time,
+				'selects'           => $this->select_times,
+				'get_multiples'     => $this->get_multiple_times,
+				'get_multiple_keys' => $this->get_multiple_keys,
+				'run_lengths'       => $this->run_lengths,
+				'runs'              => $this->runs,
+				'inserts'           => $this->insert_times,
+				'deletes'           => $this->delete_times,
+				'DBMSqueries'       => $wpdb->num_queries,
 			);
 			if ( is_array( $options ) && $options['verbose'] ) {
 				$record ['select_names'] = $this->select_names;
@@ -1645,9 +1676,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		/**
 		 * Retrieves multiple values from the cache in one call.
 		 *
-		 * @param array  $keys Array of keys under which the cache contents are stored.
-		 * @param string $group Optional. Where the cache contents are grouped. Default 'default'.
-		 * @param bool   $force Optional. Whether to force an update of the local cache
+		 * @param string[]|int[] $input_keys
+		 * @param string         $group Optional. Where the cache contents are grouped. Default 'default'.
+		 * @param bool           $force Optional. Whether to force an update of the local cache
 		 *                      from the persistent cache. Default false.
 		 *
 		 * @return array Array of return values, grouped by key. Each value is either
@@ -1655,10 +1686,18 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @since 5.5.5
 		 */
 		public function get_multiple( $input_keys, $group = 'default', $force = false ) {
+			$values = array();
+			if ( count( $input_keys ) <= 1 ) {
+				/* Send the degenerate get_multiple calls to plain old get. There are many of them and that logic is simpler. */
+				foreach ( $input_keys as $key ) {
+					$values[ $key ] = $this->get( $key, $group, $force );
+				}
+				return $values;
+			}
+			$start = $this->time_usec();
 			$group = empty( $group ) ? 'default' : $group;
 
-			$values = array();
-			$keys   = array();
+			$keys = array();
 			if ( false === $force ) {
 				/* Prune down the list of keys to remove the ones already cached. */
 				foreach ( $input_keys as $rawkey ) {
@@ -1684,8 +1723,11 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				$keys = $input_keys;
 			}
 
-			if ( 0 === count( $keys ) ) {
-				/* Got them all already, no need to keep working. */
+			if ( count( $keys) <= 1 ) {
+				/* Degenerate case after fulfilment from RAM: handle as simple get */
+				foreach ($keys as $key) {
+					$values[$key] = $this->get( $key, $group, $force );
+				}
 				return $values;
 			}
 			/* split into alpha and numeric keys */
@@ -1702,11 +1744,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$intkeys = $this->sort_and_deduplicate( $raw_intkeys );
 			/* Get the consecutive integer key runs */
 			$runs = $this->runs( $intkeys );
-			// TODO understand get_multiple better
-			if ( WP_DEBUG_LOG ) {
-				error_log( 'get_multiple: ' . $group . ' ints: ' . json_encode( $runs ) . ' alphas: ' . json_encode( $alphakeys ) );
-			}
-
 			try {
 				if ( ! $this->sqlite ) {
 					$this->open_connection();
@@ -1758,7 +1795,8 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				$this->delete_offending_files();
 				self::drop_dead();
 			}
-
+			$this->get_multiple_keys []  = count( $keys );
+			$this->get_multiple_times [] = $this->time_usec() - $start;
 			return $values;
 		}
 
