@@ -1120,7 +1120,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		}
 
 		/**
-		 * Adds multiple values to the cache in one call.
+			 * Adds multiple values to the cache in one call.
 		 *
 		 * @param array  $data Array of keys and values to be added.
 		 * @param string $group Optional. Where the cache contents are grouped. Default empty.
@@ -1132,6 +1132,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @since 6.0.0
 		 */
 		public function add_multiple( array $data, $group = '', $expire = 0 ) {
+			if ( 0 === count( $data ) ) {
+				return array();
+			}
 			$values = array();
 			try {
 				if ( ! $this->sqlite ) {
@@ -1468,6 +1471,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @since 6.0.0
 		 */
 		public function set_multiple( array $data, $group = '', $expire = 0 ) {
+			if ( 0 === count( $data ) ) {
+				return array();
+			}
 			$values = array();
 			try {
 				if ( ! $this->sqlite ) {
@@ -1505,6 +1511,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @since 5.5.5
 		 */
 		public function get_multiple( $keys, $group = 'default', $force = false ) {
+			if ( 0 === count( $keys ) ) {
+				return array();
+			}
 			$values = array();
 			try {
 				if ( ! $this->sqlite ) {
@@ -1515,8 +1524,11 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				$this->transaction_active = true;
 				$this->sqlite->exec( 'BEGIN' );
 
+				/* deduplicate and fetch */
 				foreach ( $keys as $key ) {
-					$values[ $key ] = $this->get( $key, $group, $force );
+					if ( ! array_key_exists( $key, $values ) ) {
+						$values[ $key ] = $this->get( $key, $group, $force );
+					}
 				}
 				$this->sqlite->exec( 'COMMIT' );
 				$this->transaction_active = false;
@@ -1611,11 +1623,20 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @since 6.0.0
 		 */
 		public function delete_multiple( array $keys, $group = '' ) {
+			if ( 0 === count( $keys ) ) {
+				return array();
+			}
 			$values = array();
+
+			/* use a transaction to accelerate delete_multiple */
+			$this->transaction_active = true;
+			$this->sqlite->exec( 'BEGIN' );
 
 			foreach ( $keys as $key ) {
 				$values[ $key ] = $this->delete( $key, $group );
 			}
+			$this->sqlite->exec( 'COMMIT' );
+			$this->transaction_active = false;
 
 			return $values;
 		}
