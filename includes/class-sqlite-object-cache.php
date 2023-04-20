@@ -121,7 +121,7 @@ class SQLite_Object_Cache {
 	 * @param string $file File constructor.
 	 * @param string $version Plugin version.
 	 */
-	public function __construct( $file = '', $version = '1.2.3' ) {
+	public function __construct( $file = '', $version = '1.2.4' ) {
 		$this->_version = $version;
 		$this->_token   = 'sqlite_object_cache';
 
