@@ -24,8 +24,9 @@
  * WP_CACHE_KEY_SALT is used as part of the cache file.
  * WP_SQLITE_OBJECT_CACHE_TIMEOUT is the SQLite timeout in place of 5000 milliseconds.
  * WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE is the SQLite journal mode in place of 'WAL'.
- *   It can be DELETE | TRUNCATE | PERSIST | MEMORY | WAL. See https://www.sqlite.org/pragma.html#pragma_journal_mode
- * WP_SQLITE_OBJECT_CACHE_INTKEY_LENGTH is the number of digits for optimizing integer cache keys, default 8
+ *   It can be DELETE | TRUNCATE | PERSIST | MEMORY | WAL. See https://www.sqlite.org/pragma.html#pragma_journal_mode.
+ * WP_SQLITE_OBJECT_CACHE_INTKEY_LENGTH is the number of digits for optimizing consecutive integer cache keys, default 8.
+ * WP_SQLITE_OBJECT_CACHE_INTKEY_ERODE_GAPS allows fewer SQL statements but can retrieve extra items, default 2.
  *
  * Credit: Till Krüss's https://wordpress.org/plugins/redis-cache/ plugin. Thanks, Till!
  *
@@ -63,6 +64,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		const OBJECT_CACHE_TABLE = 'object_cache';
 		const NOEXPIRE_TIMESTAMP_OFFSET = 500000000000;
 		const INTKEY_LENGTH = 8;
+		const INTKEY_ERODE_GAPS = 2;
 		const INTKEY_SENTINEL = "\x1f"; /* Only one character allowed here. */
 		const MAX_LIFETIME = DAY_IN_SECONDS * 2;
 		const SQLITE_TIMEOUT = 5000;
@@ -346,18 +348,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 */
 		private $get_multiple_keys = array();
 		/**
-		 * The number of runs of consecutive items in get_multiple.
-		 *
-		 * @var array[int]
-		 */
-		private $run_lengths = array();
-		/**
-		 * The length of consecutive items in get_multiple
-		 *
-		 * @var array[int]
-		 */
-		private $runs = array();
-		/**
 		 * The time it took to open the db.
 		 *
 		 * @var float
@@ -401,6 +391,12 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * Longer integers than this are treated as text.
 		 */
 		private $intkey_max;
+		/**
+		 * @var int Erode gaps in consecutive runs of integers by this amount.
+		 *
+		 * This makes for fewer SQL queries at the cost of some extra retrieved items.
+		 */
+		private $erode_gaps;
 
 		/**
 		 * Constructor for SQLite Object Cache.
@@ -425,6 +421,10 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$this->sqlite_journal_mode = defined( 'WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE' )
 				? WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE
 				: self::JOURNAL_MODE;
+
+			$this->erode_gaps = defined( 'WP_SQLITE_OBJECT_CACHE_INTKEY_ERODE_GAPS' )
+				? (int) WP_SQLITE_OBJECT_CACHE_INTKEY_ERODE_GAPS
+				: self::INTKEY_ERODE_GAPS;
 
 			$this->intkey_length = defined( 'WP_SQLITE_OBJECT_CACHE_INTKEY_LENGTH' )
 				? (int) WP_SQLITE_OBJECT_CACHE_INTKEY_LENGTH
@@ -477,32 +477,36 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		}
 
 		/**
-		 * Convert a sorted list of integers into a list of runs: consecutive integers.
+		 * Convert a list of integers into a list of runs: consecutive integers.
 		 *
-		 * @param int[] $intkeys
+		 * Runs expand to include up to $erode_gaps extra integers, to make
+		 * fewer, longer runs. (Each run turns into a single database query,
+		 * so fewer of them is better.)
+		 *
+		 * @param int[] $intkeys List of integers. This can contain duplicate values.
+		 * @param int   $erode_gaps Combine runs separated by this or fewer integers.
 		 *
 		 * @return array  Associative array with elements start => end
 		 */
-		private function runs( &$intkeys ) {
+		private function runs( &$intkeys, $erode_gaps = 2 ) {
+			if ( 0 === count( $intkeys ) ) {
+				return array();
+			}
+			$previous = $intkeys[0];
+			$runstart = $previous;
 			$runs     = array();
-			$previous = null;
-			$runstart = null;
+			sort( $intkeys, SORT_NUMERIC );
 			foreach ( $intkeys as $intkey ) {
-				$previous = null !== $previous ? $previous : $intkey;
-				$runstart = null !== $runstart ? $runstart : $intkey;
-				if ( $intkey > $previous + 1 ) {
-					$this->run_lengths[] = 1 + $previous - $runstart;
-					$runs[ $runstart ]   = $previous;
-					$runstart            = $intkey;
+				if ( $intkey > $previous + 1 + $erode_gaps ) {
+					$runs[ $runstart ] = $previous;
+					$runstart          = $intkey;
 				}
 				$previous = $intkey;
 			}
 			if ( null !== $runstart ) {
-				$this->run_lengths[] = 1 + $previous - $runstart;
-				$runs[ $runstart ]   = $previous;
+				$runs[ $runstart ] = $previous;
 			}
 
-			$this->runs [] = count( $runs );
 			return $runs;
 		}
 
@@ -638,7 +642,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 
 			$this->create_object_cache_table();
 			$this->prepare_statements( $this->cache_table_name );
-			$this->preload( $this->cache_table_name );
+			//TODO skip this step. $this->preload( $this->cache_table_name );
 
 			$this->open_time = $this->time_usec() - $start;
 		}
@@ -683,6 +687,19 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		/**
 		 * Do the necessary Data Definition Language work.
 		 *
+		 * We use a single name column comprising group|key in one text string.
+		 * Why?
+		 * In recent versions of SQLite, it can serve as a clustered-index simple primary key.
+		 * SQLite's ANALYZE facilty only builds query-planner stats for the first column of composite keys.
+		 *
+		 * "groups" are all text.
+		 *
+		 * "keys" are sometimes alphanumeric text and sometimes integers. So, they are all treated as text
+		 *    in the name column of the database.
+		 *
+		 * Now, range scanning (BETWEEN) is a hassle in get_multiple, especially when using
+		 * get_multiple to retrieve a range of keys from a group.
+		 *
 		 * @return void
 		 * @throws Exception If something fails.
 		 * @noinspection SqlResolve
@@ -701,8 +718,8 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 					$t = "
 						CREATE TABLE IF NOT EXISTS $this->cache_table_name (
 						   name TEXT NOT NULL COLLATE BINARY,
-						   value BLOB,
-						   expires INT
+						   expires INT,
+						   value BLOB
 						);
 						CREATE UNIQUE INDEX IF NOT EXISTS name ON $this->cache_table_name (name);
 						CREATE INDEX IF NOT EXISTS expires ON $this->cache_table_name (expires);";
@@ -711,8 +728,8 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 					$t = "
 						CREATE TABLE IF NOT EXISTS $this->cache_table_name (
 						   name TEXT NOT NULL PRIMARY KEY COLLATE BINARY,
-						   value BLOB,
-						   expires INT
+						   expires INT,
+						   value BLOB
 						) WITHOUT ROWID;
 						CREATE INDEX IF NOT EXISTS expires ON $this->cache_table_name (expires);";
 				}
@@ -1148,8 +1165,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				'selects'           => $this->select_times,
 				'get_multiples'     => $this->get_multiple_times,
 				'get_multiple_keys' => $this->get_multiple_keys,
-				'run_lengths'       => $this->run_lengths,
-				'runs'              => $this->runs,
 				'inserts'           => $this->insert_times,
 				'deletes'           => $this->delete_times,
 				'DBMSqueries'       => $wpdb->num_queries,
@@ -1723,27 +1738,25 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				$keys = $input_keys;
 			}
 
-			if ( count( $keys) <= 1 ) {
+			if ( count( $keys ) <= 1 ) {
 				/* Degenerate case after fulfilment from RAM: handle as simple get */
-				foreach ($keys as $key) {
-					$values[$key] = $this->get( $key, $group, $force );
+				foreach ( $keys as $key ) {
+					$values[ $key ] = $this->get( $key, $group, $force );
 				}
 				return $values;
 			}
 			/* split into alpha and numeric keys */
-			$alphakeys   = array();
-			$raw_intkeys = array();
+			$alphakeys = array();
+			$intkeys   = array();
 			foreach ( $keys as $key ) {
 				if ( is_numeric( $key ) && (int) $key == $key && (int) $key > 0 ) {
-					$raw_intkeys [] = (int) $key;
+					$intkeys [] = (int) $key;
 				} else {
 					$alphakeys [] = $key;
 				}
 			}
-			/* sort and deduplicate */
-			$intkeys = $this->sort_and_deduplicate( $raw_intkeys );
 			/* Get the consecutive integer key runs */
-			$runs = $this->runs( $intkeys );
+			$runs = $this->runs( $intkeys, $this->erode_gaps );
 			try {
 				if ( ! $this->sqlite ) {
 					$this->open_connection();
@@ -1756,37 +1769,44 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 
 				/* Start by loading the consecutive runs of int keys */
 				foreach ( $runs as $first => $last ) {
-					list( $first_key, $first_dbkey ) = $this->get_valid_key( $first, $group );
-					list( $last_key, $last_dbkey ) = $this->get_valid_key( $first, $group );
-					$stmt = $this->getrange;
-					$stmt->bindValue( ':first', $group . '|' . $first_dbkey, SQLITE3_TEXT );
-					$stmt->bindValue( ':last', $group . '|' . $last_dbkey, SQLITE3_TEXT );
-					$resultset = $stmt->execute();
-					while ( true ) {
-						$row = $resultset->fetchArray( SQLITE3_NUM );
-						if ( ! $row ) {
-							break;
+					if ( $last > $first ) {
+						/* TODO try just not doing the range lookup on the one-key ranges, defer to get. */
+						list( $first_key, $first_dbkey ) = $this->get_valid_key( $first, $group );
+						list( $last_key, $last_dbkey ) = $this->get_valid_key( $first, $group );
+						$stmt = $this->getrange;
+						$stmt->bindValue( ':first', $group . '|' . $first_dbkey, SQLITE3_TEXT );
+						$stmt->bindValue( ':last', $group . '|' . $last_dbkey, SQLITE3_TEXT );
+						$resultset = $stmt->execute();
+						while ( true ) {
+							$row = $resultset->fetchArray( SQLITE3_NUM );
+							if ( ! $row ) {
+								break;
+							}
+							++ $this->persistent_hits;
+							$dbname = $row[0];
+							if ( $this->multisite && ! isset( $this->global_groups[ $group ] ) && str_starts_with( $dbname, $this->blog_prefix ) ) {
+								$dbname = substr( $dbname, strlen( $this->blog_prefix ) );
+							}
+							$key = $this->from_db_key( $dbname );
+							if ( ! array_key_exists( $group, $this->cache ) ) {
+								$this->cache[ $group ] = array();
+							}
+							$this->cache[ $group ][ $key ] = $this->maybe_unserialize( $row[1] );
 						}
-						++ $this->persistent_hits;
-						$dbname = $row[0];
-						if ( $this->multisite && ! isset( $this->global_groups[ $group ] ) && str_starts_with( $dbname, $this->blog_prefix ) ) {
-							$dbname = substr( $dbname, strlen( $this->blog_prefix ) );
-						}
-						$key = $this->from_db_key( $dbname );
-						if ( ! array_key_exists( $group, $this->cache ) ) {
-							$this->cache[ $group ] = array();
-						}
-						$this->cache[ $group ][ $key ] = $this->maybe_unserialize( $row[1] );
+						$resultset->finalize();
 					}
-					$resultset->finalize();
 				}
 
 				/* Do the alpha keys, if any */
 				foreach ( $alphakeys as $key ) {
-					$values[ $key ] = $this->get( $key, $group, $force );
+					if ( ! array_key_exists( $key, $values ) ) {
+						$values[ $key ] = $this->get( $key, $group, $force );
+					}
 				}
 				foreach ( $intkeys as $key ) {
-					$values[ $key ] = $this->get( $key, $group, $force );
+					if ( ! array_key_exists( $key, $values ) ) {
+						$values[ $key ] = $this->get( $key, $group, $force );
+					}
 				}
 				$this->sqlite->exec( 'COMMIT' );
 				$this->transaction_active = false;
@@ -2312,24 +2332,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				$wp_filesystem->delete( $file );
 			}
 			ob_end_clean();
-		}
-
-		/**
-		 * @param array $raw_intkeys
-		 *
-		 * @return array
-		 */
-		private function sort_and_deduplicate( array $raw_intkeys ) {
-			sort( $raw_intkeys, SORT_NUMERIC );
-			$intkeys  = array();
-			$previous = null;
-			foreach ( $raw_intkeys as $intkey ) {
-				if ( $previous !== $intkey ) {
-					$intkeys [] = $intkey;
-					$previous   = $intkey;
-				}
-			}
-			return $intkeys;
 		}
 	}
 

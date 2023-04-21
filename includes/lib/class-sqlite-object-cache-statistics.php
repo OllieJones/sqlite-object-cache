@@ -65,8 +65,6 @@ class SQLite_Object_Cache_Statistics {
 		$selects               = array();
 		$get_multiples         = array();
 		$get_multiple_keys     = array();
-		$runs                  = array();
-		$run_lengths           = array();
 		$inserts               = array();
 		$deletes               = array();
 		$RAMratios             = array();
@@ -84,7 +82,7 @@ class SQLite_Object_Cache_Statistics {
 		}
 
 		if ( method_exists( $wp_object_cache, 'sqlite_clean_up_cache' ) ) {
-			$wp_object_cache->sqlite_clean_up_cache();
+			$wp_object_cache->sqlite_clean_up_cache( null, true, true );
 		}
 
 		foreach ( $wp_object_cache->sqlite_load_statistics() as $data ) {
@@ -103,8 +101,6 @@ class SQLite_Object_Cache_Statistics {
 			array_push( $selects, ...$data->selects );
 			array_push( $get_multiples, ...$data->get_multiples );
 			array_push( $get_multiple_keys, ...$data->get_multiple_keys );
-			array_push( $runs, ...$data->runs );
-			array_push( $run_lengths, ...$data->run_lengths );
 			array_push( $inserts, ...$data->inserts );
 			$SavesPerRequest [] = count( $data->inserts );
 			if ( property_exists( $data, 'DBMSqueries' ) && is_numeric( $data->DBMSqueries ) ) {
@@ -119,8 +115,6 @@ class SQLite_Object_Cache_Statistics {
 			$this->truncate_if_too_long( $selects );
 			$this->truncate_if_too_long( $get_multiples );
 			$this->truncate_if_too_long( $get_multiple_keys );
-			$this->truncate_if_too_long( $runs );
-			$this->truncate_if_too_long( $run_lengths );
 			$this->truncate_if_too_long( $inserts );
 			$this->truncate_if_too_long( $SavesPerRequest );
 			$this->truncate_if_too_long( $DBMSqueriesPerRequest );
@@ -148,8 +142,6 @@ class SQLite_Object_Cache_Statistics {
 				__( 'Get times', 'sqlite-object-cache' )             => $this->descriptive_stats( $selects ),
 				__( 'GetMult times', 'sqlite-object-cache' )         => $this->descriptive_stats( $get_multiples ),
 				__( 'GetMult keys', 'sqlite-object-cache' )          => $this->descriptive_stats( $get_multiple_keys ),
-				__( 'GetMult runs', 'sqlite-object-cache' )          => $this->descriptive_stats( $runs ),
-				__( 'GetMult runlengths', 'sqlite-object-cache' )    => $this->descriptive_stats( $run_lengths ),
 				__( 'Save times', 'sqlite-object-cache' )            => $this->descriptive_stats( $inserts ),
 				__( 'Delete times', 'sqlite-object-cache' )          => $this->descriptive_stats( $deletes ),
 			);
@@ -193,14 +185,16 @@ class SQLite_Object_Cache_Statistics {
 			'[min'   => $min,
 			'p1'     => $this->percentile( $a, 0.01 ),
 			'p5'     => $this->percentile( $a, 0.05 ),
+			//'p33'     => $this->percentile( $a, 0.33 ),
 			'median' => $this->percentile( $a, 0.5 ),
 			'mean'   => $this->mean( $a ),
-			'p95'    => $this->percentile( $a, 0.95 ),
+			//'p67'    => $this->percentile( $a, 0.67 ),
+			'p95'     => $this->percentile( $a, 0.95 ),
 			'p99'    => $this->percentile( $a, 0.99 ),
 			'max]'   => $max,
-			'range'  => $max - $min,
 			'mad'    => $this->mad( $a ),
 			'stdev'  => $this->stdev( $a ),
+			'range'  => $max - $min,
 		);
 	}
 
