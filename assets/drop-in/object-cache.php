@@ -208,7 +208,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		private $getone;
 
 		/**
-		 * Prepared statement to get a range of cache elements.
+		 * Prepared statement to get a range of cache elements, for get_multiple.
 		 *
 		 * @var SQLite3Stmt SELECT statement.
 		 */
@@ -1033,14 +1033,12 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		/**
 		 * Remove old entries and VACUUM the database.
 		 *
-		 * @param mixed $retention How long, in seconds, to keep old entries. Default one week.
 		 * @param bool  $use_transaction True if the cleanup should be inside BEGIN / COMMIT.
-		 * @param bool  $vacuum VACUUM the db.
 		 *
 		 * @return void
 		 * @noinspection SqlResolve
 		 */
-		public function sqlite_clean_up_cache( $retention = null, $use_transaction = true, $vacuum = false ) {
+		public function sqlite_remove_expired( $use_transaction = true ) {
 			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
 			try {
 				if ( ! $this->sqlite ) {
@@ -1055,23 +1053,8 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				$stmt->bindValue( ':now', time(), SQLITE3_INTEGER );
 				$result = $stmt->execute();
 				$result->finalize();
-				/* Remove old items. We use the most recent update time. Tracking use time is too expensive. */
-				$retention = is_numeric( $retention ) ? $retention : $this->max_lifetime;
-				$sql       = "DELETE FROM $this->cache_table_name WHERE expires BETWEEN :offset AND :end;";
-				$stmt      = $this->sqlite->prepare( $sql );
-				$offset    = $this->noexpire_timestamp_offset;
-				$end       = time() + $offset - $retention;
-				$stmt->bindValue( ':offset', $offset, SQLITE3_INTEGER );
-				$stmt->bindValue( ':end', $end, SQLITE3_INTEGER );
-				$result = $stmt->execute();
-				$result->finalize();
 				if ( $use_transaction ) {
 					$this->sqlite->exec( 'COMMIT' );
-				}
-				if ( $vacuum ) {
-					$this->sqlite->exec( 'VACUUM' );
-					$this->sqlite->exec( 'PRAGMA analysis_limit=400' );
-					$this->sqlite->exec( 'PRAGMA optimize' );
 				}
 			} catch ( Exception $ex ) {
 				$this->error_log( 'sqlite_clean_up_cache', $ex );
@@ -1079,7 +1062,26 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		}
 
 		/**
-		 * Read object names, sizes, expirations from cache.
+		 * Get the size of the cache database.
+		 *
+		 * @return int Size of current cache database in bytes.
+		 */
+		public function sqlite_get_size() {
+			if ( ! $this->sqlite ) {
+				$this->open_connection();
+			}
+			$object_cache = self::OBJECT_CACHE_TABLE;
+			$sql          = "SELECT SUM(LENGTH(value) + LENGTH(name)) length FROM $object_cache";
+			$stmt         = $this->sqlite->prepare( $sql );
+			$resultset    = $stmt->execute();
+			$row          = $resultset->fetchArray( SQLITE3_NUM );
+			$result       = $row[0];
+			$resultset->finalize();
+			return $result;
+		}
+
+		/**
+		 * Read object names, sizes, expirations from cache, ordered by expiration time oldest first.
 		 *
 		 * @param $timestamps true If the timestamps returned should be expirations, false means raw
 		 *
@@ -1093,7 +1095,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			}
 
 			$object_cache = self::OBJECT_CACHE_TABLE;
-			$sql          = "SELECT name, LENGTH(value) + LENGTH(name) length, expires FROM $object_cache";
+			$offset       = $this->noexpire_timestamp_offset;
+			$sql          =
+				"SELECT name, LENGTH(value) + LENGTH(name) length, expires FROM $object_cache order by expires % $offset";
 			$stmt         = $this->sqlite->prepare( $sql );
 			$resultset    = $stmt->execute();
 			while ( true ) {
@@ -1961,6 +1965,52 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$this->handle_delete( $key, $group );
 
 			return true;
+		}
+
+		/**
+		 * Delete the oldest elements until the size falls below the target size.
+		 *
+		 * @param int $target_size Size in bytes.
+		 *
+		 * @return void
+		 */
+		public function sqlite_delete_old( $target_size ) {
+
+			$batchmax = 100;
+			try {
+				if ( ! $this->sqlite ) {
+					$this->open_connection();
+				}
+				$current_size = $this->sqlite_get_size();
+				while ( $current_size > $target_size ) {
+					$this->sqlite->exec( 'BEGIN' );
+					$batch     = array();
+					$batchsize = $batchmax;
+					foreach ( $this->sqlite_load_usages( true ) as $item ) {
+						if ( $current_size <= $target_size ) {
+							break;
+						}
+						$current_size -= $item->length;
+						$batch []     = $item->name;
+						$batchsize --;
+						if ( $batchsize <= 0 ) {
+							break;
+						}
+					}
+					foreach ( $batch as $dbname ) {
+						$stmt = $this->deleteone;
+						$stmt->bindValue( ':name', $dbname, SQLITE3_TEXT );
+						$result = $stmt->execute();
+						$result->finalize();
+					}
+					$this->sqlite->exec( 'COMMIT' );
+				}
+				$this->sqlite->exec( 'VACUUM' );
+				$this->sqlite->exec( 'PRAGMA analysis_limit=400' );
+				$this->sqlite->exec( 'PRAGMA optimize' );
+			} catch ( Exception $ex ) {
+				$this->delete_offending_files();
+			}
 		}
 
 		/**

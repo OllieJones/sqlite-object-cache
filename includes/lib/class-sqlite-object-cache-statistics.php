@@ -81,8 +81,8 @@ class SQLite_Object_Cache_Statistics {
 			return;
 		}
 
-		if ( method_exists( $wp_object_cache, 'sqlite_clean_up_cache' ) ) {
-			$wp_object_cache->sqlite_clean_up_cache( null, true, true );
+		if ( method_exists( $wp_object_cache, 'sqlite_remove_expired' ) ) {
+			$wp_object_cache->sqlite_remove_expired( true );
 		}
 
 		foreach ( $wp_object_cache->sqlite_load_statistics() as $data ) {
