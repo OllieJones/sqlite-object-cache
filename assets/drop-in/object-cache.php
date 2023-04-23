@@ -300,12 +300,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 */
 		private $noexpire_timestamp_offset;
 		/**
-		 * The maximum age of an entry before we get rid of it.
-		 *
-		 * @var int the maximum lifetime of a cache entry, often a week.
-		 */
-		private $max_lifetime;
-		/**
 		 * An array of elapsed times for each cache-retrieval operation.
 		 *
 		 * @var array[float]
@@ -1033,7 +1027,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		/**
 		 * Remove old entries and VACUUM the database.
 		 *
-		 * @param bool  $use_transaction True if the cleanup should be inside BEGIN / COMMIT.
+		 * @param bool $use_transaction True if the cleanup should be inside BEGIN / COMMIT.
 		 *
 		 * @return void
 		 * @noinspection SqlResolve
@@ -1114,6 +1108,34 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 					$row->expires = $expires;
 				}
 				yield $row;
+			}
+			$resultset->finalize();
+		}
+
+		/**
+		 * Read timestamps and object sizes of non-expiring items, oldest first.
+		 *
+		 * @return Generator Length/timestamp rows.
+		 * @throws Exception Announce SQLite failure.
+		 * @noinspection SqlResolve
+		 */
+		public function sqlite_load_sizes() {
+			if ( ! $this->sqlite ) {
+				$this->open_connection();
+			}
+
+			$object_cache = self::OBJECT_CACHE_TABLE;
+			$offset       = $this->noexpire_timestamp_offset;
+			$sql          =
+				"SELECT SUM(LENGTH(value) + LENGTH(name)) length, expires FROM $object_cache WHERE expires >= $offset GROUP BY expires ORDER BY expires";
+			$stmt         = $this->sqlite->prepare( $sql );
+			$resultset    = $stmt->execute();
+			while ( true ) {
+				$row = $resultset->fetchArray( SQLITE3_ASSOC );
+				if ( ! $row ) {
+					break;
+				}
+				yield ( (object) $row );
 			}
 			$resultset->finalize();
 		}
@@ -1970,41 +1992,38 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		/**
 		 * Delete the oldest elements until the size falls below the target size.
 		 *
+		 * This uses a least-recently-UPDATED approach to aging the elements. A least-recently-USED
+		 * approach requires writing the time of use to the cache with every access, and that
+		 * is too expensive.
+		 *
 		 * @param int $target_size Size in bytes.
 		 *
 		 * @return void
 		 */
 		public function sqlite_delete_old( $target_size ) {
 
-			$batchmax = 100;
+			$horizon = null;
 			try {
 				if ( ! $this->sqlite ) {
 					$this->open_connection();
 				}
 				$current_size = $this->sqlite_get_size();
-				while ( $current_size > $target_size ) {
-					$this->sqlite->exec( 'BEGIN' );
-					$batch     = array();
-					$batchsize = $batchmax;
-					foreach ( $this->sqlite_load_usages( true ) as $item ) {
+				if ( $current_size > $target_size ) {
+					foreach ( $this->sqlite_load_sizes( true ) as $item ) {
+						/* Find the time horizon that will delete enough entries */
+						$horizon      = $item->expires;
+						$current_size -= $item->length;
 						if ( $current_size <= $target_size ) {
 							break;
 						}
-						$current_size -= $item->length;
-						$batch []     = $item->name;
-						$batchsize --;
-						if ( $batchsize <= 0 ) {
-							break;
-						}
 					}
-					foreach ( $batch as $dbname ) {
-						$stmt = $this->deleteone;
-						$stmt->bindValue( ':name', $dbname, SQLITE3_TEXT );
-						$result = $stmt->execute();
-						$result->finalize();
-					}
-					$this->sqlite->exec( 'COMMIT' );
+					$object_cache = self::OBJECT_CACHE_TABLE;
+					$offset       = $this->noexpire_timestamp_offset;
+
+					$sql = "DELETE FROM $object_cache WHERE expires >= $offset AND expires <= $horizon";
+					$this->sqlite->exec( $sql );
 				}
+
 				$this->sqlite->exec( 'VACUUM' );
 				$this->sqlite->exec( 'PRAGMA analysis_limit=400' );
 				$this->sqlite->exec( 'PRAGMA optimize' );
