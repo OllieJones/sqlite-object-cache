@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache (Drop-in)
- * Version: 1.2.4
+ * Version: 1.3.0
  * Note: This Version number must match the one in SQLite_Object_Cache::_construct.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -25,7 +25,7 @@
  * WP_SQLITE_OBJECT_CACHE_TIMEOUT is the SQLite timeout in place of 5000 milliseconds.
  * WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE is the SQLite journal mode in place of 'WAL'.
  *   It can be DELETE | TRUNCATE | PERSIST | MEMORY | WAL. See https://www.sqlite.org/pragma.html#pragma_journal_mode.
- * WP_SQLITE_OBJECT_CACHE_INTKEY_LENGTH is the number of digits for optimizing consecutive integer cache keys, default 8.
+ * WP_SQLITE_OBJECT_CACHE_INTKEY_LENGTH is the number of digits for optimizing consecutive integer cache keys, default 6.
  * WP_SQLITE_OBJECT_CACHE_INTKEY_ERODE_GAPS allows fewer SQL statements but can retrieve extra items, default 2.
  *
  * Credit: Till Krüss's https://wordpress.org/plugins/redis-cache/ plugin. Thanks, Till!
@@ -63,10 +63,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		const OBJECT_STATS_TABLE = 'object_stats';
 		const OBJECT_CACHE_TABLE = 'object_cache';
 		const NOEXPIRE_TIMESTAMP_OFFSET = 500000000000;
-		const INTKEY_LENGTH = 8;
+		const INTKEY_LENGTH = 6;
 		const INTKEY_ERODE_GAPS = 2;
 		const INTKEY_SENTINEL = "\x1f"; /* Only one character allowed here. */
-		const MAX_LIFETIME = DAY_IN_SECONDS * 2;
 		const SQLITE_TIMEOUT = 5000;
 		const SQLITE_FILENAME = '.ht.object-cache.sqlite';
 		const JOURNAL_MODE = 'WAL';  /* or 'MEMORY' */
@@ -130,7 +129,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * The blog prefix to prepend to keys in non-global groups.
 		 *
 		 * @since 3.5.0
-		 * @var string
+		 * @var string For multisite, n:, For single site, empty.
 		 */
 		public $blog_prefix;
 		/**
@@ -185,11 +184,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			'user_meta',
 			'userslugs',
 		);
+
 		/**
-		 * Holds the cached objects.
-		 *
-		 * @since 2.0.0
-		 * @var array
+		 * @var array One-level associative array $name=>$value
 		 */
 		private $cache = array();
 		/**
@@ -312,18 +309,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 */
 		private $insert_times = array();
 		/**
-		 * An array of item names for each cache-retrieval operation.
-		 *
-		 * @var array[string]
-		 */
-		private $select_names = array();
-		/**
-		 * An array of item names for each cache-insertion / update operation.
-		 *
-		 * @var array[float]
-		 */
-		private $insert_names = array();
-		/**
 		 * An array of elapsed times for each single-row cache deletion operation.
 		 *
 		 * @var array[float]
@@ -424,50 +409,12 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				? (int) WP_SQLITE_OBJECT_CACHE_INTKEY_LENGTH
 				: self::INTKEY_LENGTH;
 
-			$this->intkey_max = - 1 + (int) str_pad( '1', 0, STR_PAD_RIGHT );
+			$this->intkey_max = - 1 + (int) str_pad( '1', 1 + $this->intkey_length, 0, STR_PAD_RIGHT );
 
 			$this->multisite                 = is_multisite();
 			$this->blog_prefix               = $this->multisite ? get_current_blog_id() . ':' : '';
 			$this->cache_table_name          = self::OBJECT_CACHE_TABLE;
 			$this->noexpire_timestamp_offset = self::NOEXPIRE_TIMESTAMP_OFFSET;
-			$this->max_lifetime              = self::MAX_LIFETIME;
-		}
-
-		/**
-		 * Get the database key for a WordPress key.
-		 *
-		 * We do this so we can store numerical database keys in numerical order.
-		 *
-		 * @param string| int $key The WordPress key.
-		 *
-		 * @return string The key, verbatim if it's text, or \x10000nnn if it's numeric.
-		 */
-		private function to_db_key( &$key ) {
-			if ( is_numeric( $key ) && (int) $key == $key && (int) $key > 0 && (int) $key <= $this->intkey_max ) {
-				return self::INTKEY_SENTINEL . str_pad( $key, $this->intkey_length, '0', STR_PAD_LEFT );
-			}
-			return $key;
-		}
-
-		/**
-		 * Get the WordPress key for a database key.
-		 *
-		 * @param string $dbkey The key, verbatim if it's text, or \x10000nnn if it's numeric.
-		 *
-		 * @return string The WordPress key.
-		 */
-		private function from_db_key( $dbkey ) {
-			if ( ! is_string( $dbkey ) ) {
-				return $dbkey;
-			}
-			$len = strlen( $dbkey );
-			if ( $len < 1 + $this->intkey_length ) {
-				return $dbkey;
-			}
-			if ( $len > 0 && self::INTKEY_SENTINEL === $dbkey[0] ) {
-				return ltrim( $dbkey, '0' . self::INTKEY_SENTINEL );
-			}
-			return $dbkey;
 		}
 
 		/**
@@ -486,10 +433,10 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			if ( 0 === count( $intkeys ) ) {
 				return array();
 			}
+			sort( $intkeys, SORT_NUMERIC );
 			$previous = $intkeys[0];
 			$runstart = $previous;
 			$runs     = array();
-			sort( $intkeys, SORT_NUMERIC );
 			foreach ( $intkeys as $intkey ) {
 				if ( $intkey > $previous + 1 + $erode_gaps ) {
 					$runs[ $runstart ] = $previous;
@@ -779,7 +726,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$this->getrange    =
 				$this->sqlite->prepare( "SELECT name, value FROM $tbl WHERE name BETWEEN :first AND :last AND expires >= $now;" );
 			$this->deleteone   = $this->sqlite->prepare( "DELETE FROM $tbl WHERE name = :name;" );
-			$this->deletegroup = $this->sqlite->prepare( "DELETE FROM $tbl WHERE name LIKE :group || '.%';" );
+			$this->deletegroup = $this->sqlite->prepare( "DELETE FROM $tbl WHERE name LIKE :group || '%';" );
 			/*
 			 * Some versions of SQLite3 built into php predate the 3.38 advent of unixepoch() (2022-02-22).
 			 * And, others predate the 3.24 advent of UPSERT (that is, ON CONFLICT) syntax.
@@ -794,49 +741,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 					$this->sqlite->prepare( "INSERT INTO $tbl (name, value, expires) VALUES (:name, :value, $now + :expires);" );
 				$this->updateone =
 					$this->sqlite->prepare( "UPDATE $tbl SET value = :value, expires = $now + :expires WHERE name = :name;" );
-			}
-		}
-
-		/**
-		 * Preload frequently accessed items.
-		 *
-		 * @param string $tbl Cache table name.
-		 *
-		 * @return void
-		 * @noinspection SqlResolve
-		 */
-		public function preload( $tbl ) {
-			$list =
-				array(
-					'options|%',
-					'default|%',
-					'posts|last_changed',
-					'terms|last_changed',
-					'site_options|%notoptions',
-					'transient|doing_cron',
-				);
-
-			$sql     = '';
-			$clauses = array();
-			foreach ( $list as $item ) {
-				/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
-				$clauses [] = "SELECT name, value FROM $tbl WHERE name LIKE '$item'";
-			}
-			$sql .= implode( ' UNION ALL ', $clauses ) . ';';
-
-			$resultset = $this->sqlite->query( $sql );
-			if ( ! $resultset ) {
-				return;
-			}
-			while ( true ) {
-				$row = $resultset->fetchArray( SQLITE3_NUM );
-				if ( ! $row ) {
-					break;
-				}
-				list( $group, $key ) = explode( '|', $row[0], 2 );
-				$val = $this->maybe_unserialize( $row[1] );
-				/* Put the preloaded value into the cache. */
-				$this->cache[ $group ][ $key ] = $val;
 			}
 		}
 
@@ -956,30 +860,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		}
 
 		/**
-		 * Generate canonical name for cache item
-		 *
-		 * @param string $key The key name.
-		 * @param string $group The group name.
-		 *
-		 * @return string The name.
-		 */
-		private function name_from_key_group( $key, $group ) {
-			return $group . '|' . $key;
-		}
-
-		/**
-		 * Generate canonical dbname for cache item
-		 *
-		 * @param string $key The key name.
-		 * @param string $group The group name.
-		 *
-		 * @return string The name.
-		 */
-		private function dbname_from_key_group( $key, $group ) {
-			return $group . '|' . $this->to_db_key( $key );
-		}
-
-		/**
 		 * Serialize data for persistence if need be. Use igbinary if available.
 		 *
 		 * @param mixed $data To be serialized.
@@ -1071,7 +951,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$row          = $resultset->fetchArray( SQLITE3_NUM );
 			$result       = $row[0];
 			$resultset->finalize();
-			return $result;
+			return (int) $result;
 		}
 
 		/**
@@ -1195,11 +1075,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				'deletes'           => $this->delete_times,
 				'DBMSqueries'       => $wpdb->num_queries,
 			);
-			if ( is_array( $options ) && $options['verbose'] ) {
-				$record ['select_names'] = $this->select_names;
-				$record ['delete_names'] = $this->insert_names;
-			}
-
 			$object_stats = self::OBJECT_STATS_TABLE;
 			try {
 				if ( ! $this->sqlite ) {
@@ -1362,16 +1237,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				return false;
 			}
 
-			if ( empty( $group ) ) {
-				$group = 'default';
-			}
+			$name = $this->normalize_name( $key, $group );
 
-			$id = $key;
-			if ( $this->multisite && ! isset( $this->global_groups[ $group ] ) ) {
-				$id = $this->blog_prefix . $key;
-			}
-
-			if ( $this->cache_item_exists( $id, $group ) ) {
+			if ( $this->cache_item_exists( $name, $key, $group ) ) {
 				return false;
 			}
 
@@ -1412,63 +1280,21 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		}
 
 		/**
-		 * Serves as a utility function to get a usable key.
-		 *
-		 * @param int|string $key Cache key to check for validity.
-		 *
-		 * @return string[] The validated $key and $dbkey.
-		 * @since 6.1.0
-		 */
-		protected function get_valid_key( $key, $group ) {
-			$dbkey = false;
-			if ( is_int( $key ) || ( is_string( $key ) && '' !== trim( $key ) ) ) {
-				/* Key is an integer or a nonempty string */
-				$dbkey = $this->to_db_key( $key );
-				if ( $this->multisite && ! isset( $this->global_groups[ $group ] ) ) {
-					$key   = $this->blog_prefix . $key;
-					$dbkey = $this->blog_prefix . $dbkey;
-				}
-			} else {
-				/* Complain and bail out. */
-				if ( ! function_exists( '__' ) ) {
-					wp_load_translations_early();
-				}
-
-				$type    = gettype( $key );
-				$message =
-					is_string( $key ) ? __( 'Cache key must not be an empty string.' )
-						/* translators: %s: The type of the given cache key. */
-						: sprintf( __( 'Cache key must be integer or non-empty string, %s given.' ), $type );
-				// phpcs:ignore
-				_doing_it_wrong( sprintf( '%s::%s', __CLASS__, debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS, 2 )[1]['function'] ), $message, '6.1.0' );
-
-				$key = false;
-			}
-
-			return array( $key, $dbkey );
-		}
-
-		/**
 		 * Determine whether a key exists in the cache.
 		 *
-		 * @param int|string $key Cache key to check for existence.
-		 * @param string     $group Cache group for the key existence check.
+		 * @param int|string $name Cache key to check for existence.
 		 *
 		 * @return bool Whether the key exists in the cache for the given group.
 		 * @throws Exception Announce database failure.
 		 * @since 3.4.0
 		 */
-		protected function cache_item_exists( $key, $group ) {
-			$exists =
-				isset( $this->cache[ $group ] ) && ( isset( $this->cache[ $group ][ $key ] ) || array_key_exists( $key, $this->cache[ $group ] ) );
+		protected function cache_item_exists( $name ) {
+			$exists = array_key_exists( $name, $this->cache );
 			if ( ! $exists ) {
-				$val = $this->getone( $key, $group );
+				$val = $this->get_by_name( $name );
 				if ( null !== $val ) {
-					if ( ! array_key_exists( $group, $this->cache ) ) {
-						$this->cache [ $group ] = array();
-					}
-					$this->cache[ $group ][ $key ] = $val;
-					$exists                        = true;
+					$this->cache[ $name ] = $val;
+					$exists               = true;
 					$this->persistent_hits ++;
 				} else {
 					$this->persistent_misses ++;
@@ -1481,15 +1307,13 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		/**
 		 * Get one item from external cache.
 		 *
-		 * @param string $key Cache key.
-		 * @param string $group Group name.
+		 * @param string $name Cache key.
 		 *
 		 * @return mixed|null Cached item, or null if not found. (Cached item can be false.)
 		 * @throws Exception Announce database failure.
 		 */
-		private function getone( $key, $group ) {
+		private function get_by_name( $name ) {
 			$start = $this->time_usec();
-			$name  = $this->name_from_key_group( $key, $group );
 			if ( array_key_exists( $name, $this->not_in_persistent_cache ) ) {
 				return null;
 			}
@@ -1499,7 +1323,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 					$this->open_connection();
 				}
 				$stmt = $this->getone;
-				$stmt->bindValue( ':name', $this->dbname_from_key_group( $key, $group ), SQLITE3_TEXT );
+				$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
 				$result = $stmt->execute();
 				$row    = $result->fetchArray( SQLITE3_NUM );
 				$data   = false !== $row && is_array( $row ) && 1 === count( $row ) ? $row[0] : null;
@@ -1519,8 +1343,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			}
 
 			$this->select_times[] = $this->time_usec() - $start;
-			$this->select_names[] = $name;
-
 			return $data;
 		}
 
@@ -1551,20 +1373,19 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				return false;
 			}
 
-			if ( empty( $group ) ) {
-				$group = 'default';
-			}
-
-			if ( $this->multisite && ! isset( $this->global_groups[ $group ] ) ) {
-				$key = $this->blog_prefix . $key;
-			}
+			$name = $this->normalize_name( $key, $group );
 
 			if ( is_object( $data ) ) {
 				$data = clone $data;
 			}
 
-			$this->cache[ $group ][ $key ] = $data;
-			$this->handle_put( $key, $data, $group, $expire );
+			$this->cache[ $name ] = $data;
+
+			if ( $this->is_ignored_group( $group ) ) {
+				return false;
+			}
+
+			$this->put_by_name( $name, $data, $expire );
 
 			return true;
 		}
@@ -1572,30 +1393,23 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		/**
 		 * Write to the persistent cache.
 		 *
-		 * @param int|string $key What to call the contents in the cache.
-		 * @param mixed      $data The contents to store in the cache.
-		 * @param string     $group Optional. Where to group the cache contents. Default 'default'.
-		 * @param int        $expire Optional. Not used.
+		 * @param string $name What to call the contents in the cache.
+		 * @param mixed  $data The contents to store in the cache.
+		 * @param int    $expire Optional. Not used.
 		 *
 		 * @return void
 		 */
-		private function handle_put( $key, $data, $group, $expire ) {
-			if ( $this->is_ignored_group( $group ) ) {
-				return;
-			}
+		private function put_by_name( $name, $data, $expire ) {
 			try {
 				if ( ! $this->sqlite ) {
 					$this->open_connection();
 				}
-
-				$name    = $this->name_from_key_group( $key, $group );
-				$dbname  = $this->dbname_from_key_group( $key, $group );
 				$start   = $this->time_usec();
 				$value   = $this->maybe_serialize( $data );
 				$expires = $expire ?: $this->noexpire_timestamp_offset;
 				if ( $this->upsertone ) {
 					$stmt = $this->upsertone;
-					$stmt->bindValue( ':name', $dbname, SQLITE3_TEXT );
+					$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
 					$stmt->bindValue( ':value', $value, SQLITE3_BLOB );
 					$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
 					$result = $stmt->execute();
@@ -1609,7 +1423,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 						$this->sqlite->exec( 'BEGIN' );
 					}
 					$stmt = $this->updateone;
-					$stmt->bindValue( ':name', $dbname, SQLITE3_TEXT );
+					$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
 					$stmt->bindValue( ':value', $value, SQLITE3_BLOB );
 					$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
 					$result = $stmt->execute();
@@ -1617,7 +1431,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 					if ( 0 === $this->sqlite->changes() ) {
 						/* Updated zero rows, so we need an insert. */
 						$stmt = $this->insertone;
-						$stmt->bindValue( ':name', $dbname, SQLITE3_TEXT );
+						$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
 						$stmt->bindValue( ':value', $value, SQLITE3_BLOB );
 						$stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
 						$result = $stmt->execute();
@@ -1631,7 +1445,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				$this->in_persistent_cache[ $name ] = true;
 				/* track how long it took. */
 				$this->insert_times[] = $this->time_usec() - $start;
-				$this->insert_names[] = $name;
 			} catch ( Exception $ex ) {
 				$this->error_log( 'handle_put', $ex );
 				$this->delete_offending_files();
@@ -1659,16 +1472,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				return false;
 			}
 
-			if ( empty( $group ) ) {
-				$group = 'default';
-			}
+			$name = $this->normalize_name( $key, $data );
 
-			$id = $key;
-			if ( $this->multisite && ! isset( $this->global_groups[ $group ] ) ) {
-				$id = $this->blog_prefix . $key;
-			}
-
-			if ( ! $this->cache_item_exists( $id, $group ) ) {
+			if ( ! $this->cache_item_exists( $name ) ) {
 				return false;
 			}
 
@@ -1729,44 +1535,37 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		public function get_multiple( $input_keys, $group = 'default', $force = false ) {
 			$values = array();
 			if ( count( $input_keys ) <= 1 ) {
-				/* Send the degenerate get_multiple calls to plain old get. There are many of them and that logic is simpler. */
+				/* Send the degenerate get_multiple calls to plain old get. That logic is simpler. */
 				foreach ( $input_keys as $key ) {
 					$values[ $key ] = $this->get( $key, $group, $force );
 				}
 				return $values;
 			}
 			$start = $this->time_usec();
-			$group = empty( $group ) ? 'default' : $group;
 
-			$keys = array();
+			$keys_not_found = array();
 			if ( false === $force ) {
-				/* Prune down the list of keys to remove the ones already cached. */
-				foreach ( $input_keys as $rawkey ) {
-					list( $key, $dbkey ) = $this->get_valid_key( $rawkey, $group );
-					if ( $key ) {
-						$exists = isset( $this->cache[ $group ] )
-						          && ( isset( $this->cache[ $group ][ $key ] )
-						               || array_key_exists( $key, $this->cache[ $group ] ) );
-						if ( $exists ) {
-							if ( is_object( $this->cache[ $group ][ $key ] ) ) {
-								$values[ $key ] = clone $this->cache[ $group ][ $key ];
-							} else {
-								$values[ $key ] = $this->cache[ $group ][ $key ];
-							}
-							++ $this->cache_hits;
-						} else {
-							$keys[] = $key;
-						}
+				/* Find already-cached keys, pruning down the list of keys to fetch. */
+				foreach ( $input_keys as $key ) {
+					$name   = $this->normalize_name( $key, $group );
+					$exists = array_key_exists( $name, $this->cache );
+					if ( $exists ) {
+						$values [ $key ] = is_object( $this->cache[ $name ] )
+							? clone $this->cache[ $name ]
+							: $this->cache[ $name ];
+						++ $this->cache_hits;
+					} else {
+						$keys_not_found[] = $key;
 					}
 				}
 			} else {
 				/* Forcing retrieval from the persistent cache. Do them all. */
-				$keys = $input_keys;
+				$keys_not_found = $input_keys;
 			}
 
-			if ( count( $keys ) <= 1 ) {
+			if ( count( $keys_not_found ) <= 1 ) {
 				/* Degenerate case after fulfilment from RAM: handle as simple get */
-				foreach ( $keys as $key ) {
+				foreach ( $keys_not_found as $key ) {
 					$values[ $key ] = $this->get( $key, $group, $force );
 				}
 				return $values;
@@ -1774,8 +1573,8 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			/* split into alpha and numeric keys */
 			$alphakeys = array();
 			$intkeys   = array();
-			foreach ( $keys as $key ) {
-				if ( is_numeric( $key ) && (int) $key == $key && (int) $key > 0 ) {
+			foreach ( $keys_not_found as $key ) {
+				if ( is_numeric( $key ) && (int) $key == $key && (int) $key > 0 && (int) $key <= $this->intkey_max) {
 					$intkeys [] = (int) $key;
 				} else {
 					$alphakeys [] = $key;
@@ -1791,17 +1590,15 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				$this->transaction_active = true;
 				$this->sqlite->exec( 'BEGIN' );
 
-				// TODO what a confused mess!!!
-
 				/* Start by loading the consecutive runs of int keys */
 				foreach ( $runs as $first => $last ) {
 					if ( $last > $first ) {
 						/* TODO try just not doing the range lookup on the one-key ranges, defer to get. */
-						list( $first_key, $first_dbkey ) = $this->get_valid_key( $first, $group );
-						list( $last_key, $last_dbkey ) = $this->get_valid_key( $first, $group );
-						$stmt = $this->getrange;
-						$stmt->bindValue( ':first', $group . '|' . $first_dbkey, SQLITE3_TEXT );
-						$stmt->bindValue( ':last', $group . '|' . $last_dbkey, SQLITE3_TEXT );
+						$first_dbkey = $this->normalize_name( $first, $group );
+						$last_dbkey  = $this->normalize_name( $last, $group );
+						$stmt        = $this->getrange;
+						$stmt->bindValue( ':first', $first_dbkey, SQLITE3_TEXT );
+						$stmt->bindValue( ':last', $last_dbkey, SQLITE3_TEXT );
 						$resultset = $stmt->execute();
 						while ( true ) {
 							$row = $resultset->fetchArray( SQLITE3_NUM );
@@ -1809,15 +1606,8 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 								break;
 							}
 							++ $this->persistent_hits;
-							$dbname = $row[0];
-							if ( $this->multisite && ! isset( $this->global_groups[ $group ] ) && str_starts_with( $dbname, $this->blog_prefix ) ) {
-								$dbname = substr( $dbname, strlen( $this->blog_prefix ) );
-							}
-							$key = $this->from_db_key( $dbname );
-							if ( ! array_key_exists( $group, $this->cache ) ) {
-								$this->cache[ $group ] = array();
-							}
-							$this->cache[ $group ][ $key ] = $this->maybe_unserialize( $row[1] );
+							$name                 = $row[0];
+							$this->cache[ $name ] = $this->maybe_unserialize( $row[1] );
 						}
 						$resultset->finalize();
 					}
@@ -1841,9 +1631,44 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				$this->delete_offending_files();
 				self::drop_dead();
 			}
-			$this->get_multiple_keys []  = count( $keys );
+			$this->get_multiple_keys []  = count( $keys_not_found );
 			$this->get_multiple_times [] = $this->time_usec() - $start;
 			return $values;
+		}
+
+		/**
+		 * Get the database key for a WordPress key.
+		 *
+		 * We do this so we can store numerical database keys in numerical order.
+		 *
+		 * @param string| int $key The WordPress key.
+		 *
+		 * @return string The key, verbatim if it's text, or \x10000nnn if it's numeric.
+		 */
+		private function to_db_key( &$key ) {
+			if ( is_numeric( $key ) && (int) $key == $key && (int) $key > 0 && (int) $key <= $this->intkey_max ) {
+				return self::INTKEY_SENTINEL . str_pad( $key, 1 + $this->intkey_length, '0', STR_PAD_LEFT );
+			}
+			return $key;
+		}
+
+		/**
+		 * Get the cache row name for a key and group.
+		 *
+		 * @param int|string $key Key name.
+		 * @param string     $group Group name, default = 'default'.
+		 *
+		 * @return string
+		 */
+		private function normalize_name( $key, $group ) {
+			if ( empty( $group ) ) {
+				$group = 'default';
+			}
+			$key = $this->to_db_key( $key );
+			if ( $this->multisite && ! isset( $this->global_groups[ $group ] ) ) {
+				$key = $this->blog_prefix . $key;
+			}
+			return $group . '|' . $key;
 		}
 
 		/**
@@ -1876,30 +1701,18 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				return false;
 			}
 
-			if ( empty( $group ) ) {
-				$group = 'default';
-			}
-
-			if ( $this->multisite && ! isset( $this->global_groups[ $group ] ) ) {
-				$key = $this->blog_prefix . $key;
-			}
+			$name = $this->normalize_name( $key, $group );
 
 			if ( $force ) {
-				unset( $this->cache[ $group ][ $key ] );
+				unset( $this->cache[ $name ] );
 			}
 
 			try {
-				if ( $this->cache_item_exists( $key, $group ) ) {
+				if ( $this->cache_item_exists( $name, $key, $group ) ) {
 					$found = true;
 					++ $this->cache_hits;
-					if ( is_object( $this->cache[ $group ][ $key ] ) ) {
-						++ $this->get_depth;
-
-						return clone $this->cache[ $group ][ $key ];
-					}
 					++ $this->get_depth;
-
-					return $this->cache[ $group ][ $key ];
+					return is_object( $this->cache[ $name ] ) ? clone( $this->cache[ $name ] ) : $this->cache[ $name ];
 				}
 			} catch ( Exception $ex ) {
 				$this->delete_offending_files();
@@ -1964,27 +1777,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				return false;
 			}
 
-			if ( empty( $group ) ) {
-				$group = 'default';
-			}
-
-			if ( $this->multisite && ! isset( $this->global_groups[ $group ] ) ) {
-				$key = $this->blog_prefix . $key;
-			}
-
-			try {
-
-				if ( ! $this->cache_item_exists( $key, $group ) ) {
-					return false;
-				}
-			} catch ( Exception $ex ) {
-				$this->delete_offending_files();
-
-				return true;
-			}
-
-			unset( $this->cache[ $group ][ $key ] );
-			$this->handle_delete( $key, $group );
+			$name = $this->normalize_name( $key, $group );
+			unset ( $this->cache[ $name ] );
+			$this->delete_by_name( $name );
 
 			return true;
 		}
@@ -2035,27 +1830,25 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		/**
 		 * Delete from the persistent cache.
 		 *
-		 * @param int|string $key What to call the contents in the cache.
-		 * @param string     $group Optional. Where to group the cache contents. Default 'default'.
+		 * @param string $name What to call the contents in the cache.
 		 *
 		 * @return void
 		 */
-		private function handle_delete( $key, $group ) {
-			$dbname = $this->dbname_from_key_group( $key, $group );
-			$start  = $this->time_usec();
-			$stmt   = $this->deleteone;
+		private function delete_by_name( $name ) {
+			$start = $this->time_usec();
+			$stmt  = $this->deleteone;
 			try {
 				if ( ! $this->sqlite ) {
 					$this->open_connection();
 				}
-				$stmt->bindValue( ':name', $dbname, SQLITE3_TEXT );
+				$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
 				$result = $stmt->execute();
 				$result->finalize();
 			} catch ( Exception $ex ) {
 				$this->delete_offending_files();
 			}
-			unset( $this->in_persistent_cache[ $dbname ] );
-			$this->not_in_persistent_cache[ $dbname ] = true;
+			unset( $this->in_persistent_cache[ $name ] );
+			$this->not_in_persistent_cache[ $name ] = true;
 			/* track how long it took. */
 			$this->delete_times[] = $this->time_usec() - $start;
 		}
@@ -2076,32 +1869,26 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				return false;
 			}
 
-			if ( empty( $group ) ) {
-				$group = 'default';
-			}
+			$name = $this->normalize_name( $key, $group );
 
-			if ( $this->multisite && ! isset( $this->global_groups[ $group ] ) ) {
-				$key = $this->blog_prefix . $key;
-			}
-
-			if ( ! $this->cache_item_exists( $key, $group ) ) {
+			if ( ! $this->cache_item_exists( $name, $key, $group ) ) {
 				return false;
 			}
 
-			if ( ! is_numeric( $this->cache[ $group ][ $key ] ) ) {
-				$this->cache[ $group ][ $key ] = 0;
+			if ( ! is_numeric( $this->cache[ $name ] ) ) {
+				$this->cache[ $name ] = 0;
 			}
 
 			$offset = (int) $offset;
 
-			$this->cache[ $group ][ $key ] += $offset;
+			$this->cache[ $name ] += $offset;
 
-			if ( $this->cache[ $group ][ $key ] < 0 ) {
-				$this->cache[ $group ][ $key ] = 0;
+			if ( $this->cache[ $name ] < 0 ) {
+				$this->cache[ $name ] = 0;
 			}
-			$this->handle_put( $key, $group, $this->cache[ $group ][ $key ], 0 );
+			$this->put_by_name( $name, $this->cache[ $name ], 0 );
 
-			return $this->cache[ $group ][ $key ];
+			return $this->cache[ $name ];
 		}
 
 		/**
@@ -2117,37 +1904,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 *
 		 */
 		public function decr( $key, $offset = 1, $group = 'default' ) {
-			if ( ! $this->is_valid_key( $key ) ) {
-				return false;
-			}
-
-			if ( empty( $group ) ) {
-				$group = 'default';
-			}
-
-			if ( $this->multisite && ! isset( $this->global_groups[ $group ] ) ) {
-				$key = $this->blog_prefix . $key;
-			}
-
-			if ( ! $this->cache_item_exists( $key, $group ) ) {
-				return false;
-			}
-
-			if ( ! is_numeric( $this->cache[ $group ][ $key ] ) ) {
-				$this->cache[ $group ][ $key ] = 0;
-			}
-
-			$offset = (int) $offset;
-
-			$this->cache[ $group ][ $key ] -= $offset;
-
-			if ( $this->cache[ $group ][ $key ] < 0 ) {
-				$this->cache[ $group ][ $key ] = 0;
-			}
-
-			$this->handle_put( $key, $group, $this->cache[ $group ][ $key ], 0 );
-
-			return $this->cache[ $group ][ $key ];
+			return $this->incr( $key, - $offset, $group );
 		}
 
 		/**
@@ -2227,10 +1984,20 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 					$this->open_connection();
 				}
 
-				$start = $this->time_usec();
-				unset( $this->cache[ $group ] );
+				$names_to_flush = array();
+				$prefix         = $group . '|';
+				foreach ( $this->cache as $name => $data ) {
+					if ( str_starts_with( $name, $prefix ) ) {
+						$names_to_flush [] = $name;
+					}
+				}
+				foreach ( $names_to_flush as $name ) {
+					unset ( $this->cache[ $name ] );
+				}
+				unset ( $names_to_flush );
+
 				$stmt = $this->deletegroup;
-				$stmt->bindValue( ':group', $group, SQLITE3_TEXT );
+				$stmt->bindValue( ':group', $prefix, SQLITE3_TEXT );
 				$result = $stmt->execute();
 				$result->finalize();
 			} catch ( Exception $ex ) {
@@ -2300,10 +2067,18 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			_deprecated_function( __FUNCTION__, '3.5.0', 'WP_Object_Cache::switch_to_blog()' );
 
 			// Clear out non-global caches since the blog ID has changed.
-			foreach ( array_keys( $this->cache ) as $group ) {
-				if ( ! isset( $this->global_groups[ $group ] ) ) {
-					unset( $this->cache[ $group ] );
+			$names_to_flush = array();
+			foreach ( $this->cache as $name => $data ) {
+				$splits = explode( '|', $name, 2 );
+				if ( 2 === count( $splits ) ) {
+					$group = $splits[0];
+					if ( ! isset( $this->global_groups[ $group ] ) ) {
+						$names_to_flush[] = $name;
+					}
 				}
+			}
+			foreach ( $names_to_flush as $name ) {
+				unset ( $this->cache[ $name ] );
 			}
 		}
 
@@ -2318,13 +2093,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		public function stats() {
 			echo '<p><strong>Cache Hits:</strong> ' . esc_html( $this->cache_hits ) . '<br />';
 			echo '<strong>Cache Misses:</strong> ' . esc_html( $this->cache_misses ) . '<br /></p>' . PHP_EOL;
-			echo '<ul>';
-			foreach ( $this->cache as $group => $cache ) {
-				$length = number_format( strlen( $this->maybe_serialize( $cache ) ) / KB_IN_BYTES, 1 );
-				$item   = $group . ' - ( ' . $length . 'KiB )';
-				echo '<li><strong>Group:</strong> ' . esc_html( $item ) . '</li>';
-			}
-			echo '</ul>';
 		}
 
 		/**
