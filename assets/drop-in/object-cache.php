@@ -249,15 +249,11 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		/**
 		 * Associative array of items we know ARE NOT in SQLite.
 		 *
-		 * @var array Keys are names, values don't matter.
+		 * When a name is not in this array it means we don't know if it is in SQLite or not.
+		 *
+		 * @var array Keys are cached item names. Values are true.
 		 */
 		private $not_in_persistent_cache = array();
-		/**
-		 * Associative array of items we know ARE in SQLite.
-		 *
-		 * @var array Keys are names, values don't matter.
-		 */
-		private $in_persistent_cache = array();
 		/**
 		 * Cache table name.
 		 *
@@ -1061,7 +1057,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		private function capture( $options ) {
 			$now = microtime( true );
 			global $wpdb;
-			$record = array(
+			$record       = array(
 				'time'              => $now,
 				'RAMhits'           => $this->cache_hits,
 				'RAMmisses'         => $this->cache_misses,
@@ -1239,11 +1235,10 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 
 			$name = $this->normalize_name( $key, $group );
 
-			if ( $this->cache_item_exists( $name, $key, $group ) ) {
-				return false;
+			if ( $this->cache_item_not_exists( $name ) ) {
+				return $this->set( $key, $data, $group, (int) $expire );
 			}
-
-			return $this->set( $key, $data, $group, (int) $expire );
+			return false;
 		}
 
 		/**
@@ -1282,6 +1277,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		/**
 		 * Determine whether a key exists in the cache.
 		 *
+		 * As a side-effect and optimization, copy the value from the SQLite store
+		 * to RAM if it exists in the SQLite store.
+		 *
 		 * @param int|string $name Cache key to check for existence.
 		 *
 		 * @return bool Whether the key exists in the cache for the given group.
@@ -1291,17 +1289,42 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		protected function cache_item_exists( $name ) {
 			$exists = array_key_exists( $name, $this->cache );
 			if ( ! $exists ) {
+				if ( array_key_exists( $name, $this->not_in_persistent_cache ) ) {
+					return false;
+				}
 				$val = $this->get_by_name( $name );
 				if ( null !== $val ) {
 					$this->cache[ $name ] = $val;
 					$exists               = true;
 					$this->persistent_hits ++;
+					unset( $this->not_in_persistent_cache[ $name ] );
 				} else {
 					$this->persistent_misses ++;
+					$this->not_in_persistent_cache[ $name ] = true;
 				}
 			}
 
 			return $exists;
+		}
+
+		/**
+		 * Determine whether a key does not exist in the cache. either local or SQLite
+		 *
+		 * @param int|string $name Cache key to check for existence.
+		 *
+		 * @return bool Whether the key does not exists in the cache.
+		 * @throws Exception Announce database failure.
+		 * @since 3.4.0
+		 */
+		protected function cache_item_not_exists( $name ) {
+
+			if ( array_key_exists( $name, $this->cache ) ) {
+				return false;
+			}
+			if ( array_key_exists( $name, $this->not_in_persistent_cache ) ) {
+				return true;
+			}
+			return ! $this->cache_item_exists( $name );
 		}
 
 		/**
@@ -1329,14 +1352,13 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				$data   = false !== $row && is_array( $row ) && 1 === count( $row ) ? $row[0] : null;
 				if ( null !== $data ) {
 					$data                                = $this->maybe_unserialize( $data );
-					$this->in_persistent_cache [ $name ] = true;
+					unset ( $this->not_in_persistent_cache[ $name ] );
 				} else {
 					$this->not_in_persistent_cache [ $name ] = true;
 				}
 				$result->finalize();
 			} catch ( Exception $ex ) {
-				unset( $this->in_persistent_cache[ $name ] );
-				$this->not_in_persistent_cache [ $name ] = true;
+				unset( $this->not_in_persistent_cache [ $name ] );
 				$this->error_log( 'getone', $ex );
 				$this->delete_offending_files();
 				self::drop_dead();
@@ -1442,7 +1464,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 					}
 				}
 				unset( $this->not_in_persistent_cache[ $name ] );
-				$this->in_persistent_cache[ $name ] = true;
 				/* track how long it took. */
 				$this->insert_times[] = $this->time_usec() - $start;
 			} catch ( Exception $ex ) {
@@ -1474,7 +1495,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 
 			$name = $this->normalize_name( $key, $data );
 
-			if ( ! $this->cache_item_exists( $name ) ) {
+			if ( $this->cache_item_not_exists( $name ) ) {
 				return false;
 			}
 
@@ -1574,14 +1595,12 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$alphakeys = array();
 			$intkeys   = array();
 			foreach ( $keys_not_found as $key ) {
-				if ( is_numeric( $key ) && (int) $key == $key && (int) $key > 0 && (int) $key <= $this->intkey_max) {
+				if ( is_numeric( $key ) && (int) $key == $key && (int) $key > 0 && (int) $key <= $this->intkey_max ) {
 					$intkeys [] = (int) $key;
 				} else {
 					$alphakeys [] = $key;
 				}
 			}
-			/* Get the consecutive integer key runs */
-			$runs = $this->runs( $intkeys, $this->erode_gaps );
 			try {
 				if ( ! $this->sqlite ) {
 					$this->open_connection();
@@ -1590,26 +1609,32 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				$this->transaction_active = true;
 				$this->sqlite->exec( 'BEGIN' );
 
-				/* Start by loading the consecutive runs of int keys */
-				foreach ( $runs as $first => $last ) {
-					if ( $last > $first ) {
-						/* Skip the range lookup on the one-key ranges, defer to get. */
-						$first_dbkey = $this->normalize_name( $first, $group );
-						$last_dbkey  = $this->normalize_name( $last, $group );
-						$stmt        = $this->getrange;
-						$stmt->bindValue( ':first', $first_dbkey, SQLITE3_TEXT );
-						$stmt->bindValue( ':last', $last_dbkey, SQLITE3_TEXT );
-						$resultset = $stmt->execute();
-						while ( true ) {
-							$row = $resultset->fetchArray( SQLITE3_NUM );
-							if ( ! $row ) {
-								break;
+				/* When forcing, go item-by-item, not run-by-run */
+				if ( ! $force ) {
+					/* Get the consecutive integer key runs */
+					$runs = $this->runs( $intkeys, $this->erode_gaps );
+
+					/* Start by loading the consecutive runs of int keys */
+					foreach ( $runs as $first => $last ) {
+						if ( $last > $first ) {
+							$first_dbkey = $this->normalize_name( $first, $group );
+							$last_dbkey  = $this->normalize_name( $last, $group );
+							$stmt        = $this->getrange;
+							$stmt->bindValue( ':first', $first_dbkey, SQLITE3_TEXT );
+							$stmt->bindValue( ':last', $last_dbkey, SQLITE3_TEXT );
+							$resultset = $stmt->execute();
+							while ( true ) {
+								$row = $resultset->fetchArray( SQLITE3_NUM );
+								if ( ! $row ) {
+									break;
+								}
+								++ $this->persistent_hits;
+								$name                               = $row[0];
+								$this->cache[ $name ]               = $this->maybe_unserialize( $row[1] );
+								unset( $this->not_in_persistent_cache[ $name ] );
 							}
-							++ $this->persistent_hits;
-							$name                 = $row[0];
-							$this->cache[ $name ] = $this->maybe_unserialize( $row[1] );
+							$resultset->finalize();
 						}
-						$resultset->finalize();
 					}
 				}
 
@@ -1705,10 +1730,11 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 
 			if ( $force ) {
 				unset( $this->cache[ $name ] );
+				unset ( $this->not_in_persistent_cache[ $name ] );
 			}
 
 			try {
-				if ( $this->cache_item_exists( $name, $key, $group ) ) {
+				if ( $this->cache_item_exists( $name ) ) {
 					$found = true;
 					++ $this->cache_hits;
 					++ $this->get_depth;
@@ -1780,6 +1806,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$name = $this->normalize_name( $key, $group );
 			unset ( $this->cache[ $name ] );
 			$this->delete_by_name( $name );
+			$this->not_in_persistent_cache[ $name ] = true;
 
 			return true;
 		}
@@ -1838,6 +1865,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$start = $this->time_usec();
 			$stmt  = $this->deleteone;
 			try {
+				$this->not_in_persistent_cache[ $name ] = true;
 				if ( ! $this->sqlite ) {
 					$this->open_connection();
 				}
@@ -1847,8 +1875,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			} catch ( Exception $ex ) {
 				$this->delete_offending_files();
 			}
-			unset( $this->in_persistent_cache[ $name ] );
-			$this->not_in_persistent_cache[ $name ] = true;
 			/* track how long it took. */
 			$this->delete_times[] = $this->time_usec() - $start;
 		}
@@ -1871,7 +1897,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 
 			$name = $this->normalize_name( $key, $group );
 
-			if ( ! $this->cache_item_exists( $name, $key, $group ) ) {
+			if ( $this->cache_item_not_exists( $name ) ) {
 				return false;
 			}
 
@@ -1965,7 +1991,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		public function flush_runtime() {
 			$this->cache                   = array();
 			$this->not_in_persistent_cache = array();
-			$this->in_persistent_cache     = array();
 
 			return true;
 		}
@@ -1993,6 +2018,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				}
 				foreach ( $names_to_flush as $name ) {
 					unset ( $this->cache[ $name ] );
+					$this->not_in_persistent_cache[ $name ] = true;
 				}
 				unset ( $names_to_flush );
 
@@ -2007,7 +2033,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			}
 			/* remove hints about what is in the persistent cache */
 			$this->not_in_persistent_cache = array();
-			$this->in_persistent_cache     = array();
 
 			return true;
 		}
@@ -2079,6 +2104,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			}
 			foreach ( $names_to_flush as $name ) {
 				unset ( $this->cache[ $name ] );
+				$this->not_in_persistent_cache[ $name ] = true;
 			}
 		}
 
