@@ -5,8 +5,8 @@ Tags: cache, sqlite, performance
 Requires at least: 5.5
 Requires PHP: 5.6
 Tested up to: 6.2
-Version: 1.2.3
-Stable tag: 1.2.3
+Version: 1.3.0
+Stable tag: 1.3.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache
@@ -173,6 +173,11 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 == Changelog ==
 
+= 1.3.0 =
+
+* Optimize wp_cache_get_multiple, using SQL BETWEEN to fetch consecutive cache entries.
+* Do not expire old entries. Instead control cache size by deleting least recently changed entries.
+
 = 1.2.3 =
 
 * Sanitize the WP_CACHE_KEY_SALT value.
@@ -226,12 +231,10 @@ This application of SQLite puts its concurrency-handling code to the test.
 
 == Upgrade Notice ==
 
-This release corrects a defect in `wp_cache_flush_runtime()`, which should not flush the persistent cache. That function is used by the action scheduler.
+In this release, the plugin keeps the SQLite3 cache file from growing too large by deleting the least recently changed entries once per hour.  You may choose a target size for your cache file. Once per hour a WP_Cron task deletes entries as needed to bring the amount of cached data to your target size.
 
-If WP_CACHE_KEY_SALT is provided, it uses it correctly (sanitizing it before using it in a filename).
-
-It suppresses backups of the SQLite data in common backup plugins.
-
-It allows you to use `wp-config.php` settings to configure SQLite's timeout, journaliing mode, and file name. And, it changes the timeout and journaliing mode attempting to cope with rare long SQLite waits.
+In this release the plugin supports WordPress's [wp_cache_get_multiple()](https://developer.wordpress.org/reference/functions/wp_cache_get_multiple/) function. When possible, it fetches consecutive cache entries with single SQLite3 statements.
+* Optimize wp_cache_get_multiple, using SQL BETWEEN to fetch consecutive cache entries.
+* Do not expire old entries. Instead control cache size by deleting least recently changed entries.
 
 Thanks, dear users, especially @spacedmonkey, @spaceling and @ss88_uk, for letting me know about errors you found, and for your patience as I figure this out. All remaining errors are solely the responsibility of the author.

@@ -121,7 +121,7 @@ class SQLite_Object_Cache {
 	 * @param string $file File constructor.
 	 * @param string $version Plugin version.
 	 */
-	public function __construct( $file = '', $version = '1.2.3' ) {
+	public function __construct( $file = '', $version = '1.3.0' ) {
 		$this->_version = $version;
 		$this->_token   = 'sqlite_object_cache';
 
@@ -180,14 +180,22 @@ class SQLite_Object_Cache {
 	 *
 	 * @return void
 	 */
-	public
-	function clean() {
+	public function clean() {
 		global $wp_object_cache;
 		$option = get_option( $this->_token . '_settings', array() );
-		if ( method_exists( $wp_object_cache, 'sqlite_clean_up_cache' ) ) {
-			$retention = array_key_exists( 'retention', $option ) ? $option['retention'] : 24;
+		if ( method_exists( $wp_object_cache, 'sqlite_delete_old' ) ) {
+			$target_size = array_key_exists( 'target_size', $option ) ? $option['target_size'] : 4;
+			$target_size *= ( 1024 * 1024 );
 			try {
-				$wp_object_cache->sqlite_clean_up_cache( $retention * HOUR_IN_SECONDS, true, true );
+				$wp_object_cache->sqlite_delete_old( $target_size );
+			} catch ( Exception $ex ) {
+				error_log( 'sqlite_object_cache cache cleanup failure: ', $ex->getMessage() );
+			}
+		}
+
+		if ( method_exists( $wp_object_cache, 'sqlite_remove_expired' ) ) {
+			try {
+				$wp_object_cache->sqlite_remove_expired( true );
 			} catch ( Exception $ex ) {
 				error_log( 'sqlite_object_cache cache cleanup failure: ', $ex->getMessage() );
 			}
@@ -201,7 +209,7 @@ class SQLite_Object_Cache {
 				error_log( 'sqlite_object_cache stats cleanup failure: ', $ex->getMessage() );
 			}
 		}
-	} // End enqueue_styles ()
+	}
 
 	/**
 	 * Plugin activation hook
@@ -439,23 +447,6 @@ class SQLite_Object_Cache {
 		}
 	}
 
-	private function delete_sqlite_files() {
-		global $wp_filesystem;
-		global $wp_object_cache;
-
-		ob_start();
-
-		if ( method_exists( $wp_object_cache, 'sqlite_files' ) ) {
-			if ( $this->validate_object_cache_dropin() && $this->initialize_filesystem( '', true ) ) {
-				foreach ( $wp_object_cache->sqlite_files() as $file ) {
-					$wp_filesystem->delete( $file );
-				}
-			}
-		}
-
-		ob_end_clean();
-	}
-
 	/**
 	 * Validates the `object-cache.php` drop-in
 	 *
@@ -504,6 +495,23 @@ class SQLite_Object_Cache {
 		wp_unschedule_hook( self::CLEAN_EVENT_HOOK );
 		$this->delete_sqlite_files();
 		$this->delete_dropin();
+	}
+
+	private function delete_sqlite_files() {
+		global $wp_filesystem;
+		global $wp_object_cache;
+
+		ob_start();
+
+		if ( method_exists( $wp_object_cache, 'sqlite_files' ) ) {
+			if ( $this->validate_object_cache_dropin() && $this->initialize_filesystem( '', true ) ) {
+				foreach ( $wp_object_cache->sqlite_files() as $file ) {
+					$wp_filesystem->delete( $file );
+				}
+			}
+		}
+
+		ob_end_clean();
 	}
 
 	private

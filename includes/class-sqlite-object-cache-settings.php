@@ -105,27 +105,26 @@ class SQLite_Object_Cache_Settings {
 				array(
 					'id'          => 'flush',
 					'label'       => __( 'Flush now', 'sqlite-object-cache' ),
-					'description' => __( 'Check to flush the cache (delete all its entries).', 'sqlite-object-cache' ),
+					'description' => __( 'Check to flush the cache (delete all its entries) now.', 'sqlite-object-cache' ),
 					'type'        => 'checkbox',
 					'default'     => '',
 					'reset'       => '',
 				),
 				array(
-					'id'          => 'retention',
-					'label'       => __( 'Cached data expires after', 'sqlite-object-cache' ),
-					'description' => __( 'hours.', 'sqlite-object-cache' ),
+					'id'          => 'target_size',
+					'label'       => __( 'Cache Size', 'sqlite-object-cache' ),
+					'description' => __( 'MiB. When the cache grows larger than this, hourly cleanup removes the oldest entries.', 'sqlite-object-cache' ),
 					'type'        => 'number',
-					'default'     => 24,
-					'max'         => 24 * 7,
-					'min'         => 1,
+					'default'     => 4,
+					'min'         => 0.5,
 					'step'        => 'any',
 					'cssclass'    => 'narrow',
-					'placeholder' => __( 'Hours to retain.', 'sqlite-object-cache' ),
+					'placeholder' => __( 'MiB.', 'sqlite-object-cache' ),
 				),
 				array(
 					'id'          => 'cleanup',
 					'label'       => __( 'Clean up now', 'sqlite-object-cache' ),
-					'description' => __( 'Check to clean up the cache (delete expired data).', 'sqlite-object-cache' ),
+					'description' => __( 'Check to clean up the cache (delete old data) now.', 'sqlite-object-cache' ),
 					'type'        => 'checkbox',
 					'default'     => '',
 					'reset'       => '',
@@ -201,12 +200,12 @@ class SQLite_Object_Cache_Settings {
 			}
 			unset ( $option['flush'] );
 		}
-		$retention = $this->numeric_option( $option, 'retention', 7 );
 		if ( array_key_exists( 'cleanup', $option ) && $option ['cleanup'] === 'on' ) {
 			$this->parent->clean();
 			unset ( $option['cleanup'] );
 		}
 
+		$this->numeric_option( $option, 'target_size', 4 );
 		$this->numeric_option( $option, 'samplerate', 10 );
 		$this->numeric_option( $option, 'retainmeasurements', 2 );
 
