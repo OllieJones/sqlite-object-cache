@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache (Drop-in)
- * Version: 1.3.0
+ * Version: 1.3.1
  * Note: This Version number must match the one in SQLite_Object_Cache::_construct.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -901,15 +901,15 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		}
 
 		/**
-		 * Remove old entries and VACUUM the database.
+		 * Remove old entries.
 		 *
 		 * @param bool $use_transaction True if the cleanup should be inside BEGIN / COMMIT.
 		 *
-		 * @return void
+		 * @return boolean True if any items were removed.
 		 * @noinspection SqlResolve
 		 */
 		public function sqlite_remove_expired( $use_transaction = true ) {
-			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
+			$items_removed = 0;
 			try {
 				if ( ! $this->sqlite ) {
 					$this->open_connection();
@@ -921,7 +921,8 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				$sql  = "DELETE FROM $this->cache_table_name WHERE expires <= :now;";
 				$stmt = $this->sqlite->prepare( $sql );
 				$stmt->bindValue( ':now', time(), SQLITE3_INTEGER );
-				$result = $stmt->execute();
+				$result        = $stmt->execute();
+				$items_removed = $this->sqlite->changes();
 				$result->finalize();
 				if ( $use_transaction ) {
 					$this->sqlite->exec( 'COMMIT' );
@@ -929,6 +930,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			} catch ( Exception $ex ) {
 				$this->error_log( 'sqlite_clean_up_cache', $ex );
 			}
+			return $items_removed > 0;
 		}
 
 		/**
@@ -1351,7 +1353,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				$row    = $result->fetchArray( SQLITE3_NUM );
 				$data   = false !== $row && is_array( $row ) && 1 === count( $row ) ? $row[0] : null;
 				if ( null !== $data ) {
-					$data                                = $this->maybe_unserialize( $data );
+					$data = $this->maybe_unserialize( $data );
 					unset ( $this->not_in_persistent_cache[ $name ] );
 				} else {
 					$this->not_in_persistent_cache [ $name ] = true;
@@ -1629,8 +1631,8 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 									break;
 								}
 								++ $this->persistent_hits;
-								$name                               = $row[0];
-								$this->cache[ $name ]               = $this->maybe_unserialize( $row[1] );
+								$name                 = $row[0];
+								$this->cache[ $name ] = $this->maybe_unserialize( $row[1] );
 								unset( $this->not_in_persistent_cache[ $name ] );
 							}
 							$resultset->finalize();
@@ -1818,20 +1820,19 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * approach requires writing the time of use to the cache with every access, and that
 		 * is too expensive.
 		 *
-		 * @param int $target_size Size in bytes.
+		 * @param int $target_size Desired size in bytes.
+		 * @param int $current_size Current size in bytes.
 		 *
 		 * @return void
 		 */
-		public function sqlite_delete_old( $target_size ) {
-
+		public function sqlite_delete_old( $target_size, $current_size ) {
 			$horizon = null;
+			if ( ! $this->sqlite ) {
+				return;
+			}
 			try {
-				if ( ! $this->sqlite ) {
-					$this->open_connection();
-				}
-				$current_size = $this->sqlite_get_size();
-				if ( $current_size > $target_size ) {
-					foreach ( $this->sqlite_load_sizes( true ) as $item ) {
+				if ( $target_size < $current_size ) {
+					foreach ( $this->sqlite_load_sizes() as $item ) {
 						/* Find the time horizon that will delete enough entries */
 						$horizon      = $item->expires;
 						$current_size -= $item->length;
@@ -1839,16 +1840,17 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 							break;
 						}
 					}
+					if ( ! $horizon ) {
+						return;
+					}
 					$object_cache = self::OBJECT_CACHE_TABLE;
 					$offset       = $this->noexpire_timestamp_offset;
-
 					$sql = "DELETE FROM $object_cache WHERE expires >= $offset AND expires <= $horizon";
 					$this->sqlite->exec( $sql );
+					$this->sqlite->exec( 'VACUUM' );
+					$this->sqlite->exec( 'PRAGMA analysis_limit=400' );
+					$this->sqlite->exec( 'PRAGMA optimize' );
 				}
-
-				$this->sqlite->exec( 'VACUUM' );
-				$this->sqlite->exec( 'PRAGMA analysis_limit=400' );
-				$this->sqlite->exec( 'PRAGMA optimize' );
 			} catch ( Exception $ex ) {
 				$this->delete_offending_files();
 			}

@@ -121,7 +121,7 @@ class SQLite_Object_Cache {
 	 * @param string $file File constructor.
 	 * @param string $version Plugin version.
 	 */
-	public function __construct( $file = '', $version = '1.3.0' ) {
+	public function __construct( $file = '', $version = '1.3.1' ) {
 		$this->_version = $version;
 		$this->_token   = 'sqlite_object_cache';
 
@@ -153,9 +153,15 @@ class SQLite_Object_Cache {
 		add_action( 'admin_init', array( $this, 'maybe_update_dropin' ) );
 
 		/* handle cron cache cleanup */
-		add_action( self::CLEAN_EVENT_HOOK, array( $this, 'clean' ), 10, 0 );
+		add_action( self::CLEAN_EVENT_HOOK, array( $this, 'clean_job' ), 10, 0 );
 		if ( ! wp_next_scheduled( self::CLEAN_EVENT_HOOK ) ) {
 			wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', self::CLEAN_EVENT_HOOK );
+		}
+		/* Handle probabilistic non-cron cleanup, one request in 2000. */
+		if ( 1 === rand( 1, 2000 ) ) {
+			add_action( 'shutdown', function () {
+				$this->clean_job( 1.25 );
+			}, 999, 0 );
 		}
 	}
 
@@ -178,37 +184,43 @@ class SQLite_Object_Cache {
 	/**
 	 * WP_Cron task to clean cache entries.
 	 *
+	 * @param float $grace_factor Default 1.0
+	 *
 	 * @return void
 	 */
-	public function clean() {
+	public function clean_job( $grace_factor = 1.0 ) {
+		$option         = get_option( $this->_token . '_settings', array() );
+		$target_size    = empty ( $option['target_size'] ) ? 4 : $option['target_size'];
+		$target_size    *= ( 1024 * 1024 );
+		$threshold_size = (int) ( $target_size * $grace_factor );
+
 		global $wp_object_cache;
-		$option = get_option( $this->_token . '_settings', array() );
-		if ( method_exists( $wp_object_cache, 'sqlite_delete_old' ) ) {
-			$target_size = array_key_exists( 'target_size', $option ) ? $option['target_size'] : 4;
-			$target_size *= ( 1024 * 1024 );
-			try {
-				$wp_object_cache->sqlite_delete_old( $target_size );
-			} catch ( Exception $ex ) {
-				error_log( 'sqlite_object_cache cache cleanup failure: ', $ex->getMessage() );
-			}
+		if ( ! method_exists( $wp_object_cache, 'sqlite_get_size' ) ) {
+			return;
+		}
+		$current_size = $wp_object_cache->sqlite_get_size();
+		/* Skip this if the current size is small enough. */
+		if ( $current_size <= $threshold_size ) {
+			return;
 		}
 
-		if ( method_exists( $wp_object_cache, 'sqlite_remove_expired' ) ) {
-			try {
-				$wp_object_cache->sqlite_remove_expired( true );
-			} catch ( Exception $ex ) {
-				error_log( 'sqlite_object_cache cache cleanup failure: ', $ex->getMessage() );
-			}
+		/* Remove expired items (transients mostly). */
+		if ( $wp_object_cache->sqlite_remove_expired( true ) ) {
+			/* If anything was removed, get the size again. */
+			$current_size = $wp_object_cache->sqlite_get_size();
 		}
 
-		if ( method_exists( $wp_object_cache, 'sqlite_reset_statistics' ) ) {
-			$retention = array_key_exists( 'retainmeasurements', $option ) ? $option['retainmeasurements'] : 24;
-			try {
-				$wp_object_cache->sqlite_reset_statistics( $retention * HOUR_IN_SECONDS );
-			} catch ( Exception $ex ) {
-				error_log( 'sqlite_object_cache stats cleanup failure: ', $ex->getMessage() );
-			}
+		/* Skip this if the size is small enough, after removing expired items. */
+		if ( $current_size <= $threshold_size ) {
+			return;
 		}
+
+		/* Clean up old statistics. */
+		$retention    = empty ( $option['retention'] ) ? 24 : $option['retention'];
+		$wp_object_cache->sqlite_reset_statistics( $retention * HOUR_IN_SECONDS );
+
+		/* Delete the least-recently-updated items to get to the target size. */
+		$wp_object_cache->sqlite_delete_old( $target_size, $current_size );
 	}
 
 	/**
