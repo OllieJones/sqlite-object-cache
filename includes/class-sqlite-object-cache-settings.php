@@ -201,7 +201,7 @@ class SQLite_Object_Cache_Settings {
 			unset ( $option['flush'] );
 		}
 		if ( array_key_exists( 'cleanup', $option ) && $option ['cleanup'] === 'on' ) {
-			$this->parent->clean();
+			$this->parent->clean_job();
 			unset ( $option['cleanup'] );
 		}
 

@@ -41,6 +41,8 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	/**
 	 * Object Cache API: WP_Object_Cache class, reworked for SQLite3 drop-in.
 	 *
+	 * NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3.
+	 *
 	 * @package WordPress
 	 * @subpackage Cache
 	 * @since 5.4.0
@@ -565,10 +567,8 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$this->sqlite->enableExceptions( true );
 			$this->sqlite->busyTimeout( $this->sqlite_timeout );
 
-			/* set some initial pragma stuff */
-			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
-
-			/* Notice we sometimes use a journal mode (MEMORY) that risks database corruption.
+			/* Set some initial pragma stuff.
+			 * Notice we sometimes use a journal mode (MEMORY) that risks database corruption.
 			 * That's OK, because it's faster, and because we have an error
 			 * recovery procedure that deletes and recreates a corrupt database file.
 			 */
@@ -642,7 +642,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @noinspection SqlResolve
 		 */
 		private function create_object_cache_table() {
-			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
 			$this->sqlite->exec( 'BEGIN' );
 			/* does our table exist?  */
 			$q = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND tbl_name = '$this->cache_table_name';";
@@ -686,9 +685,8 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @noinspection SqlResolve
 		 */
 		private function maybe_create_stats_table( $tbl ) {
-			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
 			$this->sqlite->exec( 'BEGIN' );
-			/* does our table exist?  */
+			/* Does our table exist?  */
 			$q = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND tbl_name = '$tbl';";
 			$r = $this->sqlite->querySingle( $q );
 			if ( 0 === $r ) {
@@ -714,8 +712,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @noinspection SqlResolve
 		 */
 		private function prepare_statements( $tbl ) {
-			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
-
 			$now               = time();
 			$this->getone      =
 				$this->sqlite->prepare( "SELECT value FROM $tbl WHERE name = :name AND expires >= $now;" );
@@ -884,7 +880,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				}
 				$object_stats = self::OBJECT_STATS_TABLE;
 				$this->maybe_create_stats_table( $object_stats );
-				/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
 				if ( ! is_numeric( $age ) ) {
 					/* @noinspection SqlWithoutWhere */
 					$sql = "DELETE FROM $object_stats;";
@@ -1944,7 +1939,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @since 2.0.0
 		 */
 		public function flush( $vacuum = false ) {
-			/* NOTE WELL: SQL in this file is not for use with $wpdb, but for SQLite3 */
 			try {
 				if ( ! $this->sqlite ) {
 					$this->open_connection();

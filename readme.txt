@@ -26,6 +26,8 @@ Without a persistent object cache, every WordPress page view must use your Maria
 
 Thanks to [Till Krüss](https://profiles.wordpress.org/tillkruess/). His [Redis Object Cache](https://wordpress.org/plugins/redis-cache/) plugin serves as a model for this one. And thanks to [Ari Stathopoulos](https://profiles.wordpress.org/aristath/) and [Jonny Harris](https://profiles.wordpress.org/spacedmonkey/) for reviewing this. (All defects are, of course, entirely the author's responsibility.)
 
+And thanks to Jetbrains for the use of their software development tools, especially [PhpStorm](https://www.jetbrains.com/phpstorm/). It's hard to imagine how a plugin like this one could be developed without PhpStorm's tools for exploring epic code bases like WordPress's.
+
 == Installation ==
 
 Installing "SQLite Object Cache" can be done either by searching for "SQLite Object Cache" via the "Plugins > Add New" screen in your WordPress dashboard, or by using the following steps:
