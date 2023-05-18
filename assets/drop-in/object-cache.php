@@ -1552,8 +1552,8 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 */
 		public function get_multiple( $input_keys, $group = 'default', $force = false ) {
 			$values = array();
-			if ( count( $input_keys ) <= 1 ) {
-				/* Send the degenerate get_multiple calls to plain old get. That logic is simpler. */
+			if ( count( $input_keys ) <= 1 || $force ) {
+				/* Send the degenerate get_multiple calls, and forced calls, to plain old get. That logic is simpler. */
 				foreach ( $input_keys as $key ) {
 					$values[ $key ] = $this->get( $key, $group, $force );
 				}
@@ -1561,41 +1561,37 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			}
 			$start = $this->time_usec();
 
+			$normalized     = array();
 			$keys_not_found = array();
-			if ( false === $force ) {
-				/* Find already-cached keys, pruning down the list of keys to fetch. */
-				foreach ( $input_keys as $key ) {
-					$name   = $this->normalize_name( $key, $group );
-					$exists = array_key_exists( $name, $this->cache );
-					if ( $exists ) {
-						$values [ $key ] = is_object( $this->cache[ $name ] )
-							? clone $this->cache[ $name ]
-							: $this->cache[ $name ];
-						++ $this->cache_hits;
-					} else {
-						$keys_not_found[] = $key;
-					}
+			/* Find already-cached keys, pruning down the list of keys to fetch. */
+			foreach ( $input_keys as $key ) {
+				$name                = $this->normalize_name( $key, $group );
+				$normalized [ $key ] = $name;
+				if ( array_key_exists( $name, $this->cache ) ) {
+					$values [ $key ] = is_object( $this->cache[ $name ] )
+						? clone $this->cache[ $name ]
+						: $this->cache[ $name ];
+					++ $this->cache_hits;
+				} else {
+					$keys_not_found[ $key ] = $name;
 				}
-			} else {
-				/* Forcing retrieval from the persistent cache. Do them all. */
-				$keys_not_found = $input_keys;
 			}
 
 			if ( count( $keys_not_found ) <= 1 ) {
 				/* Degenerate case after fulfilment from RAM: handle as simple get */
-				foreach ( $keys_not_found as $key ) {
-					$values[ $key ] = $this->get( $key, $group, $force );
+				foreach ( $keys_not_found as $key => $name ) {
+					$values[ $key ] = $this->get_by_normalized_name( $name );
 				}
 				return $values;
 			}
 			/* split into alpha and numeric keys */
 			$alphakeys = array();
 			$intkeys   = array();
-			foreach ( $keys_not_found as $key ) {
+			foreach ( $keys_not_found as $key => $name ) {
 				if ( is_numeric( $key ) && (int) $key == $key && (int) $key > 0 && (int) $key <= $this->intkey_max ) {
 					$intkeys [] = (int) $key;
 				} else {
-					$alphakeys [] = $key;
+					$alphakeys [ $key ] = $name;
 				}
 			}
 			try {
@@ -1606,44 +1602,36 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				$this->transaction_active = true;
 				$this->sqlite->exec( 'BEGIN' );
 
-				/* When forcing, go item-by-item, not run-by-run */
-				if ( ! $force ) {
-					/* Get the consecutive integer key runs */
-					$runs = $this->runs( $intkeys, $this->erode_gaps );
+				/* Get the consecutive integer key runs */
+				$runs = $this->runs( $intkeys, $this->erode_gaps );
 
-					/* Start by loading the consecutive runs of int keys */
-					foreach ( $runs as $first => $last ) {
-						if ( $last > $first ) {
-							$first_dbkey = $this->normalize_name( $first, $group );
-							$last_dbkey  = $this->normalize_name( $last, $group );
-							$stmt        = $this->getrange;
-							$stmt->bindValue( ':first', $first_dbkey, SQLITE3_TEXT );
-							$stmt->bindValue( ':last', $last_dbkey, SQLITE3_TEXT );
-							$resultset = $stmt->execute();
-							while ( true ) {
-								$row = $resultset->fetchArray( SQLITE3_NUM );
-								if ( ! $row ) {
-									break;
-								}
-								++ $this->persistent_hits;
-								$name                 = $row[0];
-								$this->cache[ $name ] = $this->maybe_unserialize( $row[1] );
-								unset( $this->not_in_persistent_cache[ $name ] );
-							}
-							$resultset->finalize();
+				/* Start by loading the consecutive runs of int keys */
+				foreach ( $runs as $first => $last ) {
+					$stmt = $this->getrange;
+					$stmt->bindValue( ':first', $normalized[ $first ], SQLITE3_TEXT );
+					$stmt->bindValue( ':last', $normalized[ $last ], SQLITE3_TEXT );
+					$resultset = $stmt->execute();
+					while ( true ) {
+						$row = $resultset->fetchArray( SQLITE3_NUM );
+						if ( ! $row ) {
+							break;
 						}
+						++ $this->persistent_hits;
+						$name                 = $row[0];
+						$this->cache[ $name ] = $this->maybe_unserialize( $row[1] );
+						unset( $this->not_in_persistent_cache[ $name ] );
 					}
+					$resultset->finalize();
 				}
-
 				/* Do the alpha keys, if any */
-				foreach ( $alphakeys as $key ) {
+				foreach ( $alphakeys as $key => $name ) {
 					if ( ! array_key_exists( $key, $values ) ) {
-						$values[ $key ] = $this->get( $key, $group, $force );
+						$values[ $key ] = $this->get_by_normalized_name( $name );
 					}
 				}
 				foreach ( $intkeys as $key ) {
 					if ( ! array_key_exists( $key, $values ) ) {
-						$values[ $key ] = $this->get( $key, $group, $force );
+						$values [ $key ] = $this->get_by_normalized_name( $normalized[ $key ] );
 					}
 				}
 				$this->sqlite->exec( 'COMMIT' );
@@ -1659,22 +1647,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		}
 
 		/**
-		 * Get the database key for a WordPress key.
-		 *
-		 * We do this so we can store numerical database keys in numerical order.
-		 *
-		 * @param string| int $key The WordPress key.
-		 *
-		 * @return string The key, verbatim if it's text, or \x10000nnn if it's numeric.
-		 */
-		private function to_db_key( &$key ) {
-			if ( is_numeric( $key ) && (int) $key == $key && (int) $key > 0 && (int) $key <= $this->intkey_max ) {
-				return self::INTKEY_SENTINEL . str_pad( $key, 1 + $this->intkey_length, '0', STR_PAD_LEFT );
-			}
-			return $key;
-		}
-
-		/**
 		 * Get the cache row name for a key and group.
 		 *
 		 * @param int|string $key Key name.
@@ -1683,12 +1655,15 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @return string
 		 */
 		private function normalize_name( $key, $group ) {
-			if ( empty( $group ) ) {
-				$group = 'default';
+			if ( is_numeric( $key ) && (int) $key == $key && (int) $key >= 0 && (int) $key <= $this->intkey_max ) {
+				$key = self::INTKEY_SENTINEL . str_pad( $key, 1 + $this->intkey_length, '0', STR_PAD_LEFT );
 			}
-			$key = $this->to_db_key( $key );
+
 			if ( $this->multisite && ! isset( $this->global_groups[ $group ] ) ) {
 				$key = $this->blog_prefix . $key;
+			}
+			if ( empty( $group ) ) {
+				$group = 'default';
 			}
 			return $group . '|' . $key;
 		}
@@ -1731,7 +1706,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			}
 
 			try {
-				if ( $this->cache_item_exists( $name ) ) {
+				if ( array_key_exists( $name, $this->cache ) || $this->cache_item_exists( $name ) ) {
 					$found = true;
 					++ $this->cache_hits;
 					++ $this->get_depth;
@@ -1748,6 +1723,43 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$found = false;
 			$this->cache_misses ++;
 
+			++ $this->get_depth;
+
+			return false;
+		}
+
+		/**
+		 * Retrieves the cache contents, if it exists.
+		 *
+		 * The contents will be first attempted to be retrieved by searching by the
+		 * key in the cache group. If the cache is hit (success) then the contents
+		 * are returned.
+		 *
+		 * On failure, the number of cache misses will be incremented.
+		 *
+		 * @param string $name Normalized name.
+		 *
+		 * @return mixed|false The cache contents on success, false on failure to retrieve contents.
+		 * @since 2.0.0
+		 */
+		private function get_by_normalized_name( $name ) {
+			if ( -- $this->get_depth <= 0 ) {
+				return false;
+			}
+			try {
+				if ( array_key_exists( $name, $this->cache ) || $this->cache_item_exists( $name ) ) {
+					++ $this->cache_hits;
+					++ $this->get_depth;
+					return is_object( $this->cache[ $name ] ) ? clone( $this->cache[ $name ] ) : $this->cache[ $name ];
+				}
+			} catch ( Exception $ex ) {
+				$this->delete_offending_files();
+
+				++ $this->get_depth;
+
+				return false;
+			}
+			$this->cache_misses ++;
 			++ $this->get_depth;
 
 			return false;
@@ -1840,7 +1852,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 					}
 					$object_cache = self::OBJECT_CACHE_TABLE;
 					$offset       = $this->noexpire_timestamp_offset;
-					$sql = "DELETE FROM $object_cache WHERE expires >= $offset AND expires <= $horizon";
+					$sql          = "DELETE FROM $object_cache WHERE expires >= $offset AND expires <= $horizon";
 					$this->sqlite->exec( $sql );
 					$this->sqlite->exec( 'VACUUM' );
 					$this->sqlite->exec( 'PRAGMA analysis_limit=400' );
@@ -2374,6 +2386,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 	 * @since 5.5.0
 	 */
 	function wp_cache_get_multiple( $keys, $group = '', $force = false ) {
+		if ( 0 === count( $keys ) ) {
+			return array();
+		}
 		global $wp_object_cache;
 
 		return $wp_object_cache->get_multiple( $keys, $group, $force );
