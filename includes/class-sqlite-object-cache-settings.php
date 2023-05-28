@@ -105,7 +105,8 @@ class SQLite_Object_Cache_Settings {
 				array(
 					'id'          => 'flush',
 					'label'       => __( 'Flush now', 'sqlite-object-cache' ),
-					'description' => __( 'Check to flush the cache (delete all its entries) now.', 'sqlite-object-cache' ),
+					'description' => __( 'Check to flush the cache (delete all its entries) now.', 'sqlite-object-cache' ) . ' ' .
+					                 __( 'This briefly puts your site into maintenance mode.', 'sqlite-object-cache' ),
 					'type'        => 'checkbox',
 					'default'     => '',
 					'reset'       => '',
@@ -196,7 +197,14 @@ class SQLite_Object_Cache_Settings {
 
 		if ( array_key_exists( 'flush', $option ) && $option ['flush'] === 'on' ) {
 			if ( method_exists( $wp_object_cache, 'flush' ) ) {
-				$wp_object_cache->flush( true );
+				try {
+					$this->enter_maintenance_mode();
+					$wp_object_cache->flush( true );
+				} finally {
+					$this->exit_maintenance_mode();
+				}
+			} else {
+				wp_cache_flush();
 			}
 			unset ( $option['flush'] );
 		}
@@ -527,7 +535,7 @@ class SQLite_Object_Cache_Settings {
 		$this->support_links();
 		$this->versions();
 
-		$stats   = new SQLite_Object_Cache_Statistics ( get_option( $this->parent->_token . '_settings', array() ) );
+		$stats = new SQLite_Object_Cache_Statistics ( get_option( $this->parent->_token . '_settings', array() ) );
 		$stats->init();
 		$stats->render();
 		$stats->render_usage();
@@ -601,5 +609,30 @@ class SQLite_Object_Cache_Settings {
 			esc_url( $this->parent->assets_url ) . 'css/admin.css',
 			array(), $this->parent->_version );
 		wp_enqueue_style( $this->parent->_token . '-admin' );
+	}
+
+	/**
+	 * Enters maintenance mode.
+	 *
+	 * @return void
+	 */
+	private function enter_maintenance_mode() {
+		$maintenanceFileName = ABSPATH . '.maintenance';
+		$maintain            = array();
+		array_push( $maintain,
+			'<?php',
+			'$upgrading = ' . time() . ';',
+			'?>' );
+		file_put_contents( $maintenanceFileName, implode( PHP_EOL, $maintain ) );
+	}
+
+	/**
+	 * Exits maintenance mode.
+	 *
+	 * @return void
+	 */
+	private function exit_maintenance_mode() {
+		$maintenanceFileName = ABSPATH . '.maintenance';
+		unlink( $maintenanceFileName );
 	}
 }

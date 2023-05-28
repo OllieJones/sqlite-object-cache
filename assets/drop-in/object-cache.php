@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache (Drop-in)
- * Version: 1.3.1
+ * Version: 1.3.2
  * Note: This Version number must match the one in SQLite_Object_Cache::_construct.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -82,6 +82,11 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @var string
 		 */
 		public $sqlite_path;
+
+		/**
+		 * @var string|null Version of SQLite3 software in use.
+		 */
+		private $sqlite_version;
 
 		/**
 		 * SQLite's journal mode.
@@ -576,10 +581,13 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$this->sqlite->exec( "PRAGMA journal_mode = $this->sqlite_journal_mode" );
 			$this->sqlite->exec( "PRAGMA encoding = 'UTF-8'" );
 			$this->sqlite->exec( 'PRAGMA case_sensitive_like = true' );
+			$this->sqlite->exec( 'PRAGMA page_size = 4096;' );
+			if ( version_compare( $this->sqlite_get_version(), '3.32.0', 'ge' ) ) {
+				$this->sqlite->exec( 'PRAGMA analysis_limit = 100;' );
+			}
 
 			$this->create_object_cache_table();
 			$this->prepare_statements( $this->cache_table_name );
-			//TODO skip this step. $this->preload( $this->cache_table_name );
 
 			$this->open_time = $this->time_usec() - $start;
 		}
@@ -844,6 +852,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				if ( $this->is_sample() ) {
 					$this->capture( $this->monitoring_options );
 				}
+				$this->sqlite->exec( 'PRAGMA optimize;' );
 				$result       = $this->sqlite->close();
 				$this->sqlite = null;
 			}
@@ -985,6 +994,32 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$resultset->finalize();
 		}
 
+		public function sqlite_sizes() {
+			if ( ! $this->sqlite ) {
+				$this->open_connection();
+			}
+			$object_stats = self::OBJECT_STATS_TABLE;
+
+			$items = array(
+				'page_size'   => 'PRAGMA page_size;',
+				'free_pages'  => 'PRAGMA freelist_count;',
+				'total_pages' => 'PRAGMA page_count;',
+				'stats_items' => "SELECT COUNT(value) FROM $object_stats;",
+				'stats_size' => "SELECT SUM(LENGTH(value)+ 4) FROM $object_stats;",
+			);
+
+			$result = array();
+			foreach ($items as $item => $query) {
+				$stmt = $this->sqlite->prepare( $query );
+				$resultset    = $stmt->execute();
+				$row = $resultset->fetchArray( SQLITE3_NUM );
+				$val = (int) $row[0];
+				$resultset->finalize();
+				$result [$item] = $val;
+			}
+			return $result;
+		}
+
 		/**
 		 * Read timestamps and object sizes of non-expiring items, oldest first.
 		 *
@@ -992,7 +1027,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @throws Exception Announce SQLite failure.
 		 * @noinspection SqlResolve
 		 */
-		public function sqlite_load_sizes() {
+		private function sqlite_load_sizes() {
 			if ( ! $this->sqlite ) {
 				$this->open_connection();
 			}
@@ -1093,9 +1128,12 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @return string
 		 */
 		public function sqlite_get_version() {
-			$v = SQLite3::version();
-
-			return $v['versionString'];
+			if ( $this->sqlite_version ) {
+				return $this->sqlite_version;
+			}
+			$v                    = SQLite3::version();
+			$this->sqlite_version = $v['versionString'];
+			return $this->sqlite_version;
 		}
 
 		/**
@@ -1854,9 +1892,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 					$offset       = $this->noexpire_timestamp_offset;
 					$sql          = "DELETE FROM $object_cache WHERE expires >= $offset AND expires <= $horizon";
 					$this->sqlite->exec( $sql );
-					$this->sqlite->exec( 'VACUUM' );
-					$this->sqlite->exec( 'PRAGMA analysis_limit=400' );
-					$this->sqlite->exec( 'PRAGMA optimize' );
 				}
 			} catch ( Exception $ex ) {
 				$this->delete_offending_files();

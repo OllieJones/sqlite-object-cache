@@ -5,8 +5,8 @@ Tags: cache, sqlite, performance
 Requires at least: 5.5
 Requires PHP: 5.6
 Tested up to: 6.2
-Version: 1.3.1
-Stable tag: 1.3.1
+Version: 1.3.2
+Stable tag: 1.3.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache
@@ -175,6 +175,10 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 == Changelog ==
 
+= 1.3.2 =
+
+* Avoid VACUUM except on cache flush, and do it only with maintenance mode enabled.
+
 = 1.3.1 =
 
 * Look for a too-large cache with a 0.001 probability on every pageview, and purge it. This works around disabled or too-infrequent WP_Cron operations.
@@ -237,7 +241,7 @@ This application of SQLite puts its concurrency-handling code to the test.
 
 == Upgrade Notice ==
 
-In this release, the plugin keeps the SQLite3 cache file from growing too large by deleting the least recently changed entries once per hour.  You may choose a target size for your cache file. Once per hour a WP_Cron task, and a non-cron-based operation, deletes entries as needed to bring the amount of cached data to your target size.
+In this release, the plugin keeps the SQLite3 cache file from growing too large by deleting the least recently changed entries once per hour.  You may choose a target size for your cache file. Once per hour a WP_Cron task, and a non-cron-based operation, deletes entries as needed to bring the amount of cached data to your target size. We also avoid using VACUUM as it takes a long time and doesn't help much.
 
 In this release the plugin supports WordPress's [wp_cache_get_multiple()](https://developer.wordpress.org/reference/functions/wp_cache_get_multiple/) function. When possible, it fetches consecutive cache entries with single SQLite3 statements.
 * Optimize wp_cache_get_multiple, using SQL BETWEEN to fetch consecutive cache entries.

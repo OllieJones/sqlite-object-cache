@@ -121,7 +121,7 @@ class SQLite_Object_Cache {
 	 * @param string $file File constructor.
 	 * @param string $version Plugin version.
 	 */
-	public function __construct( $file = '', $version = '1.3.1' ) {
+	public function __construct( $file = '', $version = '1.3.2' ) {
 		$this->_version = $version;
 		$this->_token   = 'sqlite_object_cache';
 
@@ -499,9 +499,7 @@ class SQLite_Object_Cache {
 	 * @author Till Krüss
 	 */
 	public
-	function on_deactivation(
-		$plugin
-	) {
+	function on_deactivation( $plugin ) {
 		wp_cache_flush();
 
 		wp_unschedule_hook( self::CLEAN_EVENT_HOOK );

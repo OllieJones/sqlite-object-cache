@@ -189,7 +189,7 @@ class SQLite_Object_Cache_Statistics {
 			'median' => $this->percentile( $a, 0.5 ),
 			'mean'   => $this->mean( $a ),
 			//'p67'    => $this->percentile( $a, 0.67 ),
-			'p95'     => $this->percentile( $a, 0.95 ),
+			'p95'    => $this->percentile( $a, 0.95 ),
 			'p99'    => $this->percentile( $a, 0.99 ),
 			'max]'   => $max,
 			'mad'    => $this->mad( $a ),
@@ -440,19 +440,6 @@ class SQLite_Object_Cache_Statistics {
 		if ( ! method_exists( $wp_object_cache, 'sqlite_load_usages' ) ) {
 			return;
 		}
-		$filesize = null;
-		try {
-			if ( method_exists( $wp_object_cache, 'sqlite_files' ) ) {
-				foreach ( $wp_object_cache->sqlite_files() as $file ) {
-					ob_start();
-					$filesize = filesize( $file );
-					ob_end_clean();
-					break;
-				}
-			}
-		} catch ( Exception $ex ) {
-			$filesize = null;
-		}
 
 		echo '<h3>' . esc_html__( 'Cache usage', 'sqlite-object-cache' ) . '</h3>';
 		$grouplength = array();
@@ -501,15 +488,41 @@ class SQLite_Object_Cache_Statistics {
 			echo '<th scope="col" class="right">' . esc_html__( 'Size', 'sqlite-object-cache' ) . '</th>';
 			echo '</tr></thead><tbody>' . PHP_EOL;
 
-			/* filesize row */
-			if ( $filesize ) {
-				echo '<tr>';
-				echo '<th scope="row" class="right">' . esc_html__( 'Cache File Size', 'sqlite-object-cache' ) . '</th>';
-				echo '<td class="right total"></td>';
-				$sizemib = $filesize / ( 1024 * 1024 );
-				echo '<td class="right total">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';
-				echo '</tr>' . PHP_EOL;
+			if ( method_exists( $wp_object_cache, 'sqlite_sizes' ) ) {
+				$sizes     = $wp_object_cache->sqlite_sizes();
+				$filesize  = $sizes['page_size'] * $sizes['total_pages'];
+				$freesize  = $sizes['page_size'] * $sizes['free_pages'];
+				$statssize = $sizes['stats_size'];
+				/* filesize row */
+				if ( $filesize ) {
+					echo '<tr>';
+					echo '<th scope="row" class="right">' . esc_html__( 'Total Cache Size', 'sqlite-object-cache' ) . '</th>';
+					echo '<td class="right total"></td>';
+					$sizemib = $filesize / ( 1024 * 1024 );
+					echo '<td class="right total">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';
+					echo '</tr>' . PHP_EOL;
+				}
+				/* freesize row */
+				if ( $freesize ) {
+					echo '<tr>';
+					echo '<th scope="row" class="right">' . esc_html__( 'Free Cache Size', 'sqlite-object-cache' ) . '</th>';
+					echo '<td class="right total"></td>';
+					$sizemib = $freesize / ( 1024 * 1024 );
+					echo '<td class="right total">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';
+					echo '</tr>' . PHP_EOL;
+				}
+				/* statssize row */
+				if ( $statssize ) {
+					$statsitems = $sizes['stats_items'];
+					echo '<tr>';
+					echo '<th scope="row" class="right">' . esc_html__( 'Statistics', 'sqlite-object-cache' ) . '</th>';
+					echo '<td class="right">' . esc_html( number_format_i18n( $statsitems ) ) . '</td>';
+					$sizemib = $statssize / ( 1024 * 1024 );
+					echo '<td class="right total">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';
+					echo '</tr>' . PHP_EOL;
+				}
 			}
+
 			/* totals row */
 			echo '<tr>';
 			echo '<th scope="row" class="right">' . esc_html__( 'All Groups', 'sqlite-object-cache' ) . '</th>';
@@ -540,7 +553,10 @@ class SQLite_Object_Cache_Statistics {
 	 *
 	 * @return false|string
 	 */
-	private function format_datestamp( $stamp ) {
+	private
+	function format_datestamp(
+		$stamp
+	) {
 		$date_format = get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
 
 		return wp_date( $date_format, (int) $stamp );
