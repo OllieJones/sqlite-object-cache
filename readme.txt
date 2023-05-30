@@ -4,7 +4,7 @@ Contributors: OllieJones
 Tags: cache, sqlite, performance
 Requires at least: 5.5
 Requires PHP: 5.6
-Tested up to: 6.2
+Tested up to: 6.2.2
 Version: 1.3.2
 Stable tag: 1.3.2
 License: GPLv2 or later

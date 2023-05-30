@@ -8,7 +8,7 @@
  * Author URI: https://github.com/OllieJones/
  * Requires at least: 5.5
  * Requires PHP: 5.6
- * Tested up to: 6.2
+ * Tested up to: 6.2.2
  *
  * Text Domain: sqlite-object-cache
  * Domain Path: /languages/

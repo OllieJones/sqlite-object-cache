@@ -508,7 +508,7 @@ class SQLite_Object_Cache_Statistics {
 					echo '<th scope="row" class="right">' . esc_html__( 'Free Cache Size', 'sqlite-object-cache' ) . '</th>';
 					echo '<td class="right total"></td>';
 					$sizemib = $freesize / ( 1024 * 1024 );
-					echo '<td class="right total">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';
+					echo '<td class="right">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';
 					echo '</tr>' . PHP_EOL;
 				}
 				/* statssize row */
@@ -518,7 +518,7 @@ class SQLite_Object_Cache_Statistics {
 					echo '<th scope="row" class="right">' . esc_html__( 'Statistics', 'sqlite-object-cache' ) . '</th>';
 					echo '<td class="right">' . esc_html( number_format_i18n( $statsitems ) ) . '</td>';
 					$sizemib = $statssize / ( 1024 * 1024 );
-					echo '<td class="right total">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';
+					echo '<td class="right">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';
 					echo '</tr>' . PHP_EOL;
 				}
 			}
