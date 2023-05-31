@@ -1903,13 +1903,13 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @return void
 		 */
 		private function delete_by_name( $name ) {
-			$start = $this->time_usec();
-			$stmt  = $this->deleteone;
 			try {
 				$this->not_in_persistent_cache[ $name ] = true;
 				if ( ! $this->sqlite ) {
 					$this->open_connection();
 				}
+				$start = $this->time_usec();
+				$stmt  = $this->deleteone;
 				$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
 				$result = $stmt->execute();
 				$result->finalize();
