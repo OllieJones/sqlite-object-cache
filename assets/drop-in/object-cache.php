@@ -1205,11 +1205,13 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 *                true on success, or false if cache key and group already exist.
 		 * @since 6.0.0
 		 */
-		public function add_multiple( array $data, $group = '', $expire = 0 ) {
+		public function add_multiple( array &$data, $group = '', $expire = 0 ) {
 			if ( 0 === count( $data ) ) {
 				return array();
 			}
 			$values = array();
+			/* sort the array to reduce index page fragmentation */
+			ksort( $data, SORT_NUMERIC );
 			try {
 				if ( ! $this->sqlite ) {
 					$this->open_connection();
@@ -1545,11 +1547,13 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @return bool[] Array of return values, grouped by key. Each value is always true.
 		 * @since 6.0.0
 		 */
-		public function set_multiple( array $data, $group = '', $expire = 0 ) {
+		public function set_multiple( array &$data, $group = '', $expire = 0 ) {
 			if ( 0 === count( $data ) ) {
 				return array();
 			}
 			$values = array();
+			/* Sort the array to reduce index page fragmentation */
+			ksort( $data, SORT_NUMERIC );
 			try {
 				if ( ! $this->sqlite ) {
 					$this->open_connection();
@@ -1592,7 +1596,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 *               the cache contents on success, or false on failure.
 		 * @since 5.5.5
 		 */
-		public function get_multiple( $input_keys, $group = 'default', $force = false ) {
+		public function get_multiple( &$input_keys, $group = 'default', $force = false ) {
 			$values = array();
 			if ( count( $input_keys ) <= 1 || $force ) {
 				/* Send the degenerate get_multiple calls, and forced calls, to plain old get. That logic is simpler. */
@@ -1640,13 +1644,13 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				if ( ! $this->sqlite ) {
 					$this->open_connection();
 				}
+				/* Get the consecutive integer key runs */
+				$runs = $this->runs( $intkeys, $this->erode_gaps );
+
 				/* use a transaction to accelerate get_multiple */
 				$this->transaction_active = true;
 				$this->sqlite->exec( 'BEGIN' );
 				$transaction_size = self::TRANSACTION_SIZE_LIMIT;
-
-				/* Get the consecutive integer key runs */
-				$runs = $this->runs( $intkeys, $this->erode_gaps );
 
 				/* Start by loading the consecutive runs of int keys */
 				foreach ( $runs as $first => $last ) {
@@ -1836,18 +1840,26 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 *                true on success, or false if the contents were not deleted.
 		 * @since 6.0.0
 		 */
-		public function delete_multiple( array $keys, $group = '' ) {
+		public function delete_multiple( array &$keys, $group = '' ) {
 			if ( 0 === count( $keys ) ) {
 				return array();
 			}
 			$values = array();
 
 			/* use a transaction to accelerate delete_multiple */
+			$transaction_size = self::TRANSACTION_SIZE_LIMIT;
 			$this->transaction_active = true;
 			$this->sqlite->exec( 'BEGIN' );
 
 			foreach ( $keys as $key ) {
 				$values[ $key ] = $this->delete( $key, $group );
+				/* limit the size of the transaction, hopefully preventing timeouts in other clients */
+				if ( -- $transaction_size <= 0 ) {
+					$this->sqlite->exec( 'COMMIT' );
+					$this->sqlite->exec( 'BEGIN' );
+					$transaction_size = self::TRANSACTION_SIZE_LIMIT;
+				}
+
 			}
 			$this->sqlite->exec( 'COMMIT' );
 			$this->transaction_active = false;

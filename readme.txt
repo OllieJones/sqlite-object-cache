@@ -178,6 +178,7 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 = 1.3.3 =
 
 * Limit number of *_multiple items processed per transaction, attempting to reduce timeouts.
+* Use key order for set_multiple and add_multiple operations, attempting to reduce index page fragmentation.
 
 = 1.3.2 =
 
