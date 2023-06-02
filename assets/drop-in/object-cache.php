@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache (Drop-in)
- * Version: 1.3.2
+ * Version: 1.3.3
  * Note: This Version number must match the one in SQLite_Object_Cache::_construct.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -71,6 +71,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		const SQLITE_TIMEOUT = 5000;
 		const SQLITE_FILENAME = '.ht.object-cache.sqlite';
 		const JOURNAL_MODE = 'WAL';  /* or 'MEMORY' */
+		const TRANSACTION_SIZE_LIMIT = 32;
 
 		/**
 		 * @var bool True if a transaction is active.
@@ -968,8 +969,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 
 			$object_cache = self::OBJECT_CACHE_TABLE;
 			$offset       = $this->noexpire_timestamp_offset;
-			$sql          =
-				"SELECT name, LENGTH(value) + LENGTH(name) length, expires FROM $object_cache order by expires % $offset";
+			$sql          = "SELECT name, LENGTH(value) + LENGTH(name) length, expires FROM $object_cache";
 			$stmt         = $this->sqlite->prepare( $sql );
 			$resultset    = $stmt->execute();
 			while ( true ) {
@@ -1017,9 +1017,11 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		}
 
 		/**
-		 * Read timestamps and object sizes of non-expiring items, oldest first.
+		 * Read timestamps and object sizes of non-expiring items, oldest first, in buckets of 16 seconds.
 		 *
-		 * @return Generator Length/timestamp rows.
+		 * Object sizes are the summed lengths of name, value, and timestamp, and ignore index overhead.
+		 *
+		 * @return SQLite3Result Resultset containing length/timestamp rows.
 		 * @throws Exception Announce SQLite failure.
 		 * @noinspection SqlResolve
 		 */
@@ -1031,17 +1033,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$object_cache = self::OBJECT_CACHE_TABLE;
 			$offset       = $this->noexpire_timestamp_offset;
 			$sql          =
-				"SELECT SUM(LENGTH(value) + LENGTH(name)) length, expires FROM $object_cache WHERE expires >= $offset GROUP BY expires ORDER BY expires";
+				"SELECT SUM(LENGTH(value) + LENGTH(name) + 6) length, (expires/16)*16 expires FROM $object_cache WHERE expires >= $offset GROUP BY (expires/16) ORDER BY 2";
 			$stmt         = $this->sqlite->prepare( $sql );
-			$resultset    = $stmt->execute();
-			while ( true ) {
-				$row = $resultset->fetchArray( SQLITE3_ASSOC );
-				if ( ! $row ) {
-					break;
-				}
-				yield ( (object) $row );
-			}
-			$resultset->finalize();
+			return $stmt->execute();
 		}
 
 		/**
@@ -1224,8 +1218,15 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				/* use a transaction to accelerate add_multiple */
 				$this->transaction_active = true;
 				$this->sqlite->exec( 'BEGIN' );
+				$transaction_size = self::TRANSACTION_SIZE_LIMIT;
 				foreach ( $data as $key => $value ) {
 					$values[ $key ] = $this->add( $key, $value, $group, $expire );
+					/* limit the size of the transaction, hopefully preventing timeouts in other clients */
+					if ( -- $transaction_size <= 0 ) {
+						$this->sqlite->exec( 'COMMIT' );
+						$this->sqlite->exec( 'BEGIN' );
+						$transaction_size = self::TRANSACTION_SIZE_LIMIT;
+					}
 				}
 				$this->sqlite->exec( 'COMMIT' );
 				$this->transaction_active = false;
@@ -1557,9 +1558,16 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				/* use a transaction to accelerate set_multiple */
 				$this->transaction_active = true;
 				$this->sqlite->exec( 'BEGIN' );
+				$transaction_size = self::TRANSACTION_SIZE_LIMIT;
 
 				foreach ( $data as $key => $value ) {
 					$values[ $key ] = $this->set( $key, $value, $group, $expire );
+					/* limit the size of the transaction, hopefully preventing timeouts in other clients */
+					if ( -- $transaction_size <= 0 ) {
+						$this->sqlite->exec( 'COMMIT' );
+						$this->sqlite->exec( 'BEGIN' );
+						$transaction_size = self::TRANSACTION_SIZE_LIMIT;
+					}
 				}
 				$this->sqlite->exec( 'COMMIT' );
 				$this->transaction_active = false;
@@ -1635,6 +1643,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				/* use a transaction to accelerate get_multiple */
 				$this->transaction_active = true;
 				$this->sqlite->exec( 'BEGIN' );
+				$transaction_size = self::TRANSACTION_SIZE_LIMIT;
 
 				/* Get the consecutive integer key runs */
 				$runs = $this->runs( $intkeys, $this->erode_gaps );
@@ -1656,16 +1665,34 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 						unset( $this->not_in_persistent_cache[ $name ] );
 					}
 					$resultset->finalize();
+					/* limit the size of the transaction, hopefully preventing timeouts in other clients */
+					if ( -- $transaction_size <= 0 ) {
+						$this->sqlite->exec( 'COMMIT' );
+						$this->sqlite->exec( 'BEGIN' );
+						$transaction_size = self::TRANSACTION_SIZE_LIMIT;
+					}
 				}
 				/* Do the alpha keys, if any */
 				foreach ( $alphakeys as $key => $name ) {
 					if ( ! array_key_exists( $key, $values ) ) {
 						$values[ $key ] = $this->get_by_normalized_name( $name );
+						/* limit the size of the transaction, hopefully preventing timeouts in other clients */
+						if ( -- $transaction_size <= 0 ) {
+							$this->sqlite->exec( 'COMMIT' );
+							$this->sqlite->exec( 'BEGIN' );
+							$transaction_size = self::TRANSACTION_SIZE_LIMIT;
+						}
 					}
 				}
 				foreach ( $intkeys as $key ) {
 					if ( ! array_key_exists( $key, $values ) ) {
 						$values [ $key ] = $this->get_by_normalized_name( $normalized[ $key ] );
+						/* limit the size of the transaction, hopefully preventing timeouts in other clients */
+						if ( -- $transaction_size <= 0 ) {
+							$this->sqlite->exec( 'COMMIT' );
+							$this->sqlite->exec( 'BEGIN' );
+							$transaction_size = self::TRANSACTION_SIZE_LIMIT;
+						}
 					}
 				}
 				$this->sqlite->exec( 'COMMIT' );
@@ -1873,14 +1900,23 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			}
 			try {
 				if ( $target_size < $current_size ) {
-					foreach ( $this->sqlite_load_sizes() as $item ) {
+					$resultset = $this->sqlite_load_sizes();
+					if ( ! $resultset ) {
+						return;
+					}
+					while ( true ) {
+						$row = $resultset->fetchArray( SQLITE3_NUM );
+						if ( ! $row ) {
+							break;
+						}
 						/* Find the time horizon that will delete enough entries */
-						$horizon      = $item->expires;
-						$current_size -= $item->length;
+						$horizon      = $row[1];
+						$current_size -= $row[0];
 						if ( $current_size <= $target_size ) {
 							break;
 						}
 					}
+					$resultset->finalize();
 					if ( ! $horizon ) {
 						return;
 					}
