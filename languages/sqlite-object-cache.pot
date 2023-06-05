@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2023-06-04T09:36:05-04:00\n"
+"POT-Creation-Date: 2023-06-04T20:39:30-04:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.6.0\n"
 "X-Domain: sqlite-object-cache\n"
@@ -124,7 +124,7 @@ msgstr ""
 
 #: includes/class-sqlite-object-cache-settings.php:167
 #: includes/class-sqlite-object-cache-settings.php:397
-#: includes/lib/class-sqlite-object-cache-statistics.php:518
+#: includes/lib/class-sqlite-object-cache-statistics.php:520
 msgid "Statistics"
 msgstr ""
 
@@ -349,18 +349,18 @@ msgstr ""
 msgid "Size"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:499
-msgid "Total Cache Size"
+#: includes/lib/class-sqlite-object-cache-statistics.php:501
+msgid "SQLite Pages Used"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:508
-msgid "Free Cache Size"
+#: includes/lib/class-sqlite-object-cache-statistics.php:510
+msgid "SQLite Pages Free"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:528
+#: includes/lib/class-sqlite-object-cache-statistics.php:530
 msgid "All Groups"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:545
+#: includes/lib/class-sqlite-object-cache-statistics.php:547
 msgid "No cache items found."
 msgstr ""

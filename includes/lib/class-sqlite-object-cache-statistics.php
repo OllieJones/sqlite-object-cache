@@ -490,24 +490,26 @@ class SQLite_Object_Cache_Statistics {
 
 			if ( method_exists( $wp_object_cache, 'sqlite_sizes' ) ) {
 				$sizes     = $wp_object_cache->sqlite_sizes();
-				$filesize  = $sizes['page_size'] * $sizes['total_pages'];
-				$freesize  = $sizes['page_size'] * $sizes['free_pages'];
+				$pagesize  = $sizes['page_size'];
+				$filesize  = $sizes['total_pages'];
+				$freesize  = $sizes['free_pages'];
+				$usedsize  = $filesize - $freesize;
 				$statssize = $sizes['stats_size'];
 				/* filesize row */
-				if ( $filesize ) {
+				if ( $usedsize ) {
 					echo '<tr>';
-					echo '<th scope="row" class="right">' . esc_html__( 'Total Cache Size', 'sqlite-object-cache' ) . '</th>';
-					echo '<td class="right total"></td>';
-					$sizemib = $filesize / ( 1024 * 1024 );
-					echo '<td class="right total">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';
+					echo '<th scope="row" class="right">' . esc_html__( 'SQLite Pages Used', 'sqlite-object-cache' ) . '</th>';
+					echo '<td class="right">' . esc_html( number_format_i18n( $usedsize ) ) . '</td>';
+					$sizemib = ( $usedsize * $pagesize ) / ( 1024 * 1024 );
+					echo '<td class="right">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';
 					echo '</tr>' . PHP_EOL;
 				}
 				/* freesize row */
 				if ( $freesize ) {
 					echo '<tr>';
-					echo '<th scope="row" class="right">' . esc_html__( 'Free Cache Size', 'sqlite-object-cache' ) . '</th>';
-					echo '<td class="right total"></td>';
-					$sizemib = $freesize / ( 1024 * 1024 );
+					echo '<th scope="row" class="right">' . esc_html__( 'SQLite Pages Free', 'sqlite-object-cache' ) . '</th>';
+					echo '<td class="right">' . esc_html( number_format_i18n( $freesize ) ) . '</td>';
+					$sizemib = ( $freesize * $pagesize ) / ( 1024 * 1024 );
 					echo '<td class="right">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';
 					echo '</tr>' . PHP_EOL;
 				}

@@ -392,8 +392,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 
 			$this->has_hrtime    = function_exists( 'hrtime' );
 			$this->has_microtime = function_exists( 'microtime' );
-			$this->has_igbinary  =
-				function_exists( 'igbinary_serialize' ) && function_exists( 'igbinary_unserialize' );
+			$this->has_igbinary  = function_exists( 'igbinary_serialize' );
 
 			$this->sqlite_path = $this->create_database_path();
 
@@ -419,6 +418,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			$this->blog_prefix               = $this->multisite ? get_current_blog_id() . ':' : '';
 			$this->cache_table_name          = self::OBJECT_CACHE_TABLE;
 			$this->noexpire_timestamp_offset = self::NOEXPIRE_TIMESTAMP_OFFSET;
+			$this->open_connection();
 		}
 
 		/**
@@ -578,11 +578,11 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			 * That's OK, because it's faster, and because we have an error
 			 * recovery procedure that deletes and recreates a corrupt database file.
 			 */
+			$this->sqlite->exec( 'PRAGMA page_size = 4096' );
 			$this->sqlite->exec( 'PRAGMA synchronous = OFF' );
 			$this->sqlite->exec( "PRAGMA journal_mode = $this->sqlite_journal_mode" );
 			$this->sqlite->exec( "PRAGMA encoding = 'UTF-8'" );
 			$this->sqlite->exec( 'PRAGMA case_sensitive_like = true' );
-			$this->sqlite->exec( 'PRAGMA page_size = 4096;' );
 
 			$this->create_object_cache_table();
 			$this->prepare_statements( $this->cache_table_name );
@@ -881,9 +881,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 */
 		public function sqlite_reset_statistics( $age = null ) {
 			try {
-				if ( ! $this->sqlite ) {
-					$this->open_connection();
-				}
 				$object_stats = self::OBJECT_STATS_TABLE;
 				$this->maybe_create_stats_table( $object_stats );
 				if ( ! is_numeric( $age ) ) {
@@ -912,9 +909,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		public function sqlite_remove_expired( $use_transaction = true ) {
 			$items_removed = 0;
 			try {
-				if ( ! $this->sqlite ) {
-					$this->open_connection();
-				}
 				if ( $use_transaction ) {
 					$this->sqlite->exec( 'BEGIN' );
 				}
@@ -940,9 +934,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @return int Size of current cache database in bytes.
 		 */
 		public function sqlite_get_size() {
-			if ( ! $this->sqlite ) {
-				$this->open_connection();
-			}
 			$object_cache = self::OBJECT_CACHE_TABLE;
 			$sql          = "SELECT SUM(LENGTH(value) + LENGTH(name)) length FROM $object_cache";
 			$stmt         = $this->sqlite->prepare( $sql );
@@ -963,10 +954,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @noinspection SqlResolve
 		 */
 		public function sqlite_load_usages( $timestamps = true ) {
-			if ( ! $this->sqlite ) {
-				$this->open_connection();
-			}
-
 			$object_cache = self::OBJECT_CACHE_TABLE;
 			$offset       = $this->noexpire_timestamp_offset;
 			$sql          = "SELECT name, LENGTH(value) + LENGTH(name) length, expires FROM $object_cache";
@@ -991,9 +978,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		}
 
 		public function sqlite_sizes() {
-			if ( ! $this->sqlite ) {
-				$this->open_connection();
-			}
 			$object_stats = self::OBJECT_STATS_TABLE;
 
 			$items = array(
@@ -1026,10 +1010,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @noinspection SqlResolve
 		 */
 		private function sqlite_load_sizes() {
-			if ( ! $this->sqlite ) {
-				$this->open_connection();
-			}
-
 			$object_cache = self::OBJECT_CACHE_TABLE;
 			$offset       = $this->noexpire_timestamp_offset;
 			$sql          =
@@ -1046,10 +1026,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 * @noinspection SqlResolve
 		 */
 		public function sqlite_load_statistics() {
-			if ( ! $this->sqlite ) {
-				$this->open_connection();
-			}
-
 			$object_stats = self::OBJECT_STATS_TABLE;
 			$this->maybe_create_stats_table( $object_stats );
 			$sql       = "SELECT value FROM $object_stats;";
@@ -1095,9 +1071,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			);
 			$object_stats = self::OBJECT_STATS_TABLE;
 			try {
-				if ( ! $this->sqlite ) {
-					$this->open_connection();
-				}
 				$this->maybe_create_stats_table( $object_stats );
 				$sql  =
 					"INSERT INTO $object_stats (value, timestamp) VALUES (:value, :timestamp);";
@@ -1213,10 +1186,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			/* sort the array to reduce index page fragmentation */
 			ksort( $data, SORT_NUMERIC );
 			try {
-				if ( ! $this->sqlite ) {
-					$this->open_connection();
-				}
-
 				/* use a transaction to accelerate add_multiple */
 				$this->transaction_active = true;
 				$this->sqlite->exec( 'BEGIN' );
@@ -1376,9 +1345,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			}
 			$data = null;
 			try {
-				if ( ! $this->sqlite ) {
-					$this->open_connection();
-				}
 				$stmt = $this->getone;
 				$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
 				$result = $stmt->execute();
@@ -1457,9 +1423,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 */
 		private function put_by_name( $name, $data, $expire ) {
 			try {
-				if ( ! $this->sqlite ) {
-					$this->open_connection();
-				}
 				$start   = $this->time_usec();
 				$value   = $this->maybe_serialize( $data );
 				$expires = $expire ?: $this->noexpire_timestamp_offset;
@@ -1555,10 +1518,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 			/* Sort the array to reduce index page fragmentation */
 			ksort( $data, SORT_NUMERIC );
 			try {
-				if ( ! $this->sqlite ) {
-					$this->open_connection();
-				}
-
 				/* use a transaction to accelerate set_multiple */
 				$this->transaction_active = true;
 				$this->sqlite->exec( 'BEGIN' );
@@ -1641,9 +1600,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 				}
 			}
 			try {
-				if ( ! $this->sqlite ) {
-					$this->open_connection();
-				}
 				/* Get the consecutive integer key runs */
 				$runs = $this->runs( $intkeys, $this->erode_gaps );
 
@@ -1953,9 +1909,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		private function delete_by_name( $name ) {
 			try {
 				$this->not_in_persistent_cache[ $name ] = true;
-				if ( ! $this->sqlite ) {
-					$this->open_connection();
-				}
 				$start = $this->time_usec();
 				$stmt  = $this->deleteone;
 				$stmt->bindValue( ':name', $name, SQLITE3_TEXT );
@@ -2032,10 +1985,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 */
 		public function flush( $vacuum = false ) {
 			try {
-				if ( ! $this->sqlite ) {
-					$this->open_connection();
-				}
-
 				$this->cache                   = array();
 				$this->not_in_persistent_cache = array();
 
@@ -2093,10 +2042,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 		 */
 		public function flush_group( $group ) {
 			try {
-				if ( ! $this->sqlite ) {
-					$this->open_connection();
-				}
-
 				$names_to_flush = array();
 				$prefix         = $group . '|';
 				foreach ( $this->cache as $name => $data ) {
