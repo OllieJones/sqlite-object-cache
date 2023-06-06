@@ -74,6 +74,7 @@ class SQLite_Object_Cache_Statistics {
 		$DISKLookupsPerRequest = array();
 		$SavesPerRequest       = array();
 		$DBMSqueriesPerRequest = array();
+		$RAM                   = array();
 		$DISKhits              = 0;
 		$DISKmisses            = 0;
 
@@ -98,6 +99,7 @@ class SQLite_Object_Cache_Statistics {
 			$DISKratio               = $data->DISKhits / ( $data->DISKhits + $data->DISKmisses );
 			$DISKratios[]            = $DISKratio;
 			$opens []                = $data->open;
+			$RAM []                  = $data->RAM / ( 1024 * 1024 );
 			array_push( $selects, ...$data->selects );
 			array_push( $get_multiples, ...$data->get_multiples );
 			array_push( $get_multiple_keys, ...$data->get_multiple_keys );
@@ -119,6 +121,7 @@ class SQLite_Object_Cache_Statistics {
 			$this->truncate_if_too_long( $SavesPerRequest );
 			$this->truncate_if_too_long( $DBMSqueriesPerRequest );
 			$this->truncate_if_too_long( $deletes );
+			$this->truncate_if_too_long( $RAM );
 
 			if ( property_exists( $data, 'select_names' ) && is_array( $data->select_names ) ) {
 				foreach ( $data->select_names as $name ) {
@@ -138,6 +141,7 @@ class SQLite_Object_Cache_Statistics {
 				__( 'Disk lookups/request', 'sqlite-object-cache' )  => $this->descriptive_stats( $DISKLookupsPerRequest ),
 				__( 'Disk saves/request', 'sqlite-object-cache' )    => $this->descriptive_stats( $SavesPerRequest ),
 				__( 'MySQL queries/request', 'sqlite-object-cache' ) => $this->descriptive_stats( $DBMSqueriesPerRequest ),
+				__( 'Peak RAM usage (MiB)', 'sqlite-object-cache' )  => $this->descriptive_stats( $RAM ),
 				__( 'Initialization times', 'sqlite-object-cache' )  => $this->descriptive_stats( $opens ),
 				__( 'Get times', 'sqlite-object-cache' )             => $this->descriptive_stats( $selects ),
 				__( 'GetMult times', 'sqlite-object-cache' )         => $this->descriptive_stats( $get_multiples ),
@@ -495,12 +499,13 @@ class SQLite_Object_Cache_Statistics {
 				$freesize  = $sizes['free_pages'];
 				$usedsize  = $filesize - $freesize;
 				$statssize = $sizes['stats_size'];
+				$mmapsize = $sizes['mmap_size'];
 				/* filesize row */
 				if ( $usedsize ) {
 					echo '<tr>';
 					echo '<th scope="row" class="right">' . esc_html__( 'SQLite Pages Used', 'sqlite-object-cache' ) . '</th>';
 					echo '<td class="right">' . esc_html( number_format_i18n( $usedsize ) ) . '</td>';
-					$sizemib = ( $usedsize * $pagesize ) / ( 1024 * 1024 );
+					$sizemib = ( $usedsize * $pagesize ) / ( 1024.0 * 1024.0 );
 					echo '<td class="right">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';
 					echo '</tr>' . PHP_EOL;
 				}
@@ -510,6 +515,15 @@ class SQLite_Object_Cache_Statistics {
 					echo '<th scope="row" class="right">' . esc_html__( 'SQLite Pages Free', 'sqlite-object-cache' ) . '</th>';
 					echo '<td class="right">' . esc_html( number_format_i18n( $freesize ) ) . '</td>';
 					$sizemib = ( $freesize * $pagesize ) / ( 1024 * 1024 );
+					echo '<td class="right">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';
+					echo '</tr>' . PHP_EOL;
+				}
+				/* memory-mapped row */
+				if ( $mmapsize ) {
+					echo '<tr>';
+					echo '<th scope="row" class="right">' . esc_html__( 'Memory-mapped I/O', 'sqlite-object-cache' ) . '</th>';
+					echo '<td class="right"></td>';
+					$sizemib = $mmapsize / ( 1024 * 1024 );
 					echo '<td class="right">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';
 					echo '</tr>' . PHP_EOL;
 				}

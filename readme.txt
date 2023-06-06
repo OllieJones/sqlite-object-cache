@@ -135,6 +135,12 @@ You can also define `WP_CACHE_KEY_SALT` to be a text string. Continuing the exam
 
 causes your object cache data to go into the `/tmp` folder in a file named `mysite-object-cache.qrstuv.sqlite`.
 
+= Can this plugin use SQLite memory-mapped I/O?
+
+**Yes**. You can use your OS's memory map feature to access and share cache data with [SQLite Memory-Mapped I/O](https://www.sqlite.org/mmap.html). On some server configurations this allows multiple php processes to share cached data more quickly. In the plugin this is disabled by default. You can enable it by telling the plugin how many MiB to use for memory mapping. For example, this wp-config setting tells the plugin to use 32MiB.
+
+`define( 'WP_SQLITE_OBJECT_CACHE_MMAP_SIZE', 32 );`
+
 = I sometimes get timeout errors from SQLite. How can I fix them? =
 
 Some sites occasionally generate error messages looking like this one:
@@ -177,8 +183,9 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 = 1.3.4 =
 
-* Limit number of *_multiple items processed per transaction, attempting to reduce timeouts.
-* Use key order for set_multiple and add_multiple operations, attempting to reduce index page fragmentation.
+* Support SQLite Memory-Mapped I/O.
+* Reduce contention delays by limiting the number of get_multiple, set_multiple, add_multiple, and delete_multiple items in each transaction.
+* Reduce index page fragmentation by using key order for set_multiple and add_multiple operations.
 * Fix initialization defect in cache deletion. Props to @gRoberts84.
 
 = 1.3.2 =

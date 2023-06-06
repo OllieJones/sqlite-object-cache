@@ -113,8 +113,8 @@ class SQLite_Object_Cache_Settings {
 				),
 				array(
 					'id'          => 'target_size',
-					'label'       => __( 'Cache Size', 'sqlite-object-cache' ),
-					'description' => __( 'MiB. When cached object data grows larger than this, hourly cleanup removes the oldest entries.', 'sqlite-object-cache' ),
+					'label'       => __( 'Cached data size', 'sqlite-object-cache' ),
+					'description' => __( 'MiB. When data in the cache grows larger than this, hourly cleanup removes the oldest entries.', 'sqlite-object-cache' ),
 					'type'        => 'number',
 					'default'     => 4,
 					'min'         => 0.5,
