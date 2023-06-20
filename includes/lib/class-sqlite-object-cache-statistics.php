@@ -351,7 +351,7 @@ class SQLite_Object_Cache_Statistics {
 				echo '<tr>';
 				echo '<th scope="row">' . esc_html( $stat ) . '</th>';
 				foreach ( $description as $value ) {
-					echo '<td>' . esc_html( round( $value, 2 ) ) . '</td>';
+					echo '<td>' . esc_html( round( $value ?: 0.0, 2 ) ) . '</td>';
 				}
 				echo '</tr>' . PHP_EOL;
 			}
