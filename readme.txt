@@ -4,7 +4,7 @@ Contributors: OllieJones
 Tags: cache, sqlite, performance
 Requires at least: 5.5
 Requires PHP: 5.6
-Tested up to: 6.2.2
+Tested up to: 6.3
 Version: 1.3.5
 Stable tag: 1.3.5
 License: GPLv2 or later
@@ -184,6 +184,7 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 = 1.3.5 =
 
 * php 8.1, php 8.2 compatibility.
+* Support for WordFence and other code using the object cache after shutdown.
 
 = 1.3.4 =
 
@@ -196,72 +197,10 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 * Avoid VACUUM except on cache flush, and do it only with maintenance mode enabled.
 
-= 1.3.1 =
-
-* Look for a too-large cache with a 0.001 probability on every pageview, and purge it. This works around disabled or too-infrequent WP_Cron operations.
-
-= 1.3.0 =
-
-* Optimize wp_cache_get_multiple, using SQL BETWEEN to fetch consecutive cache entries.
-* Do not expire old entries. Instead control cache size by purging least recently changed entries.
-
-= 1.2.3 =
-
-* Sanitize the WP_CACHE_KEY_SALT value.
-* Avoid using up all the RAM when reporting on many statistics.
-
-= 1.2.2 =
-
-* Fix exception-handling bug.
-* In the size display on the Statistics panel, summarize repetitive WooCommerce cache groups.
-
-= 1.2.1 =
-
-* Implement wp_cache_flush_runtime() correctly.
-
-= 1.2.0 =
-
-* Better exception handling.
-* More secure storage of database files.
-
-= 1.1.1 =
-
-* Switch from MEMORY to WAL for SQLite's journaling mode.
-* Implement some wp-config.php settings:
-
-  WP_SQLITE_OBJECT_CACHE_DB_FILE. sqlite file pathname. Default: …/wp-content/.ht.object_cache.sqlite .
-
-  WP_SQLITE_OBJECT_CACHE_TIMEOUT SQLite timeout. Default: 5000 milliseconds.
-
-  WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE Default: ‘WAL’. Possible values DELETE | TRUNCATE | PERSIST | MEMORY | WAL | NONE. See https://www.sqlite.org/pragma.html#pragma_journal_mode
-
-= 1.1.0 =
-
-* Increase the SQLite wait timeout from 0.5sec to 5.0sec, trying to deal with rare long wait to perform an SQLite operation. #10.
-* Switch SQLite's journaling mode from MEMORY to WAL trying to reduce contention between readers and writers.
-* Show p1 first-percentile and p99 99th-percentile times in the Statistics panel along with p5, median, mean, p95.
-* Add wp-config.php settings for timeout and journaliing mode along with filename.
-* Test with WordPress 5.5, the earliest version that does not require the obsolete mysql extension.
-* Change performance logging from time-based to random sampling to reduce overhead.
-* Fix a race condition upserting cached values under load in pre-3.24 SQLite.
-* Show availability of the space-saving igbinary serialization on dashboard panels.
-
-This application of SQLite puts its concurrency-handling code to the test.
-
-= 1.0.0 =
-
-1. Use `.ht.object-cache.sqlite` for cached data to prevent downloading it via the web server.
-2. Add support for the `WP_SQLITE_OBJECT_CACHE_DB_FILE` constant.
-3. It's possible for the sqlite cache file to become corrupt if a server process crashes. When detecting that kind of situation, the plugin now deletes and rebuilds it.
-
-= 0.1.7 = First release
-
 == Upgrade Notice ==
 
-In this release, the plugin keeps the SQLite3 cache file from growing too large by deleting the least recently changed entries once per hour.  You may choose a target size for your cache file. Once per hour a WP_Cron task, and a non-cron-based operation, deletes entries as needed to bring the amount of cached data to your target size. We also avoid using VACUUM as it takes a long time and doesn't help much.
+This release corrects some php8 language incompatibilities.
 
-In this release the plugin supports WordPress's [wp_cache_get_multiple()](https://developer.wordpress.org/reference/functions/wp_cache_get_multiple/) function. When possible, it fetches consecutive cache entries with single SQLite3 statements.
-* Optimize wp_cache_get_multiple, using SQL BETWEEN to fetch consecutive cache entries.
-* Do not expire old entries. Instead control cache size by deleting least recently changed entries.
+It correctly handles other plugins that continue using WP_Cache after WordPress core closes it.
 
-Thanks, dear users, especially @spacedmonkey, @spaceling and @ss88_uk, for letting me know about errors you found, and for your patience as I figure this out. All remaining errors are solely the responsibility of the author.
+Thanks, dear users, especially @bourgesloic, @spacedmonkey, @spaceling and @ss88_uk, for letting me know about errors you found, and for your patience as I figure this out. All remaining errors are solely the responsibility of the author.

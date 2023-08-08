@@ -1,0 +1,60 @@
+= 1.3.1 =
+
+* Look for a too-large cache with a 0.001 probability on every pageview, and purge it. This works around disabled or too-infrequent WP_Cron operations.
+
+= 1.3.0 =
+
+* Optimize wp_cache_get_multiple, using SQL BETWEEN to fetch consecutive cache entries.
+* Do not expire old entries. Instead control cache size by purging least recently changed entries.
+
+= 1.2.3 =
+
+* Sanitize the WP_CACHE_KEY_SALT value.
+* Avoid using up all the RAM when reporting on many statistics.
+
+= 1.2.2 =
+
+* Fix exception-handling bug.
+* In the size display on the Statistics panel, summarize repetitive WooCommerce cache groups.
+
+= 1.2.1 =
+
+* Implement wp_cache_flush_runtime() correctly.
+
+= 1.2.0 =
+
+* Better exception handling.
+* More secure storage of database files.
+
+= 1.1.1 =
+
+* Switch from MEMORY to WAL for SQLite's journaling mode.
+* Implement some wp-config.php settings:
+
+  WP_SQLITE_OBJECT_CACHE_DB_FILE. sqlite file pathname. Default: …/wp-content/.ht.object_cache.sqlite .
+
+  WP_SQLITE_OBJECT_CACHE_TIMEOUT SQLite timeout. Default: 5000 milliseconds.
+
+  WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE Default: ‘WAL’. Possible values DELETE | TRUNCATE | PERSIST | MEMORY | WAL | NONE. See https://www.sqlite.org/pragma.html#pragma_journal_mode
+
+= 1.1.0 =
+
+* Increase the SQLite wait timeout from 0.5sec to 5.0sec, trying to deal with rare long wait to perform an SQLite operation. #10.
+* Switch SQLite's journaling mode from MEMORY to WAL trying to reduce contention between readers and writers.
+* Show p1 first-percentile and p99 99th-percentile times in the Statistics panel along with p5, median, mean, p95.
+* Add wp-config.php settings for timeout and journaliing mode along with filename.
+* Test with WordPress 5.5, the earliest version that does not require the obsolete mysql extension.
+* Change performance logging from time-based to random sampling to reduce overhead.
+* Fix a race condition upserting cached values under load in pre-3.24 SQLite.
+* Show availability of the space-saving igbinary serialization on dashboard panels.
+
+This application of SQLite puts its concurrency-handling code to the test.
+
+= 1.0.0 =
+
+1. Use `.ht.object-cache.sqlite` for cached data to prevent downloading it via the web server.
+2. Add support for the `WP_SQLITE_OBJECT_CACHE_DB_FILE` constant.
+3. It's possible for the sqlite cache file to become corrupt if a server process crashes. When detecting that kind of situation, the plugin now deletes and rebuilds it.
+
+= 0.1.7 = First release
+

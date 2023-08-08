@@ -1,0 +1,6 @@
+/.idea/
+/.run/
+*~
+**/hidden-test-treeshake/
+
+/vendor/
