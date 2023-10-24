@@ -4,7 +4,7 @@ Contributors: OllieJones
 Tags: cache, sqlite, performance
 Requires at least: 5.5
 Requires PHP: 5.6
-Tested up to: 6.3
+Tested up to: 6.4
 Version: 1.3.5
 Stable tag: 1.3.5
 License: GPLv2 or later
@@ -52,6 +52,12 @@ The plugin offers optional settings for your `wp-config.php` file. If you change
 = How much faster will this make my site? =
 
 Exactly predicting each site's speedup is not possible. Still, benchmarking results are promising. Please see [this](https://www.plumislandmedia.net/wordpress-plugins/sqlite-object-cache/benchmarks/). If you run a benchmark, please let the author know by leaving a comment on that page or using the [support forum](https://wordpress.org/support/plugin/sqlite-object-cache/).
+
+= What Cached Data Size should I use for my site? =
+
+The default setting for Cached Data Size is 16 MiB. This plugin allows the actual cached data size to grow larger than that, and occasionally removes old data to trim back the size to the setting. Take a look at the Statistics page. If your actual cached data setting is consistently larger than the setting, double the setting.
+
+If you operate a large and busy site, try an initial setting of 32 MiB, then adjust it based on the growth of the actual size.
 
 = What is SQLite? =
 
