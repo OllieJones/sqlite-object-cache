@@ -5,8 +5,8 @@ Tags: cache, sqlite, performance
 Requires at least: 5.5
 Requires PHP: 5.6
 Tested up to: 6.4
-Version: 1.3.5
-Stable tag: 1.3.5
+Version: 1.3.6
+Stable tag: 1.3.6
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache
@@ -187,6 +187,10 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 == Changelog ==
 
+= 1.3.6 =
+
+* Clean up in chunks in an attempt to reduce contention delays and timeouts.
+
 = 1.3.5 =
 
 * php 8.1, php 8.2 compatibility.
@@ -205,8 +209,6 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 == Upgrade Notice ==
 
-This release corrects some php8 language incompatibilities.
-
-It correctly handles other plugins that continue using WP_Cache after WordPress core closes it.
+This release attempts to reduce cache timeouts by doing cleanup operations in chunks.
 
 Thanks, dear users, especially @bourgesloic, @spacedmonkey, @spaceling and @ss88_uk, for letting me know about errors you found, and for your patience as I figure this out. All remaining errors are solely the responsibility of the author.

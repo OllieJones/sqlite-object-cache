@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache (Drop-in)
- * Version: 1.3.5
+ * Version: 1.3.6
  * Note: This Version number must match the one in SQLite_Object_Cache::_construct.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -11,7 +11,7 @@
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Requires PHP: 5.6
  * Tested up to: 6.4
- * Stable tag: 1.3.5
+ * Stable tag: 1.3.6
  *
  * NOTE: This uses the file .../wp-content/.ht.object_cache.sqlite
  * and the associated files .../wp-content/.ht.object_cache.sqlite-shm
@@ -64,19 +64,18 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
    *
    * @since 0.1.0
    */
-  class WP_Object_Cache
-  {
-    const OBJECT_STATS_TABLE        = 'object_stats';
-    const OBJECT_CACHE_TABLE        = 'object_cache';
+  class WP_Object_Cache {
+    const OBJECT_STATS_TABLE = 'object_stats';
+    const OBJECT_CACHE_TABLE = 'object_cache';
     const NOEXPIRE_TIMESTAMP_OFFSET = 500000000000;
-    const INTKEY_LENGTH             = 6;
-    const MMAP_SIZE                 = 0.0;
-    const INTKEY_ERODE_GAPS         = 2;
-    const INTKEY_SENTINEL           = "\x1f"; /* Only one character allowed here. */
-    const SQLITE_TIMEOUT            = 5000;
-    const SQLITE_FILENAME           = '.ht.object-cache.sqlite';
-    const JOURNAL_MODE              = 'WAL';  /* or 'MEMORY' */
-    const TRANSACTION_SIZE_LIMIT    = 32;
+    const INTKEY_LENGTH = 6;
+    const MMAP_SIZE = 0.0;
+    const INTKEY_ERODE_GAPS = 2;
+    const INTKEY_SENTINEL = "\x1f"; /* Only one character allowed here. */
+    const SQLITE_TIMEOUT = 5000;
+    const SQLITE_FILENAME = '.ht.object-cache.sqlite';
+    const JOURNAL_MODE = 'WAL';  /* or 'MEMORY' */
+    const TRANSACTION_SIZE_LIMIT = 32;
 
     /**
      * @var bool True if a transaction is active.
@@ -415,19 +414,19 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         : self::JOURNAL_MODE;
 
       $this->erode_gaps = defined( 'WP_SQLITE_OBJECT_CACHE_INTKEY_ERODE_GAPS' )
-        ? (int)WP_SQLITE_OBJECT_CACHE_INTKEY_ERODE_GAPS
+        ? (int) WP_SQLITE_OBJECT_CACHE_INTKEY_ERODE_GAPS
         : self::INTKEY_ERODE_GAPS;
 
       $this->intkey_length = defined( 'WP_SQLITE_OBJECT_CACHE_INTKEY_LENGTH' )
-        ? (int)WP_SQLITE_OBJECT_CACHE_INTKEY_LENGTH
+        ? (int) WP_SQLITE_OBJECT_CACHE_INTKEY_LENGTH
         : self::INTKEY_LENGTH;
 
-      $this->intkey_max = - 1 + (int)str_pad( '1', 1 + $this->intkey_length, 0, STR_PAD_RIGHT );
+      $this->intkey_max = - 1 + (int) str_pad( '1', 1 + $this->intkey_length, 0, STR_PAD_RIGHT );
 
       $this->mmap_size = defined( 'WP_SQLITE_OBJECT_CACHE_MMAP_SIZE' )
-        ? (int)WP_SQLITE_OBJECT_CACHE_MMAP_SIZE
+        ? (int) WP_SQLITE_OBJECT_CACHE_MMAP_SIZE
         : self::MMAP_SIZE;
-      $this->mmap_size = (int)$this->mmap_size * 1024 * 1024;
+      $this->mmap_size = (int) $this->mmap_size * 1024 * 1024;
 
       $this->multisite                 = is_multisite();
       $this->blog_prefix               = $this->multisite ? get_current_blog_id() . ':' : '';
@@ -900,12 +899,16 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
           /* @noinspection SqlWithoutWhere */
           $sql = "DELETE FROM $object_stats;";
         } else {
-          $expires = (int)( time() - $age );
-          /* @noinspection SqlResolve */
-          $sql =
-            "DELETE FROM $object_stats WHERE timestamp < $expires;";
+          $expires = (int) ( time() - $age );
+          $limit = self::TRANSACTION_SIZE_LIMIT;
+          $hits  = $limit;
+          while ( $hits >= $limit ) {
+            /* @noinspection SqlResolve */
+            $sql = "DELETE FROM $object_stats WHERE timestamp < $expires;";
+            $this->sqlite->exec( $sql );
+            $hits = $this->sqlite->changes();
+          }
         }
-        $this->sqlite->exec( $sql );
       } catch ( Exception $ex ) {
         $this->error_log( 'SQLite Object Cache exception resetting statistics. ', $ex );
       }
@@ -938,6 +941,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
       } catch ( Exception $ex ) {
         $this->error_log( 'sqlite_clean_up_cache', $ex );
       }
+
       return $items_removed > 0;
     }
 
@@ -954,7 +958,8 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
       $row          = $resultset->fetchArray( SQLITE3_NUM );
       $result       = $row[0];
       $resultset->finalize();
-      return (int)$result;
+
+      return (int) $result;
     }
 
     /**
@@ -977,7 +982,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         if ( ! $row ) {
           break;
         }
-        $row = (object)$row;
+        $row = (object) $row;
         if ( $timestamps ) {
           $expires = $row->expires;
           if ( $expires >= self::NOEXPIRE_TIMESTAMP_OFFSET ) {
@@ -1007,10 +1012,11 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         $stmt      = $this->sqlite->prepare( $query );
         $resultset = $stmt->execute();
         $row       = $resultset->fetchArray( SQLITE3_NUM );
-        $val       = (int)$row[0];
+        $val       = (int) $row[0];
         $resultset->finalize();
         $result [ $item ] = $val;
       }
+
       return $result;
     }
 
@@ -1029,6 +1035,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
       $sql          =
         "SELECT SUM(LENGTH(value) + LENGTH(name) + 6) length, (expires/16)*16 expires FROM $object_cache WHERE expires >= $offset GROUP BY (expires/16) ORDER BY 2";
       $stmt         = $this->sqlite->prepare( $sql );
+
       return $stmt->execute();
     }
 
@@ -1051,7 +1058,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
           break;
         }
         $value = $this->maybe_unserialize( $row[0] );
-        yield (object)$value;
+        yield (object) $value;
       }
       $resultset->finalize();
     }
@@ -1111,6 +1118,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
       }
       $v                    = SQLite3::version();
       $this->sqlite_version = $v['versionString'];
+
       return $this->sqlite_version;
     }
 
@@ -1127,7 +1135,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
        *
        * @since 2.1.7
        */
-      $groups = apply_filters( 'sqlite_object_cache_add_non_persistent_groups', (array)$groups );
+      $groups = apply_filters( 'sqlite_object_cache_add_non_persistent_groups', (array) $groups );
 
       $this->ignored_groups = array_unique( array_merge( $this->ignored_groups, $groups ) );
       $this->cache_group_types();
@@ -1254,8 +1262,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
       $name = $this->normalize_name( $key, $group );
 
       if ( $this->cache_item_not_exists( $name ) ) {
-        return $this->set( $key, $data, $group, (int)$expire );
+        return $this->set( $key, $data, $group, (int) $expire );
       }
+
       return false;
     }
 
@@ -1342,6 +1351,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
       if ( array_key_exists( $name, $this->not_in_persistent_cache ) ) {
         return true;
       }
+
       return ! $this->cache_item_exists( $name );
     }
 
@@ -1380,6 +1390,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
       }
 
       $this->select_times[] = $this->time_usec() - $start;
+
       return $data;
     }
 
@@ -1511,7 +1522,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         return false;
       }
 
-      return $this->set( $key, $data, $group, (int)$expire );
+      return $this->set( $key, $data, $group, (int) $expire );
     }
 
     /**
@@ -1577,6 +1588,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         foreach ( $input_keys as $key ) {
           $values[ $key ] = $this->get( $key, $group, $force );
         }
+
         return $values;
       }
       $start = $this->time_usec();
@@ -1602,14 +1614,15 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         foreach ( $keys_not_found as $key => $name ) {
           $values[ $key ] = $this->get_by_normalized_name( $name );
         }
+
         return $values;
       }
       /* split into alpha and numeric keys */
       $alphakeys = array();
       $intkeys   = array();
       foreach ( $keys_not_found as $key => $name ) {
-        if ( is_numeric( $key ) && (int)$key == $key && (int)$key > 0 && (int)$key <= $this->intkey_max ) {
-          $intkeys [] = (int)$key;
+        if ( is_numeric( $key ) && (int) $key == $key && (int) $key > 0 && (int) $key <= $this->intkey_max ) {
+          $intkeys [] = (int) $key;
         } else {
           $alphakeys [ $key ] = $name;
         }
@@ -1679,6 +1692,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
       }
       $this->get_multiple_keys []  = count( $keys_not_found );
       $this->get_multiple_times [] = $this->time_usec() - $start;
+
       return $values;
     }
 
@@ -1691,7 +1705,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      * @return string
      */
     private function normalize_name( $key, $group ) {
-      if ( is_numeric( $key ) && (int)$key == $key && (int)$key >= 0 && (int)$key <= $this->intkey_max ) {
+      if ( is_numeric( $key ) && (int) $key == $key && (int) $key >= 0 && (int) $key <= $this->intkey_max ) {
         $key = self::INTKEY_SENTINEL . str_pad( $key, 1 + $this->intkey_length, '0', STR_PAD_LEFT );
       }
 
@@ -1701,6 +1715,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
       if ( empty( $group ) ) {
         $group = 'default';
       }
+
       return $group . '|' . $key;
     }
 
@@ -1746,6 +1761,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
           $found = true;
           ++ $this->cache_hits;
           ++ $this->get_depth;
+
           return is_object( $this->cache[ $name ] ) ? clone( $this->cache[ $name ] ) : $this->cache[ $name ];
         }
       } catch ( Exception $ex ) {
@@ -1786,6 +1802,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         if ( array_key_exists( $name, $this->cache ) || $this->cache_item_exists( $name ) ) {
           ++ $this->cache_hits;
           ++ $this->get_depth;
+
           return is_object( $this->cache[ $name ] ) ? clone( $this->cache[ $name ] ) : $this->cache[ $name ];
         }
       } catch ( Exception $ex ) {
@@ -1904,8 +1921,14 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
           }
           $object_cache = self::OBJECT_CACHE_TABLE;
           $offset       = $this->noexpire_timestamp_offset;
-          $sql          = "DELETE FROM $object_cache WHERE expires >= $offset AND expires <= $horizon";
-          $this->sqlite->exec( $sql );
+          $limit        = self::TRANSACTION_SIZE_LIMIT;
+          $hit          = $limit;
+
+          while ( $hit >= $limit ) {
+            $sql = "DELETE FROM $object_cache WHERE expires >= $offset AND expires <= $horizon LIMIT $limit";
+            $this->sqlite->exec( $sql );
+            $hit = $this->sqlite->changes();
+          }
           $this->sqlite->exec( 'PRAGMA optimize;' );
         }
       } catch ( Exception $ex ) {
@@ -1961,7 +1984,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         $this->cache[ $name ] = 0;
       }
 
-      $offset = (int)$offset;
+      $offset = (int) $offset;
 
       $this->cache[ $name ] += $offset;
 
@@ -2090,7 +2113,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      * @param array $groups List of groups that are unflushable.
      */
     public function add_unflushable_groups( $groups ) {
-      $groups = (array)$groups;
+      $groups = (array) $groups;
 
       $this->unflushable_groups = array_unique( array_merge( $this->unflushable_groups, $groups ) );
       $this->cache_group_types();
@@ -2104,7 +2127,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      * @since 3.0.0
      */
     public function add_global_groups( $groups ) {
-      $groups = (array)$groups;
+      $groups = (array) $groups;
 
       $groups              = array_fill_keys( $groups, true );
       $this->global_groups = array_merge( $this->global_groups, $groups );
@@ -2123,7 +2146,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      *
      */
     public function switch_to_blog( $blog_id ) {
-      $blog_id           = (int)$blog_id;
+      $blog_id           = (int) $blog_id;
       $this->blog_prefix = $this->multisite ? $blog_id . ':' : '';
     }
 
@@ -2293,7 +2316,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
   function wp_cache_add( $key, $data, $group = '', $expire = 0 ) {
     global $wp_object_cache;
 
-    return $wp_object_cache->add( $key, $data, $group, (int)$expire );
+    return $wp_object_cache->add( $key, $data, $group, (int) $expire );
   }
 
   /**
@@ -2337,7 +2360,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
   function wp_cache_replace( $key, $data, $group = '', $expire = 0 ) {
     global $wp_object_cache;
 
-    return $wp_object_cache->replace( $key, $data, $group, (int)$expire );
+    return $wp_object_cache->replace( $key, $data, $group, (int) $expire );
   }
 
   /**
@@ -2362,7 +2385,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
   function wp_cache_set( $key, $data, $group = '', $expire = 0 ) {
     global $wp_object_cache;
 
-    return $wp_object_cache->set( $key, $data, $group, (int)$expire );
+    return $wp_object_cache->set( $key, $data, $group, (int) $expire );
   }
 
   /**
