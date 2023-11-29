@@ -4,7 +4,7 @@ Contributors: OllieJones
 Tags: cache, sqlite, performance
 Requires at least: 5.5
 Requires PHP: 5.6
-Tested up to: 6.4
+Tested up to: 6.4.1
 Version: 1.3.6
 Stable tag: 1.3.6
 License: GPLv2 or later
@@ -190,6 +190,7 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 = 1.3.6 =
 
 * Clean up in chunks in an attempt to reduce contention delays and timeouts.
+* Do PRAGMA wal_checkpoint(RESTART) when cleaning up, and also occasionally, to prevent the write-ahead log from growing without bound on busy systems.
 
 = 1.3.5 =
 
@@ -209,6 +210,6 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 == Upgrade Notice ==
 
-This release attempts to reduce cache timeouts by doing cleanup operations in chunks.
+This release attempts to reduce cache timeouts by doing cleanup operations in chunks. It also does PRAGMA wal_checkpoint(RESTART) when cleaning up, and also occasionally, to prevent the write-ahead log from growing without bound on busy systems.
 
 Thanks, dear users, especially @bourgesloic, @spacedmonkey, @spaceling and @ss88_uk, for letting me know about errors you found, and for your patience as I figure this out. All remaining errors are solely the responsibility of the author.

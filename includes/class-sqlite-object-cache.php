@@ -205,7 +205,7 @@ class SQLite_Object_Cache {
 		}
 
 		/* Remove expired items (transients mostly). */
-		if ( $wp_object_cache->sqlite_remove_expired( true ) ) {
+		if ( $wp_object_cache->sqlite_remove_expired( ) ) {
 			/* If anything was removed, get the size again. */
 			$current_size = $wp_object_cache->sqlite_get_size();
 		}
