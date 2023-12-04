@@ -147,13 +147,15 @@ causes your object cache data to go into the `/tmp` folder in a file named `mysi
 
 `define( 'WP_SQLITE_OBJECT_CACHE_MMAP_SIZE', 32 );`
 
+Notice that using memory-mapped I/O may not help performance in the highly concurrent environment of a busy web server.
+
 = I sometimes get timeout errors from SQLite. How can I fix them? =
 
 Some sites occasionally generate error messages looking like this one:
 
 `Unable to execute statement: database is locked in /var/www/wp-content/object-cache.php:1234`
 
-This can happen if your server places your WordPress files on network-attached storage (that is, on a network drive). To solve this, store your cached data on a locally attached drive. See the question about storing your data in a more secure place.
+This can happen if your server places your WordPress files on network-attached storage (that is, on a network drive). To solve this, store your cached data on a locally attached drive. See the question about storing your data in a more secure place. It also can happen in a very busy site.
 
 = Why do I get errors when I use WP-CLI to administer my site? =
 
@@ -191,6 +193,8 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 * Clean up in chunks in an attempt to reduce contention delays and timeouts.
 * Do PRAGMA wal_checkpoint(RESTART) when cleaning up, and also occasionally, to prevent the write-ahead log from growing without bound on busy systems.
+* Retry three times if cache updates time out.
+* Increase default cache size to 16MiB for new users.
 
 = 1.3.5 =
 
@@ -210,6 +214,6 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 == Upgrade Notice ==
 
-This release attempts to reduce cache timeouts by doing cleanup operations in chunks. It also does PRAGMA wal_checkpoint(RESTART) when cleaning up, and also occasionally, to prevent the write-ahead log from growing without bound on busy systems.
+This release attempts to reduce cache timeouts by doing cleanup operations in chunks, and by retrying timed-out cache update operations. It also does PRAGMA wal_checkpoint(RESTART) when cleaning up, and also occasionally, to prevent the write-ahead log from growing without bound on busy systems.
 
 Thanks, dear users, especially @bourgesloic, @spacedmonkey, @spaceling and @ss88_uk, for letting me know about errors you found, and for your patience as I figure this out. All remaining errors are solely the responsibility of the author.

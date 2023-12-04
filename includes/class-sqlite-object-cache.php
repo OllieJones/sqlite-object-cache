@@ -190,7 +190,7 @@ class SQLite_Object_Cache {
 	 */
 	public function clean_job( $grace_factor = 1.0 ) {
 		$option         = get_option( $this->_token . '_settings', array() );
-		$target_size    = empty ( $option['target_size'] ) ? 4 : $option['target_size'];
+		$target_size    = empty ( $option['target_size'] ) ? 16 : $option['target_size'];
 		$target_size    *= ( 1024 * 1024 );
 		$threshold_size = (int) ( $target_size * $grace_factor );
 
