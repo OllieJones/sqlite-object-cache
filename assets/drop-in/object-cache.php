@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache (Drop-in)
- * Version: 1.3.6
+ * Version: 1.3.7
  * Note: This Version number must match the one in SQLite_Object_Cache::_construct.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -11,7 +11,7 @@
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Requires PHP: 5.6
  * Tested up to: 6.4.1
- * Stable tag: 1.3.6
+ * Stable tag: 1.3.7
  *
  * NOTE: This uses the file .../wp-content/.ht.object_cache.sqlite
  * and the associated files .../wp-content/.ht.object_cache.sqlite-shm
@@ -75,7 +75,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
     const SQLITE_TIMEOUT = 5000;
     const SQLITE_FILENAME = '.ht.object-cache.sqlite';
     const JOURNAL_MODE = 'WAL';  /* or 'MEMORY' */
-    const TRANSACTION_SIZE_LIMIT = 32;
+    const TRANSACTION_SIZE_LIMIT = 64;
 
     /**
      * @var bool True if a transaction is active.
@@ -917,7 +917,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
           while ( $hits >= $limit ) {
             /* @noinspection SqlResolve */
 
-            $sql = "DELETE FROM $object_stats WHERE timestamp < $expires LIMIT $limit;";
+            $sql = "DELETE FROM $object_stats WHERE timestamp IN (SELECT timestamp FROM $object_stats WHERE timestamp < $expires LIMIT $limit);";
             $this->sqlite->exec( $sql );
             $hits = $this->sqlite->changes();
           }
@@ -941,7 +941,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         $hit   = $limit;
 
         /* Remove items with definite expirations, like transients */
-        $sql = 'DELETE FROM ' . $this->cache_table_name . ' WHERE expires <= ' . time() . ' LIMIT ' . $limit;
+        $sql = 'DELETE FROM ' . $this->cache_table_name . ' WHERE name IN (SELECT name FROM ' . $this->cache_table_name . ' WHERE expires <= ' . time() . ' LIMIT ' . $limit . ')';
 
         while ( $hit >= $limit ) {
           $this->sqlite->exec( $sql );
@@ -1960,7 +1960,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
           $hit          = $limit;
 
           while ( $hit >= $limit ) {
-            $sql = "DELETE FROM $object_cache WHERE expires >= $offset AND expires <= $horizon LIMIT $limit";
+            $sql = "DELETE FROM $object_cache WHERE name IN (SELECT name FROM $object_cache WHERE expires >= $offset AND expires <= $horizon LIMIT $limit)";
             $this->sqlite->exec( $sql );
             $hit = $this->sqlite->changes();
           }
@@ -2088,7 +2088,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
           $limit = self::TRANSACTION_SIZE_LIMIT;
           $hit   = $limit;
 
-          $sql = 'DELETE FROM ' . $this->cache_table_name . ' WHERE ' . implode( ' AND ', $clauses ) . ' LIMIT $limit;';
+          $sql = 'DELETE FROM ' . $this->cache_table_name . ' WHERE name IN (SELECT name FROM ' . $this->cache_table_name . ' WHERE ' . implode( ' AND ', $clauses ) . ' LIMIT $limit);';
           while ( $hit >= $limit ) {
             $this->sqlite->exec( $sql );
             $hit = $this->sqlite->changes();

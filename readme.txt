@@ -5,8 +5,8 @@ Tags: cache, sqlite, performance
 Requires at least: 5.5
 Requires PHP: 5.6
 Tested up to: 6.4.1
-Version: 1.3.6
-Stable tag: 1.3.6
+Version: 1.3.7
+Stable tag: 1.3.7
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache
@@ -189,6 +189,10 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 == Changelog ==
 
+= 1.3.7 =
+
+Bug fix: Not all versions of SQLite can do DELETE ... LIMIT, so do transaction-size-limited DELETEs a different way.
+
 = 1.3.6 =
 
 * Clean up in chunks in an attempt to reduce contention delays and timeouts.
@@ -216,4 +220,4 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 This release attempts to reduce cache timeouts by doing cleanup operations in chunks, and by retrying timed-out cache update operations. It also does PRAGMA wal_checkpoint(RESTART) when cleaning up, and also occasionally, to prevent the write-ahead log from growing without bound on busy systems.
 
-Thanks, dear users, especially @bourgesloic, @spacedmonkey, @spaceling and @ss88_uk, for letting me know about errors you found, and for your patience as I figure this out. All remaining errors are solely the responsibility of the author.
+Thanks, dear users, especially @bourgesloic, @spacedmonkey, @spaceling, @ss88_uk, and @wabetainfo, for letting me know about defects you found, and for your patience as I figure this out. All remaining errors are solely the responsibility of the author.
