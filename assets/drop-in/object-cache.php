@@ -2295,7 +2295,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      * @return Generator Name of one of the possible SQLite files.
      */
     public function sqlite_files() {
-      foreach ( array( '', '-shm', '-wal' ) as $suffix ) {
+      foreach ( array( '', '-shm', '-wal', '-wal2' ) as $suffix ) {
         yield $this->sqlite_path . $suffix;
       }
     }
