@@ -1,10 +1,10 @@
 === SQLite Object Cache ===
 Author: Oliver Jones
 Contributors: OllieJones
-Tags: cache, sqlite, performance
+Tags: cache, object cache, sqlite, performance, database
 Requires at least: 5.5
 Requires PHP: 5.6
-Tested up to: 6.4.1
+Tested up to: 6.5
 Version: 1.3.7
 Stable tag: 1.3.7
 License: GPLv2 or later
