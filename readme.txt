@@ -5,8 +5,8 @@ Tags: cache, object cache, sqlite, performance, database
 Requires at least: 5.5
 Requires PHP: 5.6
 Tested up to: 6.5
-Version: 1.3.7
-Stable tag: 1.3.7
+Version: 1.3.8
+Stable tag: 1.3.8
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache
@@ -188,6 +188,11 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 
 == Changelog ==
+
+= 1.3.8 =
+
+Add some support for new SQLite WAL2 write-ahead logging.
+Support WordPress 6.5.
 
 = 1.3.7 =
 
