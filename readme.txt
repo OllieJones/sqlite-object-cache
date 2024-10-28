@@ -4,7 +4,7 @@ Contributors: OllieJones
 Tags: cache, object cache, sqlite, performance, database
 Requires at least: 5.5
 Requires PHP: 5.6
-Tested up to: 6.6
+Tested up to: 6.7
 Version: 1.3.8
 Stable tag: 1.3.8
 License: GPLv2 or later
