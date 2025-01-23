@@ -440,6 +440,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
     {
       if ($this->sqlite) {
         $this->sqlite->close();
+        unset( $this->sqlite );
       }
     }
 	  
