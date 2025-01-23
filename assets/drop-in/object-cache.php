@@ -638,7 +638,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      */
     private function time_usec() {
       if ( $this->has_hrtime ) {
-        /** @noinspection PhpElementIsNotAvailableInCurrentPhpVersionInspection */
         return hrtime( true ) * 0.001;
       }
 
