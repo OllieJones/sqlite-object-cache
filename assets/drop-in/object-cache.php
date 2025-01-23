@@ -434,6 +434,16 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
     }
 
     /**
+     * Make sure connections are always closed at end of request
+     */
+    public function __destruct()
+    {
+      if ($this->sqlite) {
+        $this->sqlite->close();
+      }
+    }
+	  
+    /**
      * Load translations early if necessary and possible.
      *
      * @return bool
