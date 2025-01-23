@@ -1495,7 +1495,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      *
      * @return void
      */
-    private function actuaL_put_by_name( $name, $value, $expires ) {
+    private function actual_put_by_name( $name, $value, $expires ) {
       if ( $this->upsertone ) {
         $stmt = $this->upsertone;
         $stmt->bindValue( ':name', $name, SQLITE3_TEXT );
