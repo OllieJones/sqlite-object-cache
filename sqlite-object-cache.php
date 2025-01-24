@@ -19,15 +19,22 @@
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
-	exit;
+  exit;
 }
 
 require_once 'includes/class-sqlite-object-cache.php';
-if ( is_admin() ) {
-	require_once 'includes/class-sqlite-object-cache-settings.php';
-	require_once 'includes/lib/class-sqlite-object-cache-admin-api.php';
-	require_once 'includes/lib/class-sqlite-object-cache-statistics.php';
-	require_once 'includes/lib/class-sqlite-backup-exclusion.php';
+/* wp-cli interface activation */
+$is_cli = false;
+if ( defined( 'WP_CLI' ) && WP_CLI ) {
+  $is_cli = true;
+  require_once( plugin_dir_path( __FILE__ ) . 'includes/cli.php' );
+}
+
+if ( is_admin()  || $is_cli) {
+  require_once 'includes/class-sqlite-object-cache-settings.php';
+  require_once 'includes/lib/class-sqlite-object-cache-admin-api.php';
+  require_once 'includes/lib/class-sqlite-object-cache-statistics.php';
+  require_once 'includes/lib/class-sqlite-backup-exclusion.php';
 }
 /**
  * Returns the main instance of SQLite_Object_Cache to prevent the need to use globals.
@@ -36,13 +43,13 @@ if ( is_admin() ) {
  * @since  1.0.0
  */
 function sqlite_object_cache() {
-	$instance = new SQLite_Object_Cache( __FILE__, '1.3.8' );
+  $instance = new SQLite_Object_Cache( __FILE__, '1.3.8' );
 
-	if ( is_admin() ) {
-		$instance->settings = new SQLite_Object_Cache_Settings( $instance );
-	}
+  if ( is_admin() ) {
+    $instance->settings = new SQLite_Object_Cache_Settings( $instance );
+  }
 
-	return $instance;
+  return $instance;
 }
 
 sqlite_object_cache();

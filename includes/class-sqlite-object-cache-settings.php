@@ -133,7 +133,7 @@ class SQLite_Object_Cache_Settings {
         array(
           'id'          => 'capture',
           'label'       => __( 'Measure performance', 'sqlite-object-cache' ),
-          'description' => __( 'Check to measure cache performance. ', 'sqlite-object-cache' ),
+          'description' => __( 'Check to enable cache performance measurement. ', 'sqlite-object-cache' ),
           'type'        => 'checkbox',
           'default'     => '',
         ),
