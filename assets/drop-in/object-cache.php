@@ -1978,7 +1978,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         }
         $this->checkpoint();
       } catch ( Exception $ex ) {
-        /* Empty, intenionally. */
+        /* Empty, intentionally. */
       }
     }
 
