@@ -112,6 +112,15 @@ class SQLite_Object_Cache_Settings {
           'reset'       => '',
         ),
         array(
+          'id'          => 'vacuum',
+          'label'       => __( 'Vacuum now', 'sqlite-object-cache' ),
+          'description' => __( 'Check to vacuum (defragment) the cache now.', 'sqlite-object-cache' ) . ' ' .
+                           __( 'This briefly puts your site into maintenance mode.', 'sqlite-object-cache' ),
+          'type'        => 'checkbox',
+          'default'     => '',
+          'reset'       => '',
+        ),
+        array(
           'id'          => 'target_size',
           'label'       => __( 'Cached data size', 'sqlite-object-cache' ),
           'description' => __( 'MiB. When data in the cache grows larger than this, hourly cleanup removes the oldest entries.', 'sqlite-object-cache' ),
@@ -207,6 +216,19 @@ class SQLite_Object_Cache_Settings {
         wp_cache_flush();
       }
       unset ( $option['flush'] );
+    }
+    if ( array_key_exists( 'vacuum', $option ) && $option ['vacuum'] === 'on' ) {
+      if ( method_exists( $wp_object_cache, 'vacuum' ) ) {
+        try {
+          $this->enter_maintenance_mode();
+          $wp_object_cache->vacuum( );
+        } finally {
+          $this->exit_maintenance_mode();
+        }
+      } else {
+        wp_cache_flush();
+      }
+      unset ( $option['vacuum'] );
     }
     if ( array_key_exists( 'cleanup', $option ) && $option ['cleanup'] === 'on' ) {
       $this->parent->clean_job();
@@ -496,6 +518,13 @@ class SQLite_Object_Cache_Settings {
     echo '<a href="' . esc_url( $reviewUrl ) . '">' . esc_html__( 'click here', 'sqlite-object-cache' ) . '</a>. ';
     echo esc_html__( 'Your feedback helps make it better, faster, and more useful', 'sqlite-object-cache' ) . '.';
     echo '</p>';
+    echo '<p>';
+    echo esc_html__( 'You can use WP-CLI to configure this plugin. Please type', 'sqlite-object-cache' ) . ' ';
+    echo '<code>wp help sqlite-object-cache</code> ';
+    echo esc_html__( 'into your shell for details', 'sqlite-object-cache' ) . '.';
+    echo '</p>';
+
+
   }
 
   /**

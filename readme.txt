@@ -5,8 +5,8 @@ Tags: cache, object cache, sqlite, performance, database
 Requires at least: 5.5
 Requires PHP: 5.6
 Tested up to: 6.7
-Version: 1.3.8
-Stable tag: 1.3.8
+Version: 1.4.0
+Stable tag: 1.4.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache
@@ -42,10 +42,18 @@ Installing "SQLite Object Cache" can be done either by searching for "SQLite Obj
 1. Upload the ZIP file through the 'Plugins > Add New > Upload' screen in your WordPress dashboard
 1. Activate the plugin through the 'Plugins' menu in WordPress
 
+Or, use these WP-CLI commands to install the plugin, activate it, and set the cache size to 32MiB.
+
+```bash
+wp plugin install sqlite-object-cache
+wp plugin activate sqlite-object-cache
+wp sqlite-object-cache size 32
+```
+
 The plugin offers optional settings for your `wp-config.php` file. If you change them, deactivate the plugin first, then change them, then reactivate the plugin.
 
 1. WP_SQLITE_OBJECT_CACHE_DB_FILE. This is the SQLite file pathname. The default is …/wp-content/.ht.object_cache.sqlite. Use this if you want to place the SQLite cache file outside your document root.
-1. WP_SQLITE_OBJECT_CACHE_TIMEOUT. This is the SQLite timeout in milliseconds. Default: 5000.
+1. WP_SQLITE_OBJECT_CACHE_TIMEOUT. This is the SQLite timeout in *milliseconds*. Default: 5000. (Notice that the times shown in the Statistics tab are in *microseconds* if you compare them to this timeout setting.)
 1. WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE This is the [SQLite journal mode](https://www.sqlite.org/pragma.html#pragma_journal_mode). Default: ‘WAL’. Possible values DELETE | TRUNCATE | PERSIST | MEMORY | WAL | WAL2 | NONE. (Not all SQLite3 implementations handle WAL2.)
 
 
@@ -91,6 +99,14 @@ You can find out whether your page-cache plugin also enables persistent object c
 
 Users of this plugin have found that it works well with WP Rocket, LiteSpeed Cache, WP Total Cache, WP Super Cache, and WP Fastest Cache. It also works with Cloudflare and other content delivery networks. The author has not learned of any incompatibilities in this area. (If you find one *please* start a support topic!)
 
+Be sure to disable object caching in your other cache plugin if it has it, before you activate this plugin.
+
+= Can I disable object caching for my backend dashboard or other pages or REST API operations I choose? =
+
+**No.**
+
+That's not how object caching works. It's different from page caching. It works at the level of individual database operations in the WordPress code, not at the level of whole pages.
+
 = Is this plugin compatible with my version of MySQL or MariaDB? =
 
 **Yes**. It does not require any specific database server version.
@@ -121,6 +137,8 @@ If you use some other backup or cloning plugin, please let the author know by cr
 
 **No.** If you have more than one web server this doesn't work correctly. If you operate at that scale, use redis or some other cache server. (If you aren't sure whether you have a load-balanced installation, you almost certainly do not.)
 
+Please notice that SQLite does not work correctly if you put its files on a shared network drive (via CIFS, SMB, NFS, or some other drive sharing protocol).
+
 = Can I use this with the Performance Lab plugin? =
 
 **Yes, but** you must *activate this plugin first* before you activate [Performance Lab](https://wordpress.org/plugins/performance-lab/). And, you must deactivate Performance Lab before *deactivating this plugin last*.
@@ -138,6 +156,8 @@ This plugin uses a [WordPress drop-in](https://developer.wordpress.org/reference
 = Where does the plugin store the cached data? =
 
 It's in your site's `wp_content` directory, in the file named `.ht.object-cache.sqlite`. That file's name has the `.ht.` prefix to prevent your web server from allowing it to be downloaded. SQLite also sometimes uses the files named `.ht.object-cache.sqlite-shm` and `.ht.object-cache.sqlite-wal`, so you may see any of those files.
+
+You can make the plugin put its files at some other location by putting the pathname you want in `WP_SQLITE_OBJECT_CACHE_DB_FILE` in your `wp-config.php`.
 
 On Linux and other UNIX-derived operating systems, you must give the command `ls -a` to see files when their names begin with a dot.
 
@@ -203,6 +223,11 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 == Changelog ==
 
+= 1.4.0 =
+
+* Add WP-CLI support.
+* Make sure to close .sqlite files to avoid file-descriptor leaks in long-running processes. Props to Matt Jones.
+
 = 1.3.8 =
 
 Add some support for new SQLite WAL2 write-ahead logging.
@@ -237,6 +262,12 @@ Bug fix: Not all versions of SQLite can do DELETE ... LIMIT, so do transaction-s
 
 == Upgrade Notice ==
 
+This release offers WP-CLI support. Give the command `wp help sqlite-object-cache` for usage instructions.
+
+It avoids file descriptor leaks in long-running php processes. Props to Matt Jones (no relation to the author).
+
+It adds a VACUUM option, to defragment its database file and release unused SSD/HDD space.
+
 This release attempts to reduce cache timeouts by doing cleanup operations in chunks, and by retrying timed-out cache update operations. It also does PRAGMA wal_checkpoint(RESTART) when cleaning up, and also occasionally, to prevent the write-ahead log from growing without bound on busy systems.
 
-Thanks, dear users, especially @bourgesloic, @spacedmonkey, @spaceling, @ss88_uk, and @wabetainfo, for letting me know about defects you found, and for your patience as I figure this out. All remaining errors are solely the responsibility of the author.
+Thanks, dear users for letting me know about defects you found, and for your patience as I figure this out. All remaining errors are solely the responsibility of the author.
