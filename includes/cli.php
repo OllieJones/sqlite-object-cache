@@ -86,7 +86,7 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
       $mmapsize = $sizes['mmap_size'];
       if ( $mmapsize > 0 ) {
         /* translators: 1: size of memory mapped segment  in MiB. --- for WP-CLI  */
-        $msgs[] = sprintf( __( 'Memory Mapped Segment Size": %sMiB', 'sqlite-object-cache' ), number_format_i18n( $mmapsize / ( 1024.0 * 1024.0 ), 3 ) );
+        $msgs[] = sprintf( __( 'Memory Mapped Segment Size: %sMiB', 'sqlite-object-cache' ), number_format_i18n( $mmapsize / ( 1024.0 * 1024.0 ) ) );
       }
 
       $length   = 0;
@@ -115,11 +115,10 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
         /* translators: 1: number of cached items. --- for WP-CLI */
         $msgs[] = sprintf( __( 'Item Count: %s', 'sqlite-object-cache' ), number_format_i18n( $count ) );
       }
-      if ( $earliest < $latest ) {
+      if ( $earliest <= $latest ) {
         /* translators:  1 start time   2 end time both in localized format. --- for WP-CLI  */
-        $msgs[] = sprintf( __( 'Expirations from %1$s to %2$s.', 'sqlite-object-cache' ),
+        $msgs[] = sprintf( __( 'Expirations: %1$s to %2$s.', 'sqlite-object-cache' ),
           $this->format_datestamp( $earliest ), $this->format_datestamp( $latest ) );
-
       }
 
       WP_CLI::log( $this->commentPrefix . implode( '  ', $msgs ) );
