@@ -73,8 +73,58 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
    */
   function status( $args, $assoc_args ) {
     $this->setupCliEnvironment( $args, $assoc_args );
-    WP_CLI::log( $this->commentPrefix . 'TODO' );
+    global $wp_object_cache;
+    if ( method_exists( $wp_object_cache, 'sqlite_sizes' ) ) {
 
+      $sizes = $wp_object_cache->sqlite_sizes();
+      $msgs  = array();
+
+      /* translators: 1: size of .sqlite database file in MiB. --- for WP-CLI  */
+      $msgs[]   = sprintf( __( 'SQLite File Size Total: %sMiB', 'sqlite-object-cache' ), number_format_i18n( $sizes['page_size'] * $sizes['total_pages'] / ( 1024.0 * 1024.0 ), 3 ) );
+      /* translators: 1: size of .sqlite database file free space in MiB. --- for WP-CLI  */
+      $msgs[]   = sprintf( __( 'Free: %sMiB', 'sqlite-object-cache' ), number_format_i18n( $sizes['page_size'] * $sizes['free_pages'] / ( 1024.0 * 1024.0 ), 3 ) );
+      $mmapsize = $sizes['mmap_size'];
+      if ( $mmapsize > 0 ) {
+        /* translators: 1: size of memory mapped segment  in MiB. --- for WP-CLI  */
+        $msgs[] = sprintf( __( 'Memory Mapped Segment Size": %sMiB', 'sqlite-object-cache' ), number_format_i18n( $mmapsize / ( 1024.0 * 1024.0 ), 3 ) );
+      }
+
+      $length   = 0;
+      $count    = 0;
+      $earliest = PHP_INT_MAX;
+      $latest   = PHP_INT_MIN;
+      try {
+        foreach ( $wp_object_cache->sqlite_load_usages( true ) as $item ) {
+          $length += $item->length;
+          $count ++;
+          $ts       = $item->expires;
+          $earliest = min( $earliest, $ts );
+          $latest   = max( $latest, $ts );
+        }
+      } catch ( Exception $ex ) {
+        $length   = 0;
+        $count    = 0;
+        $earliest = PHP_INT_MAX;
+        $latest   = PHP_INT_MIN;
+      }
+      if ( $length > 0 ) {
+        /* translators: 1: number of cached items. --- for WP-CLI */
+        $msgs[] = sprintf( __( 'Cached Data Size %sMiB', 'sqlite-object-cache' ), number_format_i18n( $length / ( 1024.0 * 1024.0 ), 3 ) );
+      }
+      if ( $count > 0 ) {
+        /* translators: 1: number of cached items. --- for WP-CLI */
+        $msgs[] = sprintf( __( 'Item Count: %s', 'sqlite-object-cache' ), number_format_i18n( $count ) );
+      }
+      if ( $earliest < $latest ) {
+        /* translators:  1 start time   2 end time both in localized format. --- for WP-CLI  */
+        $msgs[] = sprintf( __( 'Expirations from %1$s to %2$s.', 'sqlite-object-cache' ),
+          $this->format_datestamp( $earliest ), $this->format_datestamp( $latest ) );
+
+      }
+
+      WP_CLI::log( $this->commentPrefix . implode( '  ', $msgs ) );
+
+    }
   }
 
   /**
@@ -237,7 +287,7 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
     if ( method_exists( $wp_object_cache, 'vacuum' ) ) {
       try {
         $this->enter_maintenance_mode();
-        $wp_object_cache->vacuum( );
+        $wp_object_cache->vacuum();
       } finally {
         $this->exit_maintenance_mode();
       }
@@ -318,7 +368,9 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
     $wp_object_cache->sqlite_delete_old( $target_size, $current_size );
   }
 
-  private function get_one_option( $name ): array {
+  private function get_one_option(
+    $name
+  ): array {
 #a:5:{s:11:"target_size";s:2:"16";s:7:"capture";s:2:"on";s:10:"samplerate";s:3:"100";s:18:"retainmeasurements";s:1:"2";s:15:"previouscapture";i:0;}
     $default = array(
       'target_size'        => '16',
@@ -355,6 +407,22 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
     $maintenanceFileName = ABSPATH . '.maintenance';
     unlink( $maintenanceFileName );
   }
+
+  /**
+   * Format a UNIX timestamp using WP settings.
+   *
+   * @param $stamp
+   *
+   * @return false|string
+   */
+  private function format_datestamp(
+    $stamp
+  ) {
+    $date_format = get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
+
+    return wp_date( $date_format, (int) $stamp );
+  }
+
 }
 
 WP_CLI::add_command( 'sqlite-object-cache', 'SQLite_Object_Cache_CLI' );

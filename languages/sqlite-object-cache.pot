@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-01-25T14:32:10-05:00\n"
+"POT-Creation-Date: 2025-01-25T15:39:56-05:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.9.0\n"
 "X-Domain: sqlite-object-cache\n"
@@ -249,15 +249,47 @@ msgstr ""
 msgid "Versions: SQLite: %1$s   Plugin: %2$s   igbinary: %3$s."
 msgstr ""
 
-#: includes/cli.php:92
+#. translators: 1: size of .sqlite database file in MiB. --- for WP-CLI
+#: includes/cli.php:83
+msgid "SQLite File Size Total: %sMiB"
+msgstr ""
+
+#. translators: 1: size of .sqlite database file free space in MiB. --- for WP-CLI
+#: includes/cli.php:85
+msgid "Free: %sMiB"
+msgstr ""
+
+#. translators: 1: size of memory mapped segment  in MiB. --- for WP-CLI
+#: includes/cli.php:89
+msgid "Memory Mapped Segment Size\": %sMiB"
+msgstr ""
+
+#. translators: 1: number of cached items. --- for WP-CLI
+#: includes/cli.php:112
+msgid "Cached Data Size %sMiB"
+msgstr ""
+
+#. translators: 1: number of cached items. --- for WP-CLI
+#: includes/cli.php:116
+msgid "Item Count: %s"
+msgstr ""
+
+#. translators:  1 start time   2 end time both in localized format. --- for WP-CLI
+#. translators:  1 start time   2 end time both in localized format
+#: includes/cli.php:120
+#: includes/lib/class-sqlite-object-cache-statistics.php:489
+msgid "Expirations from %1$s to %2$s."
+msgstr ""
+
+#: includes/cli.php:142
 msgid "Too many args. \"sqlite-object-cache size 64\" sets it to 64MiB."
 msgstr ""
 
-#: includes/cli.php:132
+#: includes/cli.php:182
 msgid "Too many args. \"sqlite-object-cache samplerate 10\" samples ten percent."
 msgstr ""
 
-#: includes/cli.php:184
+#: includes/cli.php:234
 msgid "Too many args. \"sqlite-object-cache retain 4\" retains measuremewnts for 4 hours."
 msgstr ""
 
@@ -374,11 +406,6 @@ msgstr ""
 
 #: includes/lib/class-sqlite-object-cache-statistics.php:480
 msgid "Cannot load some or all cache items."
-msgstr ""
-
-#. translators:  1 start time   2 end time both in localized format
-#: includes/lib/class-sqlite-object-cache-statistics.php:489
-msgid "Expirations from %1$s to %2$s."
 msgstr ""
 
 #: includes/lib/class-sqlite-object-cache-statistics.php:490
