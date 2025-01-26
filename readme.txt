@@ -14,15 +14,23 @@ Primary Branch: trunk
 Text Domain: sqlite-object-cache
 Domain Path: /languages/
 
-A persistent object cache backend for the rest of us, powered by SQLite.
+A fast persistent object cache backend for the rest of us, powered by SQLite.
 
 == Description ==
 
-A [persistent object cache](https://developer.wordpress.org/reference/classes/wp_object_cache/#persistent-cache-plugins) helps your site perform well. This one uses the widely available [SQLite3](https://www.php.net/manual/en/book.sqlite3.php) extension to php. Many hosting services offer it. If your hosting service does not provide memcached or redis, you may be able to use this plugin instead and get the benefit of object caching.
+A [persistent object cache](https://developer.wordpress.org/reference/classes/wp_object_cache/#persistent-cache-plugins) helps your site perform well. This one uses the widely available [SQLite3](https://www.php.net/manual/en/book.sqlite3.php) extension to php. Many hosting services offer it.  
 
 [Caches](https://en.wikipedia.org/wiki/Cache_(computing)) are ubiquitous in computing, and WordPress has its own caching subsystem. Caches contain short-term copies of the results of expensive database lookups or computations, and allow software to use the copy rather than repeating the expensive operation. This plugin (like other object-caching plugins) extends WordPress's caching subsystem to save those short-term copies from page view to page view. WordPress's cache happens to be a [memoization](https://en.wikipedia.org/wiki/Cache_(computing)#Memoization) cache.
 
 Without a persistent object cache, every WordPress page view must use your MariaDB or MySQL database server to retrieve everything about your site. When a user requests a page, WordPress starts from scratch and loads everything it needs from your database server. Only then can it deliver content to your user. With a persistent object cache, WordPress immediately loads much of the information it needs. This lightens the load on your  database server and delivers content to your users faster.
+
+<h4>Who should use this?</h4>
+
+If your site runs on a single web server, and that server provides the [SQLite3](https://www.php.net/manual/en/book.sqlite3.php) and [igbinary](https://www.php.net/manual/en/intro.igbinary.php) extensions to php, this plugin will almost certainly help you.
+
+Some hosting providers offer [redis](https://redis.io/) cache servers. If your provider offers redis, it may be a good choice. You can use it via tbe [Redis Object Cache](https://wordpress.org/plugins/redis-cache/) plugin. Sites using redis have one SQL database and another non-SQL storage scheme: redis. Other hosting providers offer [memcached](https://memcached.org/), which has the [Memcached Object Cache](https://wordpress.org/plugins/memcached/). And some large multi-purpose cache plugins, such as [LiteSpeed Cache](https://wordpress.org/plugins/litespeed-cache/), also offer object caching based on one of those cache server software packages. The cache-server  approach to object caching comes into its own when you have multiple load-balanced web server machines handling your site. SQLite doesn't work correctly in multiple-web-server environment.
+
+But, for single-server site configurations, SQLite performs well.
 
 <h4>Credits</h4>
 
@@ -69,13 +77,17 @@ Exactly predicting each site's speedup is not possible. Still, benchmarking resu
 
 = What Cached Data Size should I use for my site? =
 
-The default setting for Cached Data Size is 4 MiB. This plugin allows the actual cached data size to grow larger than that, and occasionally removes old data to trim back the size to the setting. Take a look at the Statistics page. If your actual cached data setting is consistently larger than the setting, double the setting.
+The default setting for Cached Data Size is 16 megabytes (MiB). This plugin allows the actual cached data size to grow larger than that, and occasionally removes old data to trim back the size to the setting. Take a look at the Statistics page. If your actual cached data setting is consistently larger than the setting, double the setting.
 
 If you operate a large and busy site, try an initial setting of 32 MiB, then adjust it based on the growth of the actual size.
 
 = What is SQLite? =
 
 [SQLite](https://www.sqlite.org/about.html) is fast and efficient database software. It doesn't require a separate server. Instead, it is built into php using the [SQLite3](https://www.php.net/manual/en/book.sqlite3.php) extension. SQLite programs don't need to open network connections to send requests and wait for replies.
+
+= What is igbinary? =
+
+[igbinary](https://www.php.net/manual/en/ref.igbinary.php) is a php extension that provides an efficient way to serialize and compress data. It, in some cases, uses less than half the storage space of the built-in php data [serializer](https://www.php.net/manual/en/function.serialize.php). If igbinary is available in your php configuration, this plugin uses it. 
 
 = Does this plugin replace MariaDB or MySQL with SQLite? =
 
@@ -87,19 +99,17 @@ No, you don't. This plugin doesn't use SQLite as a full-fledged database server.
 
 A persistent object cache needs some kind of storage mechanism. SQLite serves this plugin as a fast and simple key / value storage mechanism.
 
-Some hosting providers offer scalable high-performance [redis](https://redis.io/) cache servers. If your provider offers redis, it is a good choice. You can use it via [Redis Object Cache](https://wordpress.org/plugins/redis-cache/) plugin. Sites using redis have one SQL database and another non-SQL storage scheme: redis. Other hosting providers offer [memcached](https://memcached.org/), which has the [Memcached Object Cache](https://wordpress.org/plugins/memcached/).
+Some hosting providers offer scalable high-performance [redis](https://redis.io/) cache servers.  You can use it via [Redis Object Cache](https://wordpress.org/plugins/redis-cache/) plugin. Sites using redis have one SQL database and another non-SQL storage scheme: redis. Other hosting providers offer [memcached](https://memcached.org/), which has the [Memcached Object Cache](https://wordpress.org/plugins/memcached/).
 
-But many hosting providers don't offer either redis or memcached, while they do offer SQLite. This plugin enables your site to use a persistent object cache even without a separate cache server.
+But many hosting providers don't offer either redis or memcached, while they do offer SQLite. This plugin enables your site to use a persistent object cache even without a separate cache server. And, because everything happens within your web server, the performance is good.
 
 = Is this plugin compatible with my page-caching plugin? =
 
 **Probably**. Page caching and persistent object caching are completely separate functions in WordPress. But, some multi-feature caching plugins support optional object caching using redis or memcached. If that feature is enabled in your page cache plugin, you should not use this plugin.
 
-You can find out whether your page-cache plugin also enables persistent object caching. Look at the Drop-in section of the Plugins -> Installed Plugins page. If it mentions the drop-in called "object-cache.php" then your page cache plugin is handling persistent object caching and you should not use this plugin.
+You can find out whether your page-cache plugin also enables persistent object caching. Look at the Drop-in section of the Plugins -> Installed Plugins page. If it mentions the drop-in called "object-cache.php" then your page cache plugin is handling persistent object caching. You should disable that feature before using  this plugin.
 
 Users of this plugin have found that it works well with WP Rocket, LiteSpeed Cache, WP Total Cache, WP Super Cache, and WP Fastest Cache. It also works with Cloudflare and other content delivery networks. The author has not learned of any incompatibilities in this area. (If you find one *please* start a support topic!)
-
-Be sure to disable object caching in your other cache plugin if it has it, before you activate this plugin.
 
 = Can I disable object caching for my backend dashboard or other pages or REST API operations I choose? =
 
@@ -111,9 +121,13 @@ That's not how object caching works. It's different from page caching. It works 
 
 **Yes**. It does not require any specific database server version.
 
-= Is this plugin compatible with my version of redis or memcached? =
+does = Is this plugin compatible with my version of redis or memcached? =
 
-It does not use either. Please **do not use** this plugin if you have access to redis or memcached. Instead, use the [Redis Object Cache](https://wordpress.org/plugins/redis-cache/) or [Memcached Object Cache](https://wordpress.org/plugins/memcached/) plugin.
+It does not use either. 
+
+= This cache uses a file on my server HDD/SSD, while redis and memcached use RAM. Aren't they faster?  =
+
+They may indeed be faster. But, modern server operating systems offer extensive page caching for files, and SQLite is designed to take advantage of that. Using a separate cache server require the web server to issue network requests and wait for responses, whereas using SQLite does not. Many users have found this caching methodology to be fast.
 
 = Why not use the site's main MariaDB or MySql database server for the object cache? =
 
