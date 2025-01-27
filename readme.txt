@@ -38,7 +38,7 @@ But, for single-server site configurations, SQLite performs well. And the vast m
 
 You can control this plugin via WP-CLI. Please type this command into your shell for details.
 
-`wp help sqlite-object-cche'.`
+`wp help sqlite-object-cache`
 
 <h4>Credits</h4>
 
