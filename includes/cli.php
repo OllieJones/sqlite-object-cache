@@ -44,7 +44,7 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
       /* translators: 1: version for sqlite  2: version for plugin  3: status of igbinary --- for WP-CLI */
         __( 'Versions: SQLite: %1$s   Plugin: %2$s   igbinary: %3$s.', 'sqlite-object-cache' ),
         $wp_object_cache->sqlite_get_version(),
-        '1.4.0',
+        '1.4.1',
         $igbinary );
     }
 
@@ -339,7 +339,7 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
 
     /* Clean up old statistics. */
     $original_size = $current_size;
-    list( $options, $target_size ) = $this->get_one_option( 'retainmeasurements' );
+    list( $options, $retention ) = $this->get_one_option( 'retainmeasurements' );
     $wp_object_cache->sqlite_reset_statistics( $retention * HOUR_IN_SECONDS );
     $current_size = $wp_object_cache->sqlite_get_size();
     if ( $current_size < $original_size ) {

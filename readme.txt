@@ -5,8 +5,8 @@ Tags: cache, object cache, sqlite, performance, database
 Requires at least: 5.5
 Requires PHP: 5.6
 Tested up to: 6.7.1
-Version: 1.4.0
-Stable tag: 1.4.0
+Version: 1.4.1
+Stable tag: 1.4.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache
@@ -244,6 +244,11 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 
 == Changelog ==
+
+= 1.4.1 =
+
+* More efficient testing for drop-in validity.
+* More accurate least-recently-updated cleanup.
 
 = 1.4.0 =
 

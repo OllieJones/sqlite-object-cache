@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache (Drop-in)
- * Version: 1.4.0
+ * Version: 1.4.1
  * Note: This Version number must match the one in SQLite_Object_Cache::_construct.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -11,7 +11,7 @@
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Requires PHP: 5.6
  * Tested up to: 6.7
- * Stable tag: 1.4.0
+ * Stable tag: 1.4.1
  *
  * NOTE: This uses the file .../wp-content/.ht.object_cache.sqlite
  * and the associated files .../wp-content/.ht.object_cache.sqlite-shm
@@ -77,15 +77,10 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
     const JOURNAL_MODE = 'WAL';  /* or 'MEMORY' */
     const TRANSACTION_SIZE_LIMIT = 64;
 
-    /**
-     * @var bool True if a transaction is active.
-     */
+    private $dropin_version = '1.4.1';
+    /** @var bool True if a transaction is active. */
     private $transaction_active = false;
-    /**
-     * Path to SQLite file.
-     *
-     * @var string
-     */
+    /** Path to SQLite file.  @var string */
     public $sqlite_path;
 
     /**
@@ -1052,7 +1047,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
       $object_cache = self::OBJECT_CACHE_TABLE;
       $offset       = $this->noexpire_timestamp_offset;
       $sql          =
-        "SELECT SUM(LENGTH(value) + LENGTH(name) + 6) length, (expires/16)*16 expires FROM $object_cache WHERE expires >= $offset GROUP BY (expires/16) ORDER BY 2";
+        "SELECT SUM(LENGTH(value) + LENGTH(name) + 6) length, ((expires+15)/16)*16 expires FROM $object_cache WHERE expires >= $offset GROUP BY (expires/16) ORDER BY 2";
       $stmt         = $this->sqlite->prepare( $sql );
 
       return $stmt->execute();
@@ -1125,6 +1120,14 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         $this->error_log( 'error capturing performance stats, skipping.', $ex );
       }
       unset( $record, $stmt );
+    }
+
+    /** Get the version of the drop-in.
+     *
+     * @return string drop-in version.
+     */
+    public function dropin_get_version() {
+      return $this->dropin_version;
     }
 
     /**

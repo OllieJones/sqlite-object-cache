@@ -121,7 +121,7 @@ class SQLite_Object_Cache {
    * @param string $file File constructor.
    * @param string $version Plugin version.
    */
-  public function __construct( $file = '', $version = '1.4.0' ) {
+  public function __construct( $file = '', $version = '1.4.1' ) {
     $this->_version = $version;
     $this->_token   = 'sqlite_object_cache';
 
@@ -401,28 +401,11 @@ class SQLite_Object_Cache {
    *
    */
   public function object_cache_dropin_needs_updating() {
-    if ( ! $this->object_cache_dropin_exists() ) {
+    global $wp_object_cache;
+    if ( ! method_exists( $wp_object_cache, 'dropin_get_version' ) ) {
       return true;
     }
-
-    $dropin = $this->get_cached_plugin_data( $this->dropinfiledest, 'dest' );
-    $plugin = $this->get_cached_plugin_data( $this->dropinfilesource, 'source' );
-
-    if ( $dropin['PluginURI'] === $plugin['PluginURI'] ) {
-      return version_compare( $dropin['Version'], $plugin['Version'], '<' );
-    }
-
-    return false;
-  }
-
-  /**
-   * Checks if the `object-cache.php` drop-in exists
-   *
-   * @return bool
-   * @author Till Krüss
-   */
-  public function object_cache_dropin_exists() {
-    return @file_exists( $this->dropinfiledest );
+    return version_compare( $wp_object_cache->dropin_get_version(), $this->_version, '<' );
   }
 
   /**
@@ -437,9 +420,6 @@ class SQLite_Object_Cache {
     if ( true === $has && $this->initialize_filesystem( '', true ) ) {
 
       $this->delete_sqlite_files();
-      $this->delete_cached_plugin_data( $this->dropinfiledest, 'dest' );
-      $this->delete_cached_plugin_data( $this->dropinfilesource, 'source' );
-
       $result = $wp_filesystem->copy( $this->dropinfilesource, $this->dropinfiledest, true, FS_CHMOD_FILE );
       /**
        * Fires on cache enable event
@@ -459,7 +439,9 @@ class SQLite_Object_Cache {
    * @author Till Krüss
    */
   public function validate_object_cache_dropin() {
-    if ( ! $this->object_cache_dropin_exists() ) {
+    global $wp_object_cache;
+
+    if ( ! method_exists( $wp_object_cache, 'dropin_get_version' ) )  {
       return false;
     }
 
@@ -507,7 +489,7 @@ class SQLite_Object_Cache {
     ob_start();
 
     if ( method_exists( $wp_object_cache, 'sqlite_files' ) ) {
-      if ( $this->validate_object_cache_dropin() && $this->initialize_filesystem( '', true ) ) {
+      if ( $this->initialize_filesystem( '', true ) ) {
         foreach ( $wp_object_cache->sqlite_files() as $file ) {
           $wp_filesystem->delete( $file );
         }
@@ -522,42 +504,10 @@ class SQLite_Object_Cache {
     ob_start();
 
     if ( $this->validate_object_cache_dropin() && $this->initialize_filesystem( '', true ) ) {
-      $this->delete_cached_plugin_data( $this->dropinfiledest, 'dest' );
-      $this->delete_cached_plugin_data( $this->dropinfilesource, 'source' );
-
       $wp_filesystem->delete( $this->dropinfiledest );
     }
 
     ob_end_clean();
   }
 
-  /**
-   * @param string $src Plugin file name
-   *
-   * @return array
-   */
-  private function get_cached_plugin_data( string $src, $tag = null ) {
-    $tag  = null === $tag ? substr( md5( $tag ), 0, 8 ) : $tag;
-    $slot = 'sqlite-oject-cachec' . $tag;
-    $data = get_transient( $slot );
-    if ( is_array( $data ) ) {
-      return $data;
-    }
-    $data = get_plugin_data( $src );
-    if ( is_array( $data ) ) {
-      set_transient( $slot, $data, 300 );
-    }
-    return $data;
-  }
-
-  /**
-   * @param string $src Plugin file name
-   *
-   * @return bool
-   */
-  private function delete_cached_plugin_data( string $src, $tag = null ) {
-    $tag  = null === $tag ? substr( md5( $tag ), 0, 8 ) : $tag;
-    $slot = 'sqlite-oject-cachec' . $tag;
-    return delete_transient( $slot );
-  }
 }
