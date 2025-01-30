@@ -1047,7 +1047,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
       $object_cache = self::OBJECT_CACHE_TABLE;
       $offset       = $this->noexpire_timestamp_offset;
       $sql          =
-        "SELECT SUM(LENGTH(value) + LENGTH(name) + 6) length, ((expires+15)/16)*16 expires FROM $object_cache WHERE expires >= $offset GROUP BY (expires/16) ORDER BY 2";
+        "SELECT SUM(LENGTH(value) + LENGTH(name) + 6) length, ((expires+15)/16)*16 expires FROM $object_cache WHERE expires >= $offset GROUP BY ((expires+15)/16)*16 ORDER BY ((expires+15)/16)*16";
       $stmt         = $this->sqlite->prepare( $sql );
 
       return $stmt->execute();

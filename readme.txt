@@ -85,9 +85,11 @@ Exactly predicting each site's speedup is not possible. Still, benchmarking resu
 
 = What Cached Data Size should I use for my site? =
 
-The default setting for Cached Data Size is 16 megabytes (MiB). This plugin allows the actual cached data size to grow larger than that, and occasionally removes old data to trim back the size to the setting. Take a look at the Statistics page. If your actual cached data setting is consistently larger than the setting, double the setting.
+The default setting for Cached Data Size is 16 megabytes (MiB). This plugin allows the actual cached data size to grow larger than that, and occasionally removes old -- the least recently updated -- data to trim back the size to the setting. Take a look at the Statistics page. If your actual cached data usage under All Groups is consistently larger than the setting, double the setting.
 
 If you operate a large and busy site, try an initial setting of 32 MiB, then adjust it based on the growth of the actual size.
+
+Notice that this setting controls the size of the data in the cache. That is the size shown under All Groups. The data file used by SQLite is larger than that.
 
 = What is SQLite? =
 
