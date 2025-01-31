@@ -1011,6 +1011,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 
     public function sqlite_sizes() {
       $object_stats = self::OBJECT_STATS_TABLE;
+      $this->maybe_create_stats_table( $object_stats );
 
       $items = array(
         'page_size'   => 'PRAGMA page_size;',
