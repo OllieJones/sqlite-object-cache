@@ -486,6 +486,9 @@ class SQLite_Object_Cache {
     global $wp_filesystem;
     global $wp_object_cache;
 
+    if (apcu_enabled()) {
+      apcu_clear_cache();
+    }
     ob_start();
 
     if ( method_exists( $wp_object_cache, 'sqlite_files' ) ) {

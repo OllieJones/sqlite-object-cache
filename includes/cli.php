@@ -73,6 +73,8 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
    */
   function status( $args, $assoc_args ) {
     $this->setupCliEnvironment( $args, $assoc_args );
+    print_r( apcu_cache_info( true ) );
+    print_r(apcu_sma_info());
     global $wp_object_cache;
     if ( method_exists( $wp_object_cache, 'sqlite_sizes' ) ) {
 
@@ -80,7 +82,7 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
       $msgs  = array();
 
       /* translators: 1: size of .sqlite database file in MiB. --- for WP-CLI  */
-      $msgs[]   = sprintf( __( 'SQLite File Size Total: %sMiB', 'sqlite-object-cache' ), number_format_i18n( $sizes['page_size'] * $sizes['total_pages'] / ( 1024.0 * 1024.0 ), 3 ) );
+      $msgs[] = sprintf( __( 'SQLite File Size Total: %sMiB', 'sqlite-object-cache' ), number_format_i18n( $sizes['page_size'] * $sizes['total_pages'] / ( 1024.0 * 1024.0 ), 3 ) );
       /* translators: 1: size of .sqlite database file free space in MiB. --- for WP-CLI  */
       $msgs[]   = sprintf( __( 'Free: %sMiB', 'sqlite-object-cache' ), number_format_i18n( $sizes['page_size'] * $sizes['free_pages'] / ( 1024.0 * 1024.0 ), 3 ) );
       $mmapsize = $sizes['mmap_size'];
