@@ -221,7 +221,7 @@ class SQLite_Object_Cache_Settings {
       if ( method_exists( $wp_object_cache, 'vacuum' ) ) {
         try {
           $this->enter_maintenance_mode();
-          $wp_object_cache->vacuum( );
+          $wp_object_cache->vacuum();
         } finally {
           $this->exit_maintenance_mode();
         }
@@ -536,18 +536,23 @@ class SQLite_Object_Cache_Settings {
   private function versions() {
     global $wp_object_cache;
     $igbinary = function_exists( 'igbinary_serialize' ) && function_exists( 'igbinary_unserialize' )
-      ? __( 'available', 'sqlite-object-cache' )
+      ? phpversion( 'igbinary' )
+      : __( 'unavailable', 'sqlite-object-cache' );
+
+    $apcu_version = apcu_enabled()
+      ? phpversion( "apcu" )
       : __( 'unavailable', 'sqlite-object-cache' );
 
     if ( method_exists( $wp_object_cache, 'sqlite_get_version' ) ) {
       echo '<p>' . esc_html( sprintf(
-        /* translators: 1: version for sqlite   2: version for php  3: webserver version 4: version for plugin  5: status of igbinary */
-          __( 'Versions: SQLite: %1$s  php: %2$s  Server: %3$s Plugin: %4$s  igbinary: %5$s.', 'sqlite-object-cache' ),
+        /* translators: 1: version for sqlite   2: version for php  3: webserver version 4: version for plugin  5: status of igbinary  6:APCu */
+          __( 'Versions: SQLite: %1$s  php: %2$s  Server: %3$s Plugin: %4$s  APCu: %6$s  igbinary: %5$s.', 'sqlite-object-cache' ),
           $wp_object_cache->sqlite_get_version(),
           PHP_VERSION,
           $_SERVER['SERVER_SOFTWARE'],
           $this->parent->_version,
-          $igbinary ) ) . '</p>';
+          $igbinary,
+          $apcu_version ) ) . '</p>';
     }
   }
 

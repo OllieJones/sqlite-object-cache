@@ -338,7 +338,23 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      */
     private $get_multiple_times = array();
     /**
-     * The times for individual get_multiple operations.
+     * The times for apcu_store operations.
+     * @var array
+     */
+    private $apcu_fetch_hit_times = array();
+    /**
+     * The times for apcu_store operations.
+     * @var array
+     */
+    private $apcu_fetch_miss_times = array();
+    /**
+     * The times for apcu_store operations.
+     * @var array
+     */
+    private $apcu_store_times = array();
+
+    /**
+     * The humber of keys for individual get_multiple operations.
      *
      * @var array[int]
      */
@@ -661,6 +677,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      */
     private function time_usec() {
       if ( $this->has_hrtime ) {
+        /* php 7.3 and beyond */
         return hrtime( true ) * 0.001;
       }
 
@@ -1135,6 +1152,12 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         'checkpoints'       => $this->checkpoint_times,
         'DBMSqueries'       => $wpdb->num_queries,
         'RAM'               => memory_get_peak_usage( true ),
+        'APCuhits'          => $this->apcu_hits,
+        'APCumisses'        => $this->apcu_misses,
+        'APCufetchhit'      => $this->apcu_fetch_hit_times,
+        'APCufetchmiss'     => $this->apcu_fetch_miss_times,
+        'APCustore'         => $this->apcu_store_times,
+
       );
       $object_stats = self::OBJECT_STATS_TABLE;
       try {
@@ -1417,20 +1440,24 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      * @throws Exception Announce database failure.
      */
     private function get_by_name( $name ) {
-      $start = $this->time_usec();
       if ( array_key_exists( $name, $this->not_in_persistent_cache ) ) {
         return null;
       }
       if ( $this->has_apcu ) {
-        $data = apcu_fetch( $this->apcusalt . $name, $success );
+        $start = $this->time_usec();
+        $data  = apcu_fetch( $this->apcusalt . $name, $success );
         if ( $success ) {
           ++ $this->apcu_hits;
+          $this->apcu_fetch_hit_times[] = $this->time_usec() - $start;
+
           return $data;
         } else {
           ++ $this->apcu_misses;
+          $this->apcu_fetch_miss_times[] = $this->time_usec() - $start;
         }
       }
-      $data = null;
+      $data  = null;
+      $start = $this->time_usec();
       try {
         $stmt = $this->getone;
         $stmt->bindValue( ':name', $name, SQLITE3_TEXT );
@@ -1446,7 +1473,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         if ( null !== $data ) {
           $data = $this->maybe_unserialize( $data );
           if ( $this->has_apcu ) {
+            $astart = $this->time_usec();
             apcu_store( $this->apcusalt . $name, $data, $expires );
+            $this->apcu_store_times[] = $this->time_usec() - $astart;
           }
 
           unset ( $this->not_in_persistent_cache[ $name ] );
@@ -1521,7 +1550,10 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      */
     private function put_by_name( $name, $data, $expire ) {
       if ( $this->has_apcu ) {
+        $start = $this->time_usec();
         apcu_store( $this->apcusalt . $name, $data, $expire ?: DAY_IN_SECONDS );
+        $this->apcu_store_times[] = $this->time_usec() - $start;
+
       }
       $exception = null;
       $start     = $this->time_usec();
@@ -1713,14 +1745,17 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         $keys_not_found_apcu = array();
         foreach ( $keys_not_found as $key => $name ) {
           //TODO this can get an array form of the operation.
-          $val = apcu_fetch( $this->apcusalt . $name, $success );
+          $astart = $this->time_usec();
+          $val    = apcu_fetch( $this->apcusalt . $name, $success );
           if ( $success ) {
             ++ $this->apcu_hits;
+            $this->apcu_fetch_hit_times[] = $this->time_usec() - $astart;
 
             $values [ $key ] = is_object( $val ) ? clone $val : $val;
           } else {
             ++ $this->apcu_misses;
-            $keys_not_found_apcu[ $key ] = $name;
+            $this->apcu_fetch_miss_times[] = $this->time_usec() - $astart;
+            $keys_not_found_apcu[ $key ]   = $name;
           }
         }
         $keys_not_found = $keys_not_found_apcu;
@@ -1774,7 +1809,10 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
             $expires              = $expires > 0 ? $expires : DAY_IN_SECONDS;
 
             if ( $this->has_apcu ) {
+              $astart = $this->time_usec();
               apcu_store( $this->apcusalt . $name, $data, $expires );
+              $this->apcu_store_times[] = $this->time_usec() - $astart;
+
             }
             unset( $this->not_in_persistent_cache[ $name ] );
           }

@@ -78,6 +78,12 @@ class SQLite_Object_Cache_Statistics {
     $RAM                   = array();
     $DISKhits              = 0;
     $DISKmisses            = 0;
+    $APCuhits              = 0;
+    $APCumisses            = 0;
+    $APCufetchhit          = array();
+    $APCufetchmiss         = array();
+    $APCustore             = array();
+
 
     if ( ! method_exists( $wp_object_cache, 'sqlite_load_statistics' ) ) {
       return;
@@ -97,6 +103,8 @@ class SQLite_Object_Cache_Statistics {
       $DISKLookupsPerRequest[] = $data->DISKhits + $data->DISKmisses;
       $RAMratio                = $data->RAMhits / ( $data->RAMhits + $data->RAMmisses );
       $RAMratios[]             = $RAMratio;
+      $APCUratio               = $data->APCuhits / ( $data->APCuhits + $data->APCumisses );
+      $APCUratios[]            = $APCUratio;
       $DISKratio               = $data->DISKhits / ( $data->DISKhits + $data->DISKmisses );
       $DISKratios[]            = $DISKratio;
       $opens []                = $data->open;
@@ -105,6 +113,9 @@ class SQLite_Object_Cache_Statistics {
       array_push( $get_multiples, ...$data->get_multiples );
       array_push( $get_multiple_keys, ...$data->get_multiple_keys );
       array_push( $inserts, ...$data->inserts );
+      array_push( $APCufetchhit, ...$data->APCufetchhit );
+      array_push( $APCufetchmiss, ...$data->APCufetchmiss );
+      array_push( $APCustore, ...$data->APCustore );
       $SavesPerRequest [] = count( $data->inserts );
       if ( property_exists( $data, 'DBMSqueries' ) && is_numeric( $data->DBMSqueries ) ) {
         $DBMSqueriesPerRequest [] = $data->DBMSqueries;
@@ -115,6 +126,7 @@ class SQLite_Object_Cache_Statistics {
       $this->truncate_if_too_long( $DISKLookupsPerRequest );
       $this->truncate_if_too_long( $RAMratios );
       $this->truncate_if_too_long( $DISKratios );
+      $this->truncate_if_too_long( $APCUratios );
       $this->truncate_if_too_long( $opens );
       $this->truncate_if_too_long( $selects );
       $this->truncate_if_too_long( $get_multiples );
@@ -125,6 +137,9 @@ class SQLite_Object_Cache_Statistics {
       $this->truncate_if_too_long( $deletes );
       $this->truncate_if_too_long( $checkpoints );
       $this->truncate_if_too_long( $RAM );
+      $this->truncate_if_too_long( $APCufetchhit );
+      $this->truncate_if_too_long( $APCufetchmiss );
+      $this->truncate_if_too_long( $APCustore );
 
       if ( property_exists( $data, 'select_names' ) && is_array( $data->select_names ) ) {
         foreach ( $data->select_names as $name ) {
@@ -140,9 +155,10 @@ class SQLite_Object_Cache_Statistics {
       arsort( $selected_names );
       $descriptions = array(
         __( 'RAM hit ratio', 'sqlite-object-cache' )         => $this->descriptive_stats( $RAMratios ),
-        __( 'Disk hit ratio', 'sqlite-object-cache' )        => $this->descriptive_stats( $DISKratios ),
-        __( 'Disk lookups/request', 'sqlite-object-cache' )  => $this->descriptive_stats( $DISKLookupsPerRequest ),
-        __( 'Disk saves/request', 'sqlite-object-cache' )    => $this->descriptive_stats( $SavesPerRequest ),
+        __( 'APCu hit ratio', 'sqlite-object-cache' )        => $this->descriptive_stats( $APCUratios ),
+        __( 'SQLite hit ratio', 'sqlite-object-cache' )        => $this->descriptive_stats( $DISKratios ),
+        __( 'SQlite lookups/request', 'sqlite-object-cache' )  => $this->descriptive_stats( $DISKLookupsPerRequest ),
+        __( 'SQlite saves/request', 'sqlite-object-cache' )    => $this->descriptive_stats( $SavesPerRequest ),
         __( 'MySQL queries/request', 'sqlite-object-cache' ) => $this->descriptive_stats( $DBMSqueriesPerRequest ),
         __( 'Peak RAM usage (MiB)', 'sqlite-object-cache' )  => $this->descriptive_stats( $RAM ),
         __( 'Initialization times', 'sqlite-object-cache' )  => $this->descriptive_stats( $opens ),
@@ -151,7 +167,11 @@ class SQLite_Object_Cache_Statistics {
         __( 'GetMult keys', 'sqlite-object-cache' )          => $this->descriptive_stats( $get_multiple_keys ),
         __( 'Save times', 'sqlite-object-cache' )            => $this->descriptive_stats( $inserts ),
         __( 'Delete times', 'sqlite-object-cache' )          => $this->descriptive_stats( $deletes ),
-        __( 'Checkpoint times', 'sqlite-object-cache' )      => $this->descriptive_stats( $checkpoints ),
+        __( 'SQLite checkpoint times', 'sqlite-object-cache' )      => $this->descriptive_stats( $checkpoints ),
+        __( 'APCu hit times', 'sqlite-object-cache' )      => $this->descriptive_stats( $APCufetchhit ),
+        __( 'APCu miss times', 'sqlite-object-cache' )      => $this->descriptive_stats( $APCufetchmiss ),
+        __( 'APCu store times', 'sqlite-object-cache' )      => $this->descriptive_stats( $APCustore ),
+
       );
 
       $this->descriptions   = $descriptions;
