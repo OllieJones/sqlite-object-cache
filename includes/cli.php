@@ -35,17 +35,24 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
     $this->setupCliEnvironment( $args, $assoc_args );
 
     global $wp_object_cache;
-    $igbinary = function_exists( 'igbinary_serialize' ) && function_exists( 'igbinary_unserialize' )
-      ? __( 'available', 'sqlite-object-cache' )
+    $igbinary = function_exists( 'igbinary_serialize' )
+      ? phpversion( 'igbinary' )
+      : __( 'unavailable', 'sqlite-object-cache' );
+
+    $apcuversion = apcu_enabled()
+      ? ini_get( 'apc.enable_cli' )
+        ? phpversion( 'apcu' )
+        : __( 'not configured for command line use', 'sqlite-object-cache' )
       : __( 'unavailable', 'sqlite-object-cache' );
 
     if ( method_exists( $wp_object_cache, 'sqlite_get_version' ) ) {
       $msg = sprintf(
-      /* translators: 1: version for sqlite  2: version for plugin  3: status of igbinary --- for WP-CLI */
-        __( 'Versions: SQLite: %1$s   Plugin: %2$s   igbinary: %3$s.', 'sqlite-object-cache' ),
+      /* translators: 1: version for sqlite  2: version for plugin  3: igbinary  4" apcu --- for WP-CLI */
+        __( 'Versions: Plugin: %2$s  SQLite: %1$s  APCu: %4$s  igbinary: %3$s.', 'sqlite-object-cache' ),
         $wp_object_cache->sqlite_get_version(),
         '1.4.1',
-        $igbinary );
+        $igbinary,
+      $apcuversion);
     }
 
     WP_CLI::log( $this->commentPrefix . $msg );
@@ -73,8 +80,8 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
    */
   function status( $args, $assoc_args ) {
     $this->setupCliEnvironment( $args, $assoc_args );
-    print_r( apcu_cache_info( true ) );
-    print_r(apcu_sma_info());
+    print_r( apcu_cache_info( false ) );
+    print_r( apcu_sma_info() );
     global $wp_object_cache;
     if ( method_exists( $wp_object_cache, 'sqlite_sizes' ) ) {
 

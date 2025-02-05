@@ -101,14 +101,20 @@ class SQLite_Object_Cache_Statistics {
       $DISKhits                += $data->DISKhits;
       $DISKmisses              += $data->DISKmisses;
       $DISKLookupsPerRequest[] = $data->DISKhits + $data->DISKmisses;
-      $RAMratio                = $data->RAMhits / ( $data->RAMhits + $data->RAMmisses );
-      $RAMratios[]             = $RAMratio;
-      $APCUratio               = $data->APCuhits / ( $data->APCuhits + $data->APCumisses );
-      $APCUratios[]            = $APCUratio;
-      $DISKratio               = $data->DISKhits / ( $data->DISKhits + $data->DISKmisses );
-      $DISKratios[]            = $DISKratio;
-      $opens []                = $data->open;
-      $RAM []                  = $data->RAM / ( 1024 * 1024 );
+      if ( ( $data->RAMhits + $data->RAMmisses ) > 0 ) {
+        $RAMratio    = $data->RAMhits / ( $data->RAMhits + $data->RAMmisses );
+        $RAMratios[] = $RAMratio;
+      }
+      if ( ( $data->APCuhits + $data->APCumisses ) > 0 ) {
+        $APCUratio    = $data->APCuhits / ( $data->APCuhits + $data->APCumisses );
+        $APCUratios[] = $APCUratio;
+      }
+      if ( ( $data->DISKhits + $data->DISKmisses ) > 0 ) {
+        $DISKratio    = $data->DISKhits / ( $data->DISKhits + $data->DISKmisses );
+        $DISKratios[] = $DISKratio;
+      }
+      $opens [] = $data->open;
+      $RAM []   = $data->RAM / ( 1024 * 1024 );
       array_push( $selects, ...$data->selects );
       array_push( $get_multiples, ...$data->get_multiples );
       array_push( $get_multiple_keys, ...$data->get_multiple_keys );
@@ -154,23 +160,23 @@ class SQLite_Object_Cache_Statistics {
     if ( $duration > 0 ) {
       arsort( $selected_names );
       $descriptions = array(
-        __( 'RAM hit ratio', 'sqlite-object-cache' )         => $this->descriptive_stats( $RAMratios ),
-        __( 'APCu hit ratio', 'sqlite-object-cache' )        => $this->descriptive_stats( $APCUratios ),
+        __( 'RAM hit ratio', 'sqlite-object-cache' )           => $this->descriptive_stats( $RAMratios ),
+        __( 'APCu hit ratio', 'sqlite-object-cache' )          => $this->descriptive_stats( $APCUratios ),
         __( 'SQLite hit ratio', 'sqlite-object-cache' )        => $this->descriptive_stats( $DISKratios ),
         __( 'SQlite lookups/request', 'sqlite-object-cache' )  => $this->descriptive_stats( $DISKLookupsPerRequest ),
         __( 'SQlite saves/request', 'sqlite-object-cache' )    => $this->descriptive_stats( $SavesPerRequest ),
-        __( 'MySQL queries/request', 'sqlite-object-cache' ) => $this->descriptive_stats( $DBMSqueriesPerRequest ),
-        __( 'Peak RAM usage (MiB)', 'sqlite-object-cache' )  => $this->descriptive_stats( $RAM ),
-        __( 'Initialization times', 'sqlite-object-cache' )  => $this->descriptive_stats( $opens ),
-        __( 'Get times', 'sqlite-object-cache' )             => $this->descriptive_stats( $selects ),
-        __( 'GetMult times', 'sqlite-object-cache' )         => $this->descriptive_stats( $get_multiples ),
-        __( 'GetMult keys', 'sqlite-object-cache' )          => $this->descriptive_stats( $get_multiple_keys ),
-        __( 'Save times', 'sqlite-object-cache' )            => $this->descriptive_stats( $inserts ),
-        __( 'Delete times', 'sqlite-object-cache' )          => $this->descriptive_stats( $deletes ),
-        __( 'SQLite checkpoint times', 'sqlite-object-cache' )      => $this->descriptive_stats( $checkpoints ),
-        __( 'APCu hit times', 'sqlite-object-cache' )      => $this->descriptive_stats( $APCufetchhit ),
-        __( 'APCu miss times', 'sqlite-object-cache' )      => $this->descriptive_stats( $APCufetchmiss ),
-        __( 'APCu store times', 'sqlite-object-cache' )      => $this->descriptive_stats( $APCustore ),
+        __( 'MySQL queries/request', 'sqlite-object-cache' )   => $this->descriptive_stats( $DBMSqueriesPerRequest ),
+        __( 'Peak RAM usage (MiB)', 'sqlite-object-cache' )    => $this->descriptive_stats( $RAM ),
+        __( 'Initialization times', 'sqlite-object-cache' )    => $this->descriptive_stats( $opens ),
+        __( 'Get times', 'sqlite-object-cache' )               => $this->descriptive_stats( $selects ),
+        __( 'GetMult times', 'sqlite-object-cache' )           => $this->descriptive_stats( $get_multiples ),
+        __( 'GetMult keys', 'sqlite-object-cache' )            => $this->descriptive_stats( $get_multiple_keys ),
+        __( 'Save times', 'sqlite-object-cache' )              => $this->descriptive_stats( $inserts ),
+        __( 'Delete times', 'sqlite-object-cache' )            => $this->descriptive_stats( $deletes ),
+        __( 'SQLite checkpoint times', 'sqlite-object-cache' ) => $this->descriptive_stats( $checkpoints ),
+        __( 'APCu hit times', 'sqlite-object-cache' )          => $this->descriptive_stats( $APCufetchhit ),
+        __( 'APCu miss times', 'sqlite-object-cache' )         => $this->descriptive_stats( $APCufetchmiss ),
+        __( 'APCu store times', 'sqlite-object-cache' )        => $this->descriptive_stats( $APCustore ),
 
       );
 
@@ -190,7 +196,7 @@ class SQLite_Object_Cache_Statistics {
    * @return void
    */
   public function truncate_if_too_long( &$observations, $limit = 999999 ) {
-    if ( count( $observations ) > $limit ) {
+    if ( is_array( $observations ) && count( $observations ) > $limit ) {
       $this->overrun_message = true;
       array_splice( $observations, $limit );
     }
@@ -199,11 +205,12 @@ class SQLite_Object_Cache_Statistics {
   /**
    * Descriptive statistics for an array of numbers.
    *
-   * @param array $a The array.
+   * @param mixed $a The array.
    *
    * @return array
    */
-  public function descriptive_stats( array &$a ) {
+  public function descriptive_stats( &$a ) {
+    $a = is_array( $a ) ? $a : array();
     sort( $a );
     $min = $this->minimum( $a );
     $max = $this->maximum( $a );
@@ -363,6 +370,9 @@ class SQLite_Object_Cache_Statistics {
       echo '<table class="sql-object-cache-stats">' . PHP_EOL;
       $first = true;
       foreach ( $this->descriptions as $stat => $description ) {
+        if ( ! is_array( $description ) || ! array_key_exists( 'n', $description ) || $description['n'] <= 0 ) {
+          continue;
+        }
         if ( $first ) {
           echo '<thead><tr>';
           echo '<th scope="col"></th>';

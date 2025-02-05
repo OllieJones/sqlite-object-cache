@@ -22,7 +22,7 @@ A [persistent object cache](https://developer.wordpress.org/reference/classes/wp
 
 <h4>What is this about?</h4>
 
-It's about making your site perform better. An object cache does that by reducing the workload on your MariaDB or MySQL database. This is not a [page cache](https://developer.wordpress.org/advanced-administration/performance/cache/); these persistent objects are cached in a different kind of cache. These objects aren't chunks of HTML ready for people to view, they are data objects for use by the WordPress software.
+It's about making your site perform better. An object cache does that by reducing the workload on your MariaDB or MySQL database. This is not a [page cache](https://developer.wordpress.org/advanced-administration/performance/cache/); these persistent objects are cached in a different kind of cache. These objects aren't chunks of HTML ready for people to view in their browsers, they are data objects for use by the WordPress software.
 
 [Caches](https://en.wikipedia.org/wiki/Cache_(computing)) are ubiquitous in computing, and WordPress has its own caching subsystem. Caches contain short-term copies of the results of expensive database lookups or computations, and allow software to use the copy rather than repeating the expensive operation. This plugin (like other object-caching plugins) extends WordPress's caching subsystem to save those short-term copies from page view to page view. WordPress's cache happens to be a [memoization](https://en.wikipedia.org/wiki/Cache_(computing)#Memoization) cache.
 
@@ -40,7 +40,7 @@ But, for single-server site configurations, SQLite, possibly assisted by APCu, p
 
 <h4>APCu</h4>
 
-[APCu]()APCu is an in-memory storage medium. It lets php programs, like WordPress, store data so it's very fast to restore when needed. If APCu is available on your host server, you can configure this plugin to use it. It reduces the typical cache lookup time to one-fift or less of the SQLite lookup time, which is itself a few tens of microseconds. Performance counts, especially on busy web sites.
+[APCu](https://www.php.net/manual/en/book.apcu.php) is an in-memory storage medium. It lets php programs, like WordPress, store data so it's very fast to restore when needed. If APCu is available on your host server, you can configure this plugin to use it. It reduces the typical cache lookup time to one-fift or less of the SQLite lookup time, which is itself a few tens of microseconds. Performance counts, especially on busy web sites.
 
 Please look at [Installation](https://wordpress.org/plugins/sqlite-object-cache/#installation) to learn how to configure your server to use APCu.
 
@@ -70,11 +70,9 @@ Installing "SQLite Object Cache" can be done either by searching for "SQLite Obj
 
 Or, use these WP-CLI commands to install the plugin, activate it, and set the cache size to 32MiB.
 
-```bash
-wp plugin install sqlite-object-cache
+`wp plugin install sqlite-object-cache
 wp plugin activate sqlite-object-cache
-wp sqlite-object-cache size 32
-```
+wp sqlite-object-cache size 32`
 
 The plugin offers optional settings for your `wp-config.php` file. If you change them, deactivate the plugin first, then change them, then reactivate the plugin.
 
@@ -88,14 +86,13 @@ The plugin offers optional settings for your `wp-config.php` file. If you change
 
 But command-line programs can't use APCu. We can fix this by changing the php configuration. This requires editing a `php.ini` file, typically named something like `/etc/php/8.3/cli/php.ini`. We need to add just one line to that file, setting the [apc.enable_cli](https://www.php.net/manual/en/apcu.configuration.php#ini.apcu.enable-cli) parameter
 
-```
-apc.enable_cli = 1
-```
+`apc.enable_cli = 1`
 
 That parameter's documentation says it is mostly for testing and debugging. But those remarks in the php manual predate WP-CLI, so read them skepically.)
 
-Then put a WP_SQLITE_OBJECT_CACHE_APCU value of `"on"` into your `wp-config.php` file.
+Then put a WP_SQLITE_OBJECT_CACHE_APCU value of `true` into your `wp-config.php` file. You can use this command to do that.
 
+`wp config set --raw WP_SQLITE_OBJECT_CACHE_APCU true`
 
 == Frequently Asked Questions ===
 
