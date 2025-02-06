@@ -61,8 +61,10 @@ class SQLite_Object_Cache_Statistics {
     $last  = PHP_INT_MIN;
 
     $selected_names        = array();
+    $elapseds              = array();
     $opens                 = array();
     $selects               = array();
+    $gets                  = array();
     $get_multiples         = array();
     $get_multiple_keys     = array();
     $inserts               = array();
@@ -113,9 +115,11 @@ class SQLite_Object_Cache_Statistics {
         $DISKratio    = $data->DISKhits / ( $data->DISKhits + $data->DISKmisses );
         $DISKratios[] = $DISKratio;
       }
-      $opens [] = $data->open;
-      $RAM []   = $data->RAM / ( 1024 * 1024 );
+      $opens []    = $data->open;
+      $elapseds [] = $data->elapsed * 0.000001;
+      $RAM []      = $data->RAM / ( 1024 * 1024 );
       array_push( $selects, ...$data->selects );
+      array_push( $gets, ...$data->gets );
       array_push( $get_multiples, ...$data->get_multiples );
       array_push( $get_multiple_keys, ...$data->get_multiple_keys );
       array_push( $inserts, ...$data->inserts );
@@ -134,7 +138,9 @@ class SQLite_Object_Cache_Statistics {
       $this->truncate_if_too_long( $DISKratios );
       $this->truncate_if_too_long( $APCUratios );
       $this->truncate_if_too_long( $opens );
+      $this->truncate_if_too_long( $elapseds );
       $this->truncate_if_too_long( $selects );
+      $this->truncate_if_too_long( $gets );
       $this->truncate_if_too_long( $get_multiples );
       $this->truncate_if_too_long( $get_multiple_keys );
       $this->truncate_if_too_long( $inserts );
@@ -168,7 +174,8 @@ class SQLite_Object_Cache_Statistics {
         __( 'MySQL queries/request', 'sqlite-object-cache' )   => $this->descriptive_stats( $DBMSqueriesPerRequest ),
         __( 'Peak RAM usage (MiB)', 'sqlite-object-cache' )    => $this->descriptive_stats( $RAM ),
         __( 'Initialization times', 'sqlite-object-cache' )    => $this->descriptive_stats( $opens ),
-        __( 'Get times', 'sqlite-object-cache' )               => $this->descriptive_stats( $selects ),
+        __( 'Request durations (sec)', 'sqlite-object-cache' ) => $this->descriptive_stats( $elapseds ),
+        __( 'Get times', 'sqlite-object-cache' )               => $this->descriptive_stats( $gets ),
         __( 'GetMult times', 'sqlite-object-cache' )           => $this->descriptive_stats( $get_multiples ),
         __( 'GetMult keys', 'sqlite-object-cache' )            => $this->descriptive_stats( $get_multiple_keys ),
         __( 'Save times', 'sqlite-object-cache' )              => $this->descriptive_stats( $inserts ),
@@ -176,7 +183,8 @@ class SQLite_Object_Cache_Statistics {
         __( 'SQLite checkpoint times', 'sqlite-object-cache' ) => $this->descriptive_stats( $checkpoints ),
         __( 'APCu hit times', 'sqlite-object-cache' )          => $this->descriptive_stats( $APCufetchhit ),
         __( 'APCu miss times', 'sqlite-object-cache' )         => $this->descriptive_stats( $APCufetchmiss ),
-        __( 'APCu store times', 'sqlite-object-cache' )        => $this->descriptive_stats( $APCustore ),
+        __( 'APCu save times', 'sqlite-object-cache' )        => $this->descriptive_stats( $APCustore ),
+        __( 'SQLite hit times', 'sqlite-object-cache' )        => $this->descriptive_stats( $selects ),
 
       );
 
@@ -366,7 +374,7 @@ class SQLite_Object_Cache_Statistics {
       echo '<p>' . esc_html( sprintf(
                              /* translators:  1 start time   2 end time both in localized format */
                                __( 'From %1$s to %2$s.', 'sqlite-object-cache' ),
-                               $this->start_time, $this->end_time ) . ' ' . __( 'Times in microseconds.', 'sqlite-object-cache' ) ) . '</p>' . PHP_EOL;
+                               $this->start_time, $this->end_time ) . ' ' . __( 'Times in microseconds, request durations in seconds.', 'sqlite-object-cache' ) ) . '</p>' . PHP_EOL;
       echo '<table class="sql-object-cache-stats">' . PHP_EOL;
       $first = true;
       foreach ( $this->descriptions as $stat => $description ) {
@@ -535,6 +543,21 @@ class SQLite_Object_Cache_Statistics {
         $usedsize  = $filesize - $freesize;
         $statssize = $sizes['stats_size'];
         $mmapsize  = $sizes['mmap_size'];
+
+        $has_apcu = defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU && apcu_enabled();
+
+        if ( $has_apcu ) {
+          $stat         = apcu_cache_info( true );
+          $apcu_entries = $stat['num_entries'];
+          $apcu_mem     = $stat['mem_size'] / ( 1024 * 1024 );
+          /* filesize row */
+            echo '<tr>';
+            echo '<th scope="row" class="right">' . esc_html__( 'APCu Usage', 'sqlite-object-cache' ) . '</th>';
+            echo '<td class="right">' . esc_html( number_format_i18n( $apcu_entries ) ) . '</td>';
+            echo '<td class="right">' . esc_html( number_format_i18n( $apcu_mem, 3 ) ) . '</td>';
+            echo '</tr>' . PHP_EOL;
+        }
+
         /* filesize row */
         if ( $usedsize ) {
           echo '<tr>';
