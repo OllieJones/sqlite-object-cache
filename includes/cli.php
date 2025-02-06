@@ -52,7 +52,7 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
         $wp_object_cache->sqlite_get_version(),
         '1.4.1',
         $igbinary,
-        $apcuversion );
+      $apcuversion);
     }
 
     WP_CLI::log( $this->commentPrefix . $msg );
@@ -82,7 +82,6 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
     $this->setupCliEnvironment( $args, $assoc_args );
     global $wp_object_cache;
     if ( method_exists( $wp_object_cache, 'sqlite_sizes' ) ) {
-
 
       $sizes = $wp_object_cache->sqlite_sizes();
       $msgs  = array();
@@ -116,7 +115,7 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
         $latest   = PHP_INT_MIN;
       }
       if ( $length > 0 ) {
-        /* translators: 1: number of cached items. --- for WP-CLI */
+        /* translators: 1: size of cached items in MiB. --- for WP-CLI */
         $msgs[] = sprintf( __( 'Cached Data Size %sMiB', 'sqlite-object-cache' ), number_format_i18n( $length / ( 1024.0 * 1024.0 ), 3 ) );
       }
       if ( $count > 0 ) {
@@ -130,7 +129,7 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
         $mem     = $stat['mem_size'] / ( 1024 * 1024 );
         /* translators: size of APCu RAM in MiB */
         $msgs[]  = sprintf( __( 'APCu: %sMiB', 'sqlite-object-cache' ), number_format_i18n( $mem, 3 ) );
-        /* transloators: number of items in APCu */
+        /* translators: number of items in APCu */
         $msgs[]  = sprintf( __( '%s items', 'sqlite-object-cache' ), number_format_i18n( $entries ) );
       }
 
