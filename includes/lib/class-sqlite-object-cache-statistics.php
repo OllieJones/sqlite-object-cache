@@ -71,17 +71,11 @@ class SQLite_Object_Cache_Statistics {
     $deletes               = array();
     $checkpoints           = array();
     $RAMratios             = array();
-    $RAMhits               = 0;
-    $RAMmisses             = 0;
     $DISKratios            = array();
     $DISKLookupsPerRequest = array();
     $SavesPerRequest       = array();
     $DBMSqueriesPerRequest = array();
     $RAM                   = array();
-    $DISKhits              = 0;
-    $DISKmisses            = 0;
-    $APCuhits              = 0;
-    $APCumisses            = 0;
     $APCufetchhit          = array();
     $APCufetchmiss         = array();
     $APCustore             = array();
@@ -98,10 +92,6 @@ class SQLite_Object_Cache_Statistics {
     foreach ( $wp_object_cache->sqlite_load_statistics() as $data ) {
       $first                   = min( $data->time, $first );
       $last                    = max( $data->time, $last );
-      $RAMhits                 += $data->RAMhits;
-      $RAMmisses               += $data->RAMmisses;
-      $DISKhits                += $data->DISKhits;
-      $DISKmisses              += $data->DISKmisses;
       $DISKLookupsPerRequest[] = $data->DISKhits + $data->DISKmisses;
       if ( ( $data->RAMhits + $data->RAMmisses ) > 0 ) {
         $RAMratio    = $data->RAMhits / ( $data->RAMhits + $data->RAMmisses );
@@ -376,19 +366,22 @@ class SQLite_Object_Cache_Statistics {
                                __( 'From %1$s to %2$s.', 'sqlite-object-cache' ),
                                $this->start_time, $this->end_time ) . ' ' . __( 'Times in microseconds, request durations in seconds.', 'sqlite-object-cache' ) ) . '</p>' . PHP_EOL;
       echo '<table class="sql-object-cache-stats">' . PHP_EOL;
-      $first = true;
       foreach ( $this->descriptions as $stat => $description ) {
         if ( ! is_array( $description ) || ! array_key_exists( 'n', $description ) || $description['n'] <= 0 ) {
           continue;
         }
-        if ( $first ) {
-          echo '<thead><tr>';
-          echo '<th scope="col"></th>';
-          foreach ( $description as $item => $value ) {
-            echo '<th scope="col" class="right">' . esc_html( $item ) . '</th>' . PHP_EOL;
-          }
-          echo '</tr></thead><tbody>' . PHP_EOL;
-          $first = false;
+        echo '<thead><tr>';
+        echo '<th scope="col"></th>';
+        foreach ( $description as $item => $value ) {
+          echo '<th scope="col" class="right">' . esc_html( $item ) . '</th>' . PHP_EOL;
+        }
+        echo '</tr></thead>' . PHP_EOL;
+        break;
+      }
+
+      foreach ( $this->descriptions as $stat => $description ) {
+        if ( ! is_array( $description ) || ! array_key_exists( 'n', $description ) || $description['n'] <= 0 ) {
+          continue;
         }
         echo '<tr>';
         echo '<th scope="row">' . esc_html( $stat ) . '</th>';
@@ -397,7 +390,20 @@ class SQLite_Object_Cache_Statistics {
         }
         echo '</tr>' . PHP_EOL;
       }
-      echo '</tr></tbody></table>' . PHP_EOL;
+      echo '</tr></tbody>' . PHP_EOL;
+      foreach ( $this->descriptions as $stat => $description ) {
+        if ( ! is_array( $description ) || ! array_key_exists( 'n', $description ) || $description['n'] <= 0 ) {
+          continue;
+        }
+        echo '<tfoot><tr>';
+        echo '<th scope="col"></th>';
+        foreach ( $description as $item => $value ) {
+          echo '<th scope="col" class="right">' . esc_html( $item ) . '</th>' . PHP_EOL;
+        }
+        echo '</tr></tfoot>' . PHP_EOL;
+        break;
+      }
+      echo '</table>' . PHP_EOL;
       if ( $this->overrun_message ) {
         echo '<p>';
         esc_html_e( 'Some statistics were not processed. Processing them all uses too much RAM.', 'sqlite-object-cache' );

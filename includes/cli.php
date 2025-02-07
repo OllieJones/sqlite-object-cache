@@ -122,16 +122,6 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
         /* translators: 1: number of cached items. --- for WP-CLI */
         $msgs[] = sprintf( __( 'Item Count: %s', 'sqlite-object-cache' ), number_format_i18n( $count ) );
       }
-      $has_apcu = defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU && apcu_enabled();
-      if ( $has_apcu ) {
-        $stat    = apcu_cache_info( true );
-        $entries = $stat['num_entries'];
-        $mem     = $stat['mem_size'] / ( 1024 * 1024 );
-        /* translators: size of APCu RAM in MiB */
-        $msgs[]  = sprintf( __( 'APCu: %sMiB', 'sqlite-object-cache' ), number_format_i18n( $mem, 3 ) );
-        /* translators: number of items in APCu */
-        $msgs[]  = sprintf( __( '%s items', 'sqlite-object-cache' ), number_format_i18n( $entries ) );
-      }
 
       if ( $earliest <= $latest ) {
         /* translators:  1 start time   2 end time both in localized format. --- for WP-CLI  */
