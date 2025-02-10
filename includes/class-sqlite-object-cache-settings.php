@@ -495,6 +495,7 @@ class SQLite_Object_Cache_Settings {
   public function settings_section_header( $section ) {
 
     $this->support_links();
+    $this->apcu_admonition();
     $this->versions();
 
     if ( array_key_exists( 'description', $this->settings[ $section['id'] ] ) ) {
@@ -518,11 +519,37 @@ class SQLite_Object_Cache_Settings {
     echo '<a href="' . esc_url( $reviewUrl ) . '">' . esc_html__( 'click here', 'sqlite-object-cache' ) . '</a>. ';
     echo esc_html__( 'Your feedback helps make it better, faster, and more useful', 'sqlite-object-cache' ) . '.';
     echo '</p>';
+
+  }
+  private function apcu_admonition() {
     echo '<p>';
     echo esc_html__( 'You can use WP-CLI to configure this plugin. Please type', 'sqlite-object-cache' ) . ' ';
     echo '<code>wp help sqlite-object-cache</code> ';
     echo esc_html__( 'into your shell for details', 'sqlite-object-cache' ) . '.';
     echo '</p>';
+    $apc = defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU;
+    if ( apcu_enabled() && ! $apc ) {
+      echo '<p>';
+      echo esc_html__( 'On your site you can use php\'s', 'sqlite-object-cache' ) . ' ';
+      echo '<a href="https://www.php.net/manual/en/book.apcu.php" target="_blank">APCu User Cache</a>  ';
+      echo esc_html__( 'to improve the performance of this SQLite Object Cache. ', 'sqlite-object-cache' ) . ' ';
+      echo esc_html__( 'To enable APCu caching please type', 'sqlite-object-cache' ) . ' ';
+      echo '<br><code>wp config set --raw WP_SQLITE_OBJECT_CACHE_APCU true</code><br>';
+      echo esc_html__( 'into your shell, or put this line into your wp-config.php file', 'sqlite-object-cache' ) . '.';
+      echo '<br><code>define( \'WP_SQLITE_OBJECT_CACHE_APCU\', true );</code> ';
+      echo '</p>';
+    }
+    if ( apcu_enabled() && $apc ) {
+      echo '<p>';
+      echo esc_html__( 'You are using php\'s', 'sqlite-object-cache' ) . ' ';
+      echo '<a href="https://www.php.net/manual/en/book.apcu.php" target="_blank">APCu User Cache</a>  ';
+      echo esc_html__( 'to improve the performance of this SQLite Object Cache. ', 'sqlite-object-cache' ) . ' ';
+      echo esc_html__( 'To disable APCu caching please type', 'sqlite-object-cache' ) . ' ';
+      echo '<br><code>wp config delete WP_SQLITE_OBJECT_CACHE_APCU</code><br>';
+      echo esc_html__( 'into your shell, or remove this line from your wp-config.php file', 'sqlite-object-cache' ) . '.';
+      echo '<br><code>define( \'WP_SQLITE_OBJECT_CACHE_APCU\', true );</code> ';
+      echo '</p>';
+    }
 
 
   }
@@ -533,7 +560,8 @@ class SQLite_Object_Cache_Settings {
    * @return void
    * @throws Exception Announce database failure.
    */
-  private function versions() {
+  private
+  function versions() {
     global $wp_object_cache;
     $igbinary = function_exists( 'igbinary_serialize' ) && function_exists( 'igbinary_unserialize' )
       ? phpversion( 'igbinary' )
@@ -565,7 +593,10 @@ class SQLite_Object_Cache_Settings {
    * @throws Exception Announce Database Failure.
    * @noinspection PhpUnusedParameterInspection
    */
-  public function stats_section_header( $section ) {
+  public
+  function stats_section_header(
+    $section
+  ) {
 
     $this->support_links();
     $this->versions();
@@ -581,7 +612,8 @@ class SQLite_Object_Cache_Settings {
    *
    * @return void
    */
-  public function settings_page() {
+  public
+  function settings_page() {
 
     /* get the tab chosen by the user ('standard' by default or 'stats') */
     $tab = isset ( $_REQUEST['tab'] ) ? sanitize_key( $_REQUEST['tab'] ) : 'standard';
@@ -639,7 +671,10 @@ class SQLite_Object_Cache_Settings {
    * @return void
    * @noinspection PhpUnusedParameterInspection
    */
-  public function enqueue_assets( $hook = '' ) {
+  public
+  function enqueue_assets(
+    $hook = ''
+  ) {
     wp_register_style( $this->parent->_token . '-admin',
       esc_url( $this->parent->assets_url ) . 'css/admin.css',
       array(), $this->parent->_version );
@@ -651,7 +686,8 @@ class SQLite_Object_Cache_Settings {
    *
    * @return void
    */
-  private function enter_maintenance_mode() {
+  private
+  function enter_maintenance_mode() {
     $maintenanceFileName = ABSPATH . '.maintenance';
     $maintain            = array();
     array_push( $maintain,
@@ -666,7 +702,8 @@ class SQLite_Object_Cache_Settings {
    *
    * @return void
    */
-  private function exit_maintenance_mode() {
+  private
+  function exit_maintenance_mode() {
     $maintenanceFileName = ABSPATH . '.maintenance';
     unlink( $maintenanceFileName );
   }

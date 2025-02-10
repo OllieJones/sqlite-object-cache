@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-02-06T15:24:50-05:00\n"
+"POT-Creation-Date: 2025-02-10T14:05:55-05:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.9.0\n"
 "X-Domain: sqlite-object-cache\n"
@@ -34,16 +34,16 @@ msgstr ""
 msgid "https://github.com/OllieJones/"
 msgstr ""
 
-#: assets/drop-in/object-cache.php:595
+#: assets/drop-in/object-cache.php:635
 msgid "The SQLite Object Cache temporarily failed. Please try again now."
 msgstr ""
 
 #. translators: 1: WP_CONTENT_DIR
-#: assets/drop-in/object-cache.php:859
+#: assets/drop-in/object-cache.php:917
 msgid "The SQLite Object Cache cannot be activated because the %s directory is not writable."
 msgstr ""
 
-#: assets/drop-in/object-cache.php:868
+#: assets/drop-in/object-cache.php:926
 msgid "The SQLite Object Cache cannot be activated because the SQLite3 extension is not loaded."
 msgstr ""
 
@@ -54,7 +54,7 @@ msgid "Settings"
 msgstr ""
 
 #: includes/class-sqlite-object-cache-settings.php:100
-#: includes/class-sqlite-object-cache-settings.php:593
+#: includes/class-sqlite-object-cache-settings.php:625
 msgid "Save Settings"
 msgstr ""
 
@@ -133,7 +133,7 @@ msgstr ""
 
 #: includes/class-sqlite-object-cache-settings.php:176
 #: includes/class-sqlite-object-cache-settings.php:419
-#: includes/lib/class-sqlite-object-cache-statistics.php:592
+#: includes/lib/class-sqlite-object-cache-statistics.php:598
 msgid "Statistics"
 msgstr ""
 
@@ -142,7 +142,7 @@ msgid "Reset Statistics"
 msgstr ""
 
 #: includes/class-sqlite-object-cache-settings.php:336
-#: includes/class-sqlite-object-cache-settings.php:591
+#: includes/class-sqlite-object-cache-settings.php:623
 msgid "SQLite Persistent Object Cache"
 msgstr ""
 
@@ -168,40 +168,69 @@ msgstr ""
 msgid "You cannot use the SQLite Object Cache plugin. Your server only offers SQLite3 version %1$s, but at least %2$s is required."
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:515
+#: includes/class-sqlite-object-cache-settings.php:516
 msgid "For support please"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:516
-#: includes/class-sqlite-object-cache-settings.php:518
+#: includes/class-sqlite-object-cache-settings.php:517
+#: includes/class-sqlite-object-cache-settings.php:519
 msgid "click here"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:517
+#: includes/class-sqlite-object-cache-settings.php:518
 msgid "To rate this plugin please"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:519
+#: includes/class-sqlite-object-cache-settings.php:520
 msgid "Your feedback helps make it better, faster, and more useful"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:522
+#: includes/class-sqlite-object-cache-settings.php:526
 msgid "You can use WP-CLI to configure this plugin. Please type"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:524
+#: includes/class-sqlite-object-cache-settings.php:528
 msgid "into your shell for details"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:540
+#: includes/class-sqlite-object-cache-settings.php:533
+msgid "On your site you can use php's"
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:535
+#: includes/class-sqlite-object-cache-settings.php:546
+msgid "to improve the performance of this SQLite Object Cache. "
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:536
+msgid "To enable APCu caching please type"
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:538
+msgid "into your shell, or put this line into your wp-config.php file"
+msgstr ""
+
 #: includes/class-sqlite-object-cache-settings.php:544
+msgid "You are using php's"
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:547
+msgid "To disable APCu caching please type"
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:549
+msgid "into your shell, or remove this line from your wp-config.php file"
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:568
+#: includes/class-sqlite-object-cache-settings.php:572
 #: includes/cli.php:40
 #: includes/cli.php:46
 msgid "unavailable"
 msgstr ""
 
 #. translators: 1: version for sqlite   2: version for php  3: webserver version 4: version for plugin  5: status of igbinary  6:APCu
-#: includes/class-sqlite-object-cache-settings.php:549
+#: includes/class-sqlite-object-cache-settings.php:577
 msgid "Versions: SQLite: %1$s  php: %2$s  Server: %3$s Plugin: %4$s  APCu: %6$s  igbinary: %5$s."
 msgstr ""
 
@@ -251,233 +280,223 @@ msgid "Versions: Plugin: %2$s  SQLite: %1$s  APCu: %4$s  igbinary: %3$s."
 msgstr ""
 
 #. translators: 1: size of .sqlite database file in MiB. --- for WP-CLI
-#: includes/cli.php:92
+#: includes/cli.php:90
 msgid "SQLite File Size Total: %sMiB"
 msgstr ""
 
 #. translators: 1: size of .sqlite database file free space in MiB. --- for WP-CLI
-#: includes/cli.php:94
+#: includes/cli.php:92
 msgid "Free: %sMiB"
 msgstr ""
 
 #. translators: 1: size of memory mapped segment  in MiB. --- for WP-CLI
-#: includes/cli.php:98
+#: includes/cli.php:96
 msgid "Memory Mapped Segment Size: %sMiB"
 msgstr ""
 
 #. translators: 1: size of cached items in MiB. --- for WP-CLI
-#: includes/cli.php:121
+#: includes/cli.php:119
 msgid "Cached Data Size %sMiB"
 msgstr ""
 
 #. translators: 1: number of cached items. --- for WP-CLI
-#: includes/cli.php:125
+#: includes/cli.php:123
 msgid "Item Count: %s"
 msgstr ""
 
-#. translators: size of APCu RAM in MiB
-#: includes/cli.php:133
-msgid "APCu: %sMiB"
-msgstr ""
-
-#. translators: number of items in APCu
-#: includes/cli.php:135
-msgid "%s items"
-msgstr ""
-
 #. translators:  1 start time   2 end time both in localized format. --- for WP-CLI
-#: includes/cli.php:140
+#: includes/cli.php:128
 msgid "Expirations: %1$s to %2$s."
 msgstr ""
 
-#: includes/cli.php:161
+#: includes/cli.php:149
 msgid "Too many args. \"sqlite-object-cache size 64\" sets it to 64MiB."
 msgstr ""
 
-#: includes/cli.php:201
+#: includes/cli.php:189
 msgid "Too many args. \"sqlite-object-cache samplerate 10\" samples ten percent."
 msgstr ""
 
-#: includes/cli.php:253
+#: includes/cli.php:241
 msgid "Too many args. \"sqlite-object-cache retain 4\" retains measuremewnts for 4 hours."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:169
+#: includes/lib/class-sqlite-object-cache-statistics.php:159
 msgid "RAM hit ratio"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:170
+#: includes/lib/class-sqlite-object-cache-statistics.php:160
 msgid "APCu hit ratio"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:171
+#: includes/lib/class-sqlite-object-cache-statistics.php:161
 msgid "SQLite hit ratio"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:172
+#: includes/lib/class-sqlite-object-cache-statistics.php:162
 msgid "SQlite lookups/request"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:173
+#: includes/lib/class-sqlite-object-cache-statistics.php:163
 msgid "SQlite saves/request"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:174
+#: includes/lib/class-sqlite-object-cache-statistics.php:164
 msgid "MySQL queries/request"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:175
+#: includes/lib/class-sqlite-object-cache-statistics.php:165
 msgid "Peak RAM usage (MiB)"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:176
+#: includes/lib/class-sqlite-object-cache-statistics.php:166
 msgid "Initialization times"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:177
+#: includes/lib/class-sqlite-object-cache-statistics.php:167
 msgid "Request durations (sec)"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:178
+#: includes/lib/class-sqlite-object-cache-statistics.php:168
 msgid "Get times"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:179
+#: includes/lib/class-sqlite-object-cache-statistics.php:169
 msgid "GetMult times"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:180
+#: includes/lib/class-sqlite-object-cache-statistics.php:170
 msgid "GetMult keys"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:181
+#: includes/lib/class-sqlite-object-cache-statistics.php:171
 msgid "Save times"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:182
+#: includes/lib/class-sqlite-object-cache-statistics.php:172
 msgid "Delete times"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:183
+#: includes/lib/class-sqlite-object-cache-statistics.php:173
 msgid "SQLite checkpoint times"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:184
+#: includes/lib/class-sqlite-object-cache-statistics.php:174
 msgid "APCu hit times"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:185
+#: includes/lib/class-sqlite-object-cache-statistics.php:175
 msgid "APCu miss times"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:186
+#: includes/lib/class-sqlite-object-cache-statistics.php:176
 msgid "APCu save times"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:187
+#: includes/lib/class-sqlite-object-cache-statistics.php:177
 msgid "SQLite hit times"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:372
+#: includes/lib/class-sqlite-object-cache-statistics.php:362
 msgid "Cache performance"
 msgstr ""
 
 #. translators:  1 start time   2 end time both in localized format
-#: includes/lib/class-sqlite-object-cache-statistics.php:376
+#: includes/lib/class-sqlite-object-cache-statistics.php:366
 msgid "From %1$s to %2$s."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:377
+#: includes/lib/class-sqlite-object-cache-statistics.php:367
 msgid "Times in microseconds, request durations in seconds."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:403
+#: includes/lib/class-sqlite-object-cache-statistics.php:409
 msgid "Some statistics were not processed. Processing them all uses too much RAM."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:405
+#: includes/lib/class-sqlite-object-cache-statistics.php:411
 msgid "Try measuring a smaller random sample of requests."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:411
+#: includes/lib/class-sqlite-object-cache-statistics.php:417
 msgid "No cache performance statistics have been captured."
 msgstr ""
 
 #. translators: 1: a percentage
-#: includes/lib/class-sqlite-object-cache-statistics.php:414
+#: includes/lib/class-sqlite-object-cache-statistics.php:420
 msgid "The plugin is capturing a random sample of %s%% of requests. It is possible no samples have yet been captured."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:418
+#: includes/lib/class-sqlite-object-cache-statistics.php:424
 msgid "Cache performance measurement is not enabled."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:419
+#: includes/lib/class-sqlite-object-cache-statistics.php:425
 msgid "You may enable it on the Settings tab."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:449
+#: includes/lib/class-sqlite-object-cache-statistics.php:455
 msgid "Most frequently looked up cache items"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:457
-#: includes/lib/class-sqlite-object-cache-statistics.php:533
+#: includes/lib/class-sqlite-object-cache-statistics.php:463
+#: includes/lib/class-sqlite-object-cache-statistics.php:539
 msgid "Cache Group"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:458
+#: includes/lib/class-sqlite-object-cache-statistics.php:464
 msgid "Cache Key"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:459
+#: includes/lib/class-sqlite-object-cache-statistics.php:465
 msgid "Count"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:490
+#: includes/lib/class-sqlite-object-cache-statistics.php:496
 msgid "Cache usage"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:518
+#: includes/lib/class-sqlite-object-cache-statistics.php:524
 msgid "Cannot load some or all cache items."
 msgstr ""
 
 #. translators:  1 start time   2 end time both in localized format
-#: includes/lib/class-sqlite-object-cache-statistics.php:527
+#: includes/lib/class-sqlite-object-cache-statistics.php:533
 msgid "Expirations from %1$s to %2$s."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:528
+#: includes/lib/class-sqlite-object-cache-statistics.php:534
 msgid "Sizes in MiB."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:534
+#: includes/lib/class-sqlite-object-cache-statistics.php:540
 msgid "Items"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:535
+#: includes/lib/class-sqlite-object-cache-statistics.php:541
 msgid "Size"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:555
+#: includes/lib/class-sqlite-object-cache-statistics.php:561
 msgid "APCu Usage"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:564
+#: includes/lib/class-sqlite-object-cache-statistics.php:570
 msgid "SQLite Pages Used"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:573
+#: includes/lib/class-sqlite-object-cache-statistics.php:579
 msgid "SQLite Pages Free"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:582
+#: includes/lib/class-sqlite-object-cache-statistics.php:588
 msgid "Memory-mapped I/O"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:602
+#: includes/lib/class-sqlite-object-cache-statistics.php:608
 msgid "All Groups"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-statistics.php:619
+#: includes/lib/class-sqlite-object-cache-statistics.php:625
 msgid "No cache items found."
 msgstr ""
