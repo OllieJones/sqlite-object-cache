@@ -522,8 +522,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
       $this->noexpire_timestamp_offset = self::NOEXPIRE_TIMESTAMP_OFFSET;
       $this->open_connection();
 
-      if ($this->apcu_active && $this->clear_flag()) {
-        apcu_clear_cache();
+      /* If wp-cli code cached something into SQLite, clear the APCu cache because it's stale. */
+      if ( $this->apcu_active && $this->clear_flag() ) {
+        $this->apcu_clear_cache();
       }
     }
 
@@ -864,7 +865,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      * @noinspection SqlResolve
      */
     private function prepare_statements( $tbl ) {
-      $now               = time();
+      $now                    = time();
       $this->getone_stmt      =
         $this->sqlite->prepare( "SELECT value, expires FROM $tbl WHERE name = :name AND expires >= $now;" );
       $this->getrange_stmt    =
@@ -1504,6 +1505,38 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
     }
 
     /**
+     *  Expiration-safe APCU fwtch operation.
+     *
+     * This is necessary to prevent WordPress transients from living beyond their expiration times.
+     * Lots of functionality depends on them vanishing when scheduled.
+     *
+     * @param string $name The name of the key to fetch.
+     * @param bool $success  Set to true on success or false on failure.
+     *
+     * @return false|mixed The value on success, false on falure.
+     */
+    private function apcu_fetch( $name, &$success ) {
+      //TODO make this work with arrays of names.
+      $info = apcu_key_info( $name );
+      if ( ! is_array( $info ) ) {
+        $success = false;
+        return false;
+      }
+      $now = time();
+      if ( $info['deletion_time'] > 0 && $now > $info['deletion_time'] ) {
+        $success = false;
+        return false;
+      }
+      if ( $info['ttl'] > 0 && $now > $info['creation_time'] + $info['ttl'] ) {
+        apcu_delete( $name );
+        $success = false;
+        return false;
+      }
+
+      return apcu_fetch( $name, $success );
+    }
+
+    /**
      * Get one item from external cache.
      *
      * @param string $name Cache key.
@@ -1517,7 +1550,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
       }
       if ( $this->apcu_active ) {
         $astart = $this->time_usec();
-        $data   = apcu_fetch( $this->apcusalt . $name, $success );
+        $data   = $this->apcu_fetch( $this->apcusalt . $name, $success );
         if ( $success ) {
           ++ $this->apcu_hits;
           $this->apcu_fetch_hit_times[] = $this->time_usec() - $astart;
@@ -1826,7 +1859,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         foreach ( $keys_not_found as $key => $name ) {
           //TODO this can get an array form of the operation.
           $astart = $this->time_usec();
-          $val    = apcu_fetch( $this->apcusalt . $name, $success );
+          $val    = $this->apcu_fetch( $this->apcusalt . $name, $success );
           if ( $success ) {
             ++ $this->apcu_hits;
             $this->apcu_fetch_hit_times[] = $this->time_usec() - $astart;
