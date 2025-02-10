@@ -1505,38 +1505,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
     }
 
     /**
-     *  Expiration-safe APCU fwtch operation.
-     *
-     * This is necessary to prevent WordPress transients from living beyond their expiration times.
-     * Lots of functionality depends on them vanishing when scheduled.
-     *
-     * @param string $name The name of the key to fetch.
-     * @param bool $success  Set to true on success or false on failure.
-     *
-     * @return false|mixed The value on success, false on falure.
-     */
-    private function apcu_fetch( $name, &$success ) {
-      //TODO make this work with arrays of names.
-      $info = apcu_key_info( $name );
-      if ( ! is_array( $info ) ) {
-        $success = false;
-        return false;
-      }
-      $now = time();
-      if ( $info['deletion_time'] > 0 && $now > $info['deletion_time'] ) {
-        $success = false;
-        return false;
-      }
-      if ( $info['ttl'] > 0 && $now > $info['creation_time'] + $info['ttl'] ) {
-        apcu_delete( $name );
-        $success = false;
-        return false;
-      }
-
-      return apcu_fetch( $name, $success );
-    }
-
-    /**
      * Get one item from external cache.
      *
      * @param string $name Cache key.
@@ -1550,7 +1518,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
       }
       if ( $this->apcu_active ) {
         $astart = $this->time_usec();
-        $data   = $this->apcu_fetch( $this->apcusalt . $name, $success );
+        $data   = apcu_fetch( $this->apcusalt . $name, $success );
         if ( $success ) {
           ++ $this->apcu_hits;
           $this->apcu_fetch_hit_times[] = $this->time_usec() - $astart;
@@ -1859,7 +1827,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         foreach ( $keys_not_found as $key => $name ) {
           //TODO this can get an array form of the operation.
           $astart = $this->time_usec();
-          $val    = $this->apcu_fetch( $this->apcusalt . $name, $success );
+          $val    = apcu_fetch( $this->apcusalt . $name, $success );
           if ( $success ) {
             ++ $this->apcu_hits;
             $this->apcu_fetch_hit_times[] = $this->time_usec() - $astart;
