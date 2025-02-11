@@ -521,6 +521,7 @@ class SQLite_Object_Cache_Settings {
     echo '</p>';
 
   }
+
   private function apcu_admonition() {
     echo '<p>';
     echo esc_html__( 'You can use WP-CLI to configure this plugin. Please type', 'sqlite-object-cache' ) . ' ';
@@ -563,6 +564,7 @@ class SQLite_Object_Cache_Settings {
   private
   function versions() {
     global $wp_object_cache;
+    global $wp_version;
     $igbinary = function_exists( 'igbinary_serialize' ) && function_exists( 'igbinary_unserialize' )
       ? phpversion( 'igbinary' )
       : __( 'unavailable', 'sqlite-object-cache' );
@@ -573,14 +575,15 @@ class SQLite_Object_Cache_Settings {
 
     if ( method_exists( $wp_object_cache, 'sqlite_get_version' ) ) {
       echo '<p>' . esc_html( sprintf(
-        /* translators: 1: version for sqlite   2: version for php  3: webserver version 4: version for plugin  5: status of igbinary  6:APCu */
-          __( 'Versions: SQLite: %1$s  php: %2$s  Server: %3$s Plugin: %4$s  APCu: %6$s  igbinary: %5$s.', 'sqlite-object-cache' ),
+        /* translators: 1: version for sqlite   2: version for php  3: webserver version 4: version for plugin  5: igbinary  6:APCu  7:WordPress */
+          __( 'Versions: WordPress: %7$s  SQLite: %1$s  php: %2$s  Server: %3$s Plugin: %4$s  APCu: %6$s  igbinary: %5$s.', 'sqlite-object-cache' ),
           $wp_object_cache->sqlite_get_version(),
           PHP_VERSION,
           $_SERVER['SERVER_SOFTWARE'],
           $this->parent->_version,
           $igbinary,
-          $apcu_version ) ) . '</p>';
+          $apcu_version,
+          $wp_version ) ) . '</p>';
     }
   }
 

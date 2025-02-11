@@ -4,9 +4,10 @@ Contributors: OllieJones
 Tags: cache, object cache, sqlite, performance, apcu
 Requires at least: 5.5
 Requires PHP: 5.6
-Tested up to: 6.7.1
-Version: 1.4.1
-Stable tag: 1.4.1
+Tested up to: 6.7.2
+Tested up to: 6.7.2
+Version: 1.5.0
+Stable tag: 1.5.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache
@@ -32,7 +33,7 @@ Without a persistent object cache, every WordPress page view must use your Maria
 
 If your site runs on a single web server machine, and that server provides the [SQLite3](https://www.php.net/manual/en/book.sqlite3.php) and [igbinary](https://www.php.net/manual/en/intro.igbinary.php) extensions to php, this plugin will almost certainly make your site work better.
 
-Some hosting providers offer [redis](https://redis.io/) cache servers. If your provider offers redis, it may be a good choice. You can use it via tbe [Redis Object Cache](https://wordpress.org/plugins/redis-cache/) plugin. Sites using redis have one SQL database and another non-SQL storage scheme: redis. Other hosting providers offer [memcached](https://memcached.org/), which has the [Memcached Object Cache](https://wordpress.org/plugins/memcached/) plugin. And some large multipurpose cache plugins, such as the [LiteSpeed Cache](https://wordpress.org/plugins/litespeed-cache/), also offer object caching based on one of those cache server software packages.
+Some hosting providers offer [redis](https://redis.io/) cache servers. If your provider offers redis, it may be a good choice. You can use it via tbe [Redis Object Cache](https://wordpress.org/plugins/redis-cache/) plugin. Sites using redis have one SQL database and another non-SQL storage server: redis. Other hosting providers offer [memcached](https://memcached.org/), which has the [Memcached Object Cache](https://wordpress.org/plugins/memcached/) plugin. And some large multipurpose cache plugins, such as the [LiteSpeed Cache](https://wordpress.org/plugins/litespeed-cache/), also offer object caching based on one of those cache server software packages.
 
 The cache-server approach to object caching comes into its own when you have multiple load-balanced web server machines handling your site. SQLite doesn't work correctly in a multiple-web-server environment.
 
@@ -40,9 +41,11 @@ But, for single-server site configurations, SQLite, possibly assisted by APCu, p
 
 <h4>APCu</h4>
 
-[APCu](https://www.php.net/manual/en/book.apcu.php) is an in-memory storage medium. It lets php programs, like WordPress, store data so it's very fast to restore when needed. If APCu is available on your host server, you can configure this plugin to use it. It reduces the typical cache lookup time to one-fift or less of the SQLite lookup time, which is itself a few tens of microseconds. Performance counts, especially on busy web sites.
+[APCu](https://www.php.net/manual/en/book.apcu.php) is an in-memory storage medium. It lets php programs, like WordPress, store data so it's very fast to retrieve when needed. If APCu is available on your host server, you can configure this plugin to use it. It reduces the typical cache lookup time to one-fifth or less of the SQLite lookup time, which is itself a few tens of microseconds. Performance counts, especially on busy web sites.
 
-Please look at [Installation](https://wordpress.org/plugins/sqlite-object-cache/#installation) to learn how to configure your server to use APCu.
+Please look at [Installation](https://wordpress.org/plugins/sqlite-object-cache/#installation) to learn how to configure this plugin to use APCu. The plugin works well without it, and faster with it.
+
+Caching with both APCu and SQLite is necessary when your web site uses WP-CLI, because WP-CLI operations cannot update the same APCu cache as web operations, and because WP-CLI may have limited size. This plugin writes all cached data both to APCu and to SQLite.
 
 <h4>WP-CLI</h4>
 
@@ -82,17 +85,15 @@ The plugin offers optional settings for your `wp-config.php` file. If you change
 
 <h4>Configuring and Using APCu</h4>
 
-[APCu](https://www.php.net/manual/en/intro.apcu.php)APCu is an in-memory storage medium.  If APCu is available on your host server, you can configure this plugin to use it.  The object cache serves both WP-CLI commands and ordinary web requests.
+[APCu](https://www.php.net/manual/en/intro.apcu.php)APCu is an in-memory storage medium.  If APCu is available on your host server, you can configure this plugin to use it.
 
-But command-line programs can't use APCu. We can fix this by changing the php configuration. This requires editing a `php.ini` file, typically named something like `/etc/php/8.3/cli/php.ini`. We need to add just one line to that file, setting the [apc.enable_cli](https://www.php.net/manual/en/apcu.configuration.php#ini.apcu.enable-cli) parameter
-
-`apc.enable_cli = 1`
-
-That parameter's documentation says it is mostly for testing and debugging. But those remarks in the php manual predate WP-CLI, so read them skepically.)
-
-Then put a WP_SQLITE_OBJECT_CACHE_APCU value of `true` into your `wp-config.php` file. You can use this command to do that.
+Then put a WP_SQLITE_OBJECT_CACHE_APCU value of `true` into your `wp-config.php` file. You can use this WP-CLI command to do that.
 
 `wp config set --raw WP_SQLITE_OBJECT_CACHE_APCU true`
+
+Or, you can edit your `wp-config.php` file to add this line.
+
+`define( 'WP_SQLITE_OBJECT_CACHE_APCU', true );`
 
 == Frequently Asked Questions ===
 
@@ -268,6 +269,10 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 == Changelog ==
 
+= 1.5.0 =
+
+* Use APCu to increase performance if it is available and if WP_SQLITE_OBJECT_CACHE_APCU is defined.
+
 = 1.4.1 =
 
 * More efficient testing for drop-in validity.
@@ -283,34 +288,9 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 Add some support for new SQLite WAL2 write-ahead logging.
 Support WordPress 6.5.
 
-= 1.3.7 =
-
-Bug fix: Not all versions of SQLite can do DELETE ... LIMIT, so do transaction-size-limited DELETEs a different way.
-
-= 1.3.6 =
-
-* Clean up in chunks in an attempt to reduce contention delays and timeouts.
-* Do PRAGMA wal_checkpoint(RESTART) when cleaning up, and also occasionally, to prevent the write-ahead log from growing without bound on busy systems.
-* Retry three times if cache updates time out.
-* Increase default cache size to 16MiB for new users.
-
-= 1.3.5 =
-
-* php 8.1, php 8.2 compatibility.
-* Support for WordFence and other code using the object cache after shutdown.
-
-= 1.3.4 =
-
-* Support SQLite Memory-Mapped I/O.
-* Reduce contention delays by limiting the number of get_multiple, set_multiple, add_multiple, and delete_multiple items in each transaction.
-* Reduce index page fragmentation by using key order for set_multiple and add_multiple operations.
-* Fix initialization defect in cache deletion. Props to @gRoberts84.
-
-= 1.3.2 =
-
-* Avoid VACUUM except on cache flush, and do it only with maintenance mode enabled.
-
 == Upgrade Notice ==
+
+This release uses php's [APCu](https://www.php.net/manual/en/book.apcu.php) RAM cache to speed things up. To use APCu, make sure the extension is enabled in your server's php configuration. Then give the command `wp config set --raw WP_SQLITE_OBJECT_CACHE_APCU true` or put the line `define( 'WP_SQLITE_OBJECT_CACHE_APCU', true );` into your `wp-config.php` file by other means.
 
 This release offers WP-CLI support. Give the command `wp help sqlite-object-cache` for usage instructions.
 

@@ -39,20 +39,13 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
       ? phpversion( 'igbinary' )
       : __( 'unavailable', 'sqlite-object-cache' );
 
-    $apcuversion = apcu_enabled()
-      ? ini_get( 'apc.enable_cli' )
-        ? phpversion( 'apcu' )
-        : __( 'not configured for command line use', 'sqlite-object-cache' )
-      : __( 'unavailable', 'sqlite-object-cache' );
-
     if ( method_exists( $wp_object_cache, 'sqlite_get_version' ) ) {
       $msg = sprintf(
-      /* translators: 1: version for sqlite  2: version for plugin  3: igbinary  4" apcu --- for WP-CLI */
-        __( 'Versions: Plugin: %2$s  SQLite: %1$s  APCu: %4$s  igbinary: %3$s.', 'sqlite-object-cache' ),
+      /* translators: 1: version for sqlite  2: version for plugin  3: igbinary  --- for WP-CLI */
+        __( 'Versions: Plugin: %2$s  SQLite: %1$s  igbinary: %3$s.', 'sqlite-object-cache' ),
         $wp_object_cache->sqlite_get_version(),
-        '1.4.1',
-        $igbinary,
-      $apcuversion);
+        '1.5.0',
+        $igbinary );
     }
 
     WP_CLI::log( $this->commentPrefix . $msg );
