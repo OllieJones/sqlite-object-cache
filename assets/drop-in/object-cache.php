@@ -23,7 +23,7 @@
  * Some config settings control this.
  * WP_SQLITE_OBJECT_CACHE_DB_FILE, if defined, is the cache file path.
  *      /var/tmp/cache.sqlite puts the cache file outside the document root.
- * WP_CACHE_KEY_SALT is used as part of the cache file.
+ * WP_CACHE_KEY_SALT, if present, is used as part of the cache file name, and as a prefix for APCu keys.
  * WP_SQLITE_OBJECT_CACHE_TIMEOUT is the SQLite timeout in place of 5000 milliseconds.
  * WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE is the SQLite journal mode in place of 'WAL'.
  *   It can be DELETE | TRUNCATE | PERSIST | MEMORY | WAL. See https://www.sqlite.org/pragma.html#pragma_journal_mode.
@@ -478,18 +478,19 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
       /* The environment. */
       $apc                  = defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU;
       $cli                  = defined( 'WP_CLI' ) && WP_CLI;
-      $this->apcu_active    = $apc && ! $cli;
+      $this->apcu_active    = $apc && apcu_enabled() && ! $cli;
       $this->apcu_supported = $apc && $cli;
 
       $this->has_igbinary = function_exists( 'igbinary_serialize' );
       $this->salt         = defined( 'WP_CACHE_KEY_SALT' )
-        ? preg_replace( '/[^-_A-Za-z0-9]/', '', WP_CACHE_KEY_SALT )
+        ? preg_replace( '/[^-_A-Za-z0-9]/', '_', WP_CACHE_KEY_SALT )
         : '';
       if ( $this->apcu_active ) {
         /* As unique as possible to avoid collisions with other instances on the same server. */
-        $this->apcusalt = substr(
-                            base64_encode( md5( $this->salt . $table_prefix . DB_HOST . DB_USER . DB_NAME . AUTH_KEY . AUTH_SALT ) ),
-                            0, 12) . '.';
+        $this->apcusalt = ( ( '' !== $this->salt )
+            ? $this->salt
+            : substr( base64_encode( md5( $this->salt . $table_prefix . DB_HOST . DB_USER . DB_NAME . AUTH_KEY . AUTH_SALT ) ),
+              0, 12 ) ) . '|';
 
       }
       $this->sqlite_path = $this->create_database_path();
@@ -826,6 +827,8 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 
         $this->sqlite->exec( $t );
 
+        /* Creating SQLite tables; clear APCu at the same time. */
+        $this->apcu_clear_cache();
       }
       $this->sqlite->exec( 'COMMIT' );
     }
@@ -1026,6 +1029,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      * @return void
      */
     public function sqlite_reset_statistics( $age = null ) {
+
       try {
         $object_stats = self::OBJECT_STATS_TABLE;
         $this->maybe_create_stats_table( $object_stats );
@@ -2143,8 +2147,15 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      * @return void
      */
     public function apcu_clear_cache() {
+      /* Immediate cache clear. */
       if ( $this->apcu_active ) {
-        apcu_clear_cache();
+        foreach ( new APCUIterator( '/^' . $this->apcusalt . '/' ) as $item ) {
+          apcu_delete( $item['key'] );
+        }
+      }
+      /* Deferred cache clear if we're in CLI context. */
+      if ( $this->apcu_supported ) {
+        $this->set_flag();
       }
     }
 
@@ -2322,9 +2333,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      */
     public function flush( $vacuum = false ) {
       try {
+        $this->apcu_clear_cache();
         $this->cache                   = array();
         $this->not_in_persistent_cache = array();
-        $this->apcu_clear_cache();
 
         $selective =
           defined( 'WP_SQLITE_OBJECT_CACHE_SELECTIVE_FLUSH' ) ? WP_SQLITE_OBJECT_CACHE_SELECTIVE_FLUSH : null;
@@ -2566,9 +2577,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
       error_log( "sqlite_object_cache failure, deleting sqlite files to retry. $retries" );
       require_once ABSPATH . 'wp-admin/includes/file.php';
       ob_start();
-      if ( $this->apcu_active ) {
-        apcu_clear_cache();
-      }
+      $this->apcu_clear_cache();
       $credentials = request_filesystem_credentials( '' );
       WP_Filesystem( $credentials );
       global $wp_filesystem;

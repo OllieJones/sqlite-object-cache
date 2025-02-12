@@ -346,9 +346,7 @@ class SQLite_Object_Cache {
    * @author Till Krüss
    *
    */
-  public function initialize_filesystem(
-    $url, $silent = false
-  ) {
+  public function initialize_filesystem( $url, $silent = false ) {
     require_once ABSPATH . 'wp-admin/includes/file.php';
     if ( $silent ) {
       ob_start();
@@ -441,7 +439,7 @@ class SQLite_Object_Cache {
   public function validate_object_cache_dropin() {
     global $wp_object_cache;
 
-    if ( ! method_exists( $wp_object_cache, 'dropin_get_version' ) )  {
+    if ( ! method_exists( $wp_object_cache, 'dropin_get_version' ) ) {
       return false;
     }
 
@@ -486,11 +484,6 @@ class SQLite_Object_Cache {
     global $wp_filesystem;
     global $wp_object_cache;
 
-    if (apcu_enabled()) {
-      apcu_clear_cache();
-    }
-    ob_start();
-
     if ( method_exists( $wp_object_cache, 'sqlite_files' ) ) {
       if ( $this->initialize_filesystem( '', true ) ) {
         foreach ( $wp_object_cache->sqlite_files() as $file ) {
@@ -498,8 +491,6 @@ class SQLite_Object_Cache {
         }
       }
     }
-
-    ob_end_clean();
   }
 
   private function delete_dropin() {
