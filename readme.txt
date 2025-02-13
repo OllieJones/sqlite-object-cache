@@ -71,17 +71,30 @@ Installing "SQLite Object Cache" can be done either by searching for "SQLite Obj
 1. Upload the ZIP file through the 'Plugins > Add New > Upload' screen in your WordPress dashboard
 1. Activate the plugin through the 'Plugins' menu in WordPress
 
-Or, use these WP-CLI commands to install the plugin, activate it, and set the cache size to 32MiB.
+Or, use these WP-CLI commands to install the plugin, set a hard-to-guess random salt for it, activate it, and set the cache size to 32MiB.
 
-`wp plugin install sqlite-object-cache
+``wp plugin install sqlite-object-cache
+wp config set WP_CACHE_KEY_SALT `openssl rand -base64 12`
 wp plugin activate sqlite-object-cache
-wp sqlite-object-cache size 32`
+wp sqlite-object-cache size 32``
 
 The plugin offers optional settings for your `wp-config.php` file. If you change them, deactivate the plugin first, then change them, then reactivate the plugin.
 
 1. WP_SQLITE_OBJECT_CACHE_DB_FILE. This is the SQLite file pathname. The default is …/wp-content/.ht.object_cache.sqlite. Use this if you want to place the SQLite cache file outside your document root.
 1. WP_SQLITE_OBJECT_CACHE_TIMEOUT. This is the SQLite timeout in *milliseconds*. Default: 5000. (Notice that the times shown in the Statistics tab are in *microseconds* if you compare them to this timeout setting.)
 1. WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE This is the [SQLite journal mode](https://www.sqlite.org/pragma.html#pragma_journal_mode). Default: ‘WAL’. Possible values DELETE | TRUNCATE | PERSIST | MEMORY | WAL | WAL2 | NONE. (Not all SQLite3 implementations handle WAL2.)
+
+<h4>Configuring the cache key salt</h4>
+
+When multiple sites share the same server hardware and software, they sometimes share the same cache data. Setting `WP_CACHE_KEY_SALT` to a hard-to-guess random value for each site makes it much harder for one site to get another site's data. Notice that this `WP_CACHE_KEY_SALT` value must be set, in your site's `wp-config.php` file, before activating your persistent object cache plugin. This works for other object cache plugins too.
+
+To set the value put a line like this in `wp-config.php`.
+
+`define( 'WP_CACHE_KEY_SALT', 'Random_t6xJix' );`
+
+Of course, use your own random value, not the one in this example. You can get one from your Linux command line shell with the `openssl rand -base64 12`. Or, if you use WP-CLI you can set the value directly with
+
+``wp config set WP_CACHE_KEY_SALT `openssl rand -base64 12` ``
 
 <h4>Configuring and Using APCu</h4>
 

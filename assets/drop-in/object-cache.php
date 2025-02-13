@@ -1672,6 +1672,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      * @return void
      */
     private function actual_put_by_name( $name, $value, $expires ) {
+      if ( $this->apcu_supported ) {
+        $this->set_flag();
+      }
       if ( $this->upsertone_stmt ) {
         $stmt = $this->upsertone_stmt;
         $stmt->bindValue( ':name', $name, SQLITE3_TEXT );
@@ -1679,9 +1682,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         $stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
         $result = $stmt->execute();
         $result->finalize();
-        if ( $this->apcu_supported ) {
-          $this->set_flag();
-        }
       } else {
         /* Pre-upsert version (pre- 3.24) of SQLite,
          * Need to try update, then do insert if need be.
@@ -1704,9 +1704,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
           $stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
           $result = $stmt->execute();
           $result->finalize();
-          if ( $this->apcu_supported ) {
-            $this->set_flag();
-          }
 
         }
         if ( ! $this->transaction_active ) {
@@ -2149,7 +2146,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
     public function apcu_clear_cache() {
       /* Immediate cache clear. */
       if ( $this->apcu_active ) {
-        foreach ( new APCUIterator( '/^' . $this->apcusalt . '/' ) as $item ) {
+        foreach ( new APCUIterator( '/^' . $this->apcusalt . '/', APC_ITER_KEY ) as $item ) {
           apcu_delete( $item['key'] );
         }
       }
