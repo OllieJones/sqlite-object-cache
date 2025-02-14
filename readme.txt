@@ -257,9 +257,10 @@ Sometimes [WP-CLI](https://wp-cli.org/) commands issued from a shell run with a 
 
 On Linux, you can run your WP-CLI shell commands like this:  `sudo -u www-data wp config list`  This ensures they run with the same user as the web server.
 
-= What do the Statistics mean? =
+= The Statistics display seems complex. What does it mean? =
 
-Please [read this](https://www.plumislandmedia.net/wordpress-plugins/sqlite-object-cache/statistics-from-sqlite-object-cache/).
+This plugin measures individual operations such as the time to look something up in the cache. It collects those individual measurements. The Statistics display analyzes the to show the fastest and slowest operations, the average operation, and other desciptive statistics. 
+Please [read this](https://www.plumislandmedia.net/wordpress-plugins/sqlite-object-cache/statistics-from-sqlite-object-cache/) for more information.
 
 = Is there a joke somewhere in this? =
 
