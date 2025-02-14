@@ -270,7 +270,7 @@ Q: What are the two hardest things to get right in computer science?
 2. Naming things.
 3. Coping with off-by-one errors.
 
-Seriously, the core of WordPress has already worked out, over years of development and millions of sites, how to cache things and name them. This plugin simply extends that mechanism to make those things persistent.
+Seriously, the core of WordPress has already worked out, over years of development and millions of sites, how to cache things and name them. This plugin, and the other persistent object cache plugins, simply extend that mechanism to make those things persistent.
 
 = I have another question =
 
