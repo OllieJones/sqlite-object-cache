@@ -56,7 +56,7 @@ We offer several plugins to help with your site's database efficiency. You can [
 
 == Installation ==
 
-Installing "SQLite Object Cache" can be done either by searching for "SQLite Object Cache" via the "Plugins > Add New" screen in your WordPress dashboard, or by using the following steps:
+Installing "SQLite Object Cache" can be done either by searching for "SQLite Object Cache" via the "Plugins > Add New" screen in your WordPress dashboard, or by using the following standard steps:
 
 1. Download the plugin via WordPress.org
 1. Upload the ZIP file through the 'Plugins > Add New > Upload' screen in your WordPress dashboard
@@ -64,10 +64,11 @@ Installing "SQLite Object Cache" can be done either by searching for "SQLite Obj
 
 Or, use these WP-CLI commands to install the plugin, secure it, activate it, and set the cache size to 32MiB.
 
-``wp plugin install sqlite-object-cache
-wp config set WP_CACHE_KEY_SALT `openssl rand -base64 12`
+`wp plugin install sqlite-object-cache
+RAND=$(openssl rand -base64 12)
+wp config set WP_CACHE_KEY_SALT $RAND
 wp plugin activate sqlite-object-cache
-wp sqlite-object-cache size 32``
+wp sqlite-object-cache size 32`
 
 The plugin offers optional settings for your `wp-config.php` file. If you change them, deactivate the plugin first, then change them, then reactivate the plugin.
 
