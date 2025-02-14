@@ -1,7 +1,7 @@
 === SQLite Object Cache ===
 Author: Oliver Jones
 Contributors: OllieJones
-Tags: cache, object cache, sqlite, performance, apcu
+Tags: cache, object cache, sqlite, performance
 Requires at least: 5.5
 Requires PHP: 5.6
 Tested up to: 6.7.1
@@ -14,11 +14,11 @@ Primary Branch: trunk
 Text Domain: sqlite-object-cache
 Domain Path: /languages/
 
-A fast persistent object cache backend for the rest of us, powered by SQLite and accelerated by APCu
+A fast persistent object cache backend for the rest of us, powered by SQLite
 
 == Description ==
 
-A [persistent object cache](https://developer.wordpress.org/reference/classes/wp_object_cache/#persistent-cache-plugins) helps your site perform well. This one uses the widely available [SQLite3](https://www.php.net/manual/en/book.sqlite3.php) and [APCu](https://www.php.net/manual/en/book.apcu.php) extensions to php. Many hosting services offer those extensions, and they are easy to install on a server you control.
+A [persistent object cache](https://developer.wordpress.org/reference/classes/wp_object_cache/#persistent-cache-plugins) helps your site perform well. This one uses the widely available [SQLite3](https://www.php.net/manual/en/book.sqlite3.php) extension to php. Many hosting services offer that extension, and it is easy to install on a server you control.
 
 <h4>What is this about?</h4>
 
@@ -36,13 +36,7 @@ Some hosting providers offer [redis](https://redis.io/) cache servers. If your p
 
 The cache-server approach to object caching comes into its own when you have multiple load-balanced web server machines handling your site. SQLite doesn't work correctly in a multiple-web-server environment.
 
-But, for single-server site configurations, SQLite, possibly assisted by APCu, performs well. And the vast majority of sites are single-server.
-
-<h4>APCu</h4>
-
-[APCu]()APCu is an in-memory storage medium. It lets php programs, like WordPress, store data so it's very fast to restore when needed. If APCu is available on your host server, you can configure this plugin to use it. It reduces the typical cache lookup time to one-fift or less of the SQLite lookup time, which is itself a few tens of microseconds. Performance counts, especially on busy web sites.
-
-Please look at [Installation](https://wordpress.org/plugins/sqlite-object-cache/#installation) to learn how to configure your server to use APCu.
+But, for single-server site configurations, SQLite performs well. And the vast majority of sites are single-server.
 
 <h4>WP-CLI</h4>
 
@@ -68,33 +62,19 @@ Installing "SQLite Object Cache" can be done either by searching for "SQLite Obj
 1. Upload the ZIP file through the 'Plugins > Add New > Upload' screen in your WordPress dashboard
 1. Activate the plugin through the 'Plugins' menu in WordPress
 
-Or, use these WP-CLI commands to install the plugin, activate it, and set the cache size to 32MiB.
+Or, use these WP-CLI commands to install the plugin, secure it, activate it, and set the cache size to 32MiB.
 
-```bash
-wp plugin install sqlite-object-cache
+``wp plugin install sqlite-object-cache
+wp config set WP_CACHE_KEY_SALT `openssl rand -base64 12`
 wp plugin activate sqlite-object-cache
-wp sqlite-object-cache size 32
-```
+wp sqlite-object-cache size 32``
 
 The plugin offers optional settings for your `wp-config.php` file. If you change them, deactivate the plugin first, then change them, then reactivate the plugin.
 
 1. WP_SQLITE_OBJECT_CACHE_DB_FILE. This is the SQLite file pathname. The default is …/wp-content/.ht.object_cache.sqlite. Use this if you want to place the SQLite cache file outside your document root.
 1. WP_SQLITE_OBJECT_CACHE_TIMEOUT. This is the SQLite timeout in *milliseconds*. Default: 5000. (Notice that the times shown in the Statistics tab are in *microseconds* if you compare them to this timeout setting.)
-1. WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE This is the [SQLite journal mode](https://www.sqlite.org/pragma.html#pragma_journal_mode). Default: ‘WAL’. Possible values DELETE | TRUNCATE | PERSIST | MEMORY | WAL | WAL2 | NONE. (Not all SQLite3 implementations handle WAL2.)
-
-<h4>Configuring and Using APCu</h4>
-
-[APCu](https://www.php.net/manual/en/intro.apcu.php)APCu is an in-memory storage medium.  If APCu is available on your host server, you can configure this plugin to use it.  The object cache serves both WP-CLI commands and ordinary web requests.
-
-But command-line programs can't use APCu. We can fix this by changing the php configuration. This requires editing a `php.ini` file, typically named something like `/etc/php/8.3/cli/php.ini`. We need to add just one line to that file, setting the [apc.enable_cli](https://www.php.net/manual/en/apcu.configuration.php#ini.apcu.enable-cli) parameter
-
-```
-apc.enable_cli = 1
-```
-
-That parameter's documentation says it is mostly for testing and debugging. But those remarks in the php manual predate WP-CLI, so read them skepically.)
-
-Then put a WP_SQLITE_OBJECT_CACHE_APCU value of `"on"` into your `wp-config.php` file.
+1. WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE. This is the [SQLite journal mode](https://www.sqlite.org/pragma.html#pragma_journal_mode). Default: ‘WAL’. Possible values DELETE | TRUNCATE | PERSIST | MEMORY | WAL | WAL2 | NONE. (Not all SQLite3 implementations handle WAL2.)
+1. WP_CACHE_KEY_SALT. Set this to a hard-to-guess random value to make your cache keys harder to guess. This setting works for other cache plugins.
 
 
 == Frequently Asked Questions ===
