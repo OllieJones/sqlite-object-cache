@@ -155,6 +155,17 @@ class SQLite_Object_Cache_Statistics {
     }
     $duration = $last - $first;
     if ( $duration > 0 ) {
+      $this->scale( $opens );
+      $this->scale( $selects );
+      $this->scale( $gets );
+      $this->scale( $get_multiples );
+      $this->scale( $inserts );
+      $this->scale( $deletes );
+      $this->scale( $APCufetchhit );
+      $this->scale( $APCufetchmiss );
+      $this->scale( $APCustore );
+
+
       arsort( $selected_names );
       $descriptions = array(
         __( 'RAM hit ratio', 'sqlite-object-cache' )           => $this->descriptive_stats( $RAMratios ),
@@ -174,7 +185,7 @@ class SQLite_Object_Cache_Statistics {
         __( 'SQLite checkpoint times', 'sqlite-object-cache' ) => $this->descriptive_stats( $checkpoints ),
         __( 'APCu hit times', 'sqlite-object-cache' )          => $this->descriptive_stats( $APCufetchhit ),
         __( 'APCu miss times', 'sqlite-object-cache' )         => $this->descriptive_stats( $APCufetchmiss ),
-        __( 'APCu save times', 'sqlite-object-cache' )        => $this->descriptive_stats( $APCustore ),
+        __( 'APCu save times', 'sqlite-object-cache' )         => $this->descriptive_stats( $APCustore ),
         __( 'SQLite hit times', 'sqlite-object-cache' )        => $this->descriptive_stats( $selects ),
 
       );
@@ -366,7 +377,7 @@ class SQLite_Object_Cache_Statistics {
                              /* translators:  1 start time   2 end time both in localized format */
                                __( 'From %1$s to %2$s.', 'sqlite-object-cache' ),
                                $this->start_time, $this->end_time ) . ' ' . __( 'Times in microseconds, request durations in seconds.', 'sqlite-object-cache' ) ) . '</p>' . PHP_EOL;
-      echo '<table class="sql-object-cache-stats">' . PHP_EOL;
+      echo '<table class="sql-object-cache-stats descriptive">' . PHP_EOL;
       foreach ( $this->descriptions as $stat => $description ) {
         if ( ! is_array( $description ) || ! array_key_exists( 'n', $description ) || $description['n'] <= 0 ) {
           continue;
@@ -558,11 +569,11 @@ class SQLite_Object_Cache_Statistics {
           $apcu_entries = $stat['num_entries'];
           $apcu_mem     = $stat['mem_size'] / ( 1024 * 1024 );
           /* filesize row */
-            echo '<tr>';
-            echo '<th scope="row" class="right">' . esc_html__( 'APCu Usage', 'sqlite-object-cache' ) . '</th>';
-            echo '<td class="right">' . esc_html( number_format_i18n( $apcu_entries ) ) . '</td>';
-            echo '<td class="right">' . esc_html( number_format_i18n( $apcu_mem, 3 ) ) . '</td>';
-            echo '</tr>' . PHP_EOL;
+          echo '<tr>';
+          echo '<th scope="row" class="right">' . esc_html__( 'APCu Usage', 'sqlite-object-cache' ) . '</th>';
+          echo '<td class="right">' . esc_html( number_format_i18n( $apcu_entries ) ) . '</td>';
+          echo '<td class="right">' . esc_html( number_format_i18n( $apcu_mem, 3 ) ) . '</td>';
+          echo '</tr>' . PHP_EOL;
         }
 
         /* filesize row */
@@ -641,5 +652,14 @@ class SQLite_Object_Cache_Statistics {
     $date_format = get_option( 'date_format' ) . ' ' . get_option( 'time_format' );
 
     return wp_date( $date_format, (int) $stamp );
+  }
+
+  private function scale( array &$observations, $scale = 0.001 ) {
+    if ( is_array( $observations ) ) {
+      foreach ( $observations as $key => $val ) {
+        $observations[ $key ] = $val * $scale;
+
+      }
+    }
   }
 }

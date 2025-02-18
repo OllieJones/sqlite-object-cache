@@ -17,6 +17,7 @@
     border-right-width: 0;
     border-style: dotted;
 }
+
 #sqlite_object_cache_settings table.sql-object-cache-stats tfoot tr {
     border-top-width: 0;
     border-left-width: 0;
@@ -32,6 +33,14 @@
     text-align: right;
     padding: 2px;
 }
+
+#sqlite_object_cache_settings table.sql-object-cache-stats.descriptive td:nth-child(2),
+#sqlite_object_cache_settings table.sql-object-cache-stats.descriptive td:nth-child(10),
+#sqlite_object_cache_settings table.sql-object-cache-stats.descriptive th:nth-child(2),
+#sqlite_object_cache_settings table.sql-object-cache-stats.descriptive th:nth-child(10) {
+    padding-right: 2em;
+}
+
 
 #sqlite_object_cache_settings table.sql-object-cache-stats > thead > tr > th.right,
 #sqlite_object_cache_settings table.sql-object-cache-stats > tfoot > tr > th.right,
