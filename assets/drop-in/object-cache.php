@@ -1624,12 +1624,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      * @return void
      */
     private function put_by_name( $name, $data, $expire ) {
-      if ( $this->apcu_active ) {
-        $astart = hrtime( true );
-        apcu_store( $this->apcusalt . $name, $data, $expire ?: DAY_IN_SECONDS );
-        $this->apcu_store_times[] = hrtime( true ) - $astart;
-
-      }
       $exception = null;
       $value     = $this->maybe_serialize( $data );
       $expires   = $expire ?: $this->noexpire_timestamp_offset;
@@ -1638,7 +1632,11 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         try {
           $this->actual_put_by_name( $name, $value, $expires );
           unset( $this->not_in_persistent_cache[ $name ] );
-
+          if ( $this->apcu_active ) {
+            $astart = hrtime( true );
+            apcu_store( $this->apcusalt . $name, $data, $expire ?: DAY_IN_SECONDS );
+            $this->apcu_store_times[] = hrtime( true ) - $astart;
+          }
           return;
         } catch ( Exception $ex ) {
           $exception = $ex;
