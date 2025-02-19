@@ -42,12 +42,12 @@ defined( '\\ABSPATH' ) || exit;
 /**
  * hrtime polyfill if needed, pre php 7.3.
  */
-if ( ! function_exists( 'hrtime' )){
-  function hrtime ( $as_float = false ) {
+if ( ! function_exists( 'hrtime' ) ) {
+  function hrtime( $as_float = false ) {
     if ( $as_float ) {
       return microtime( true ) * 1000;
     }
-    $result = microtime ( false );
+    $result    = microtime( false );
     $result[1] = 1000 * $result [1];
     return $result;
   }
@@ -323,7 +323,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      * @var bool true if it is available.
      */
     private $has_igbinary;
-     /**
+    /**
      * The expiration time of non-expiring cache entries has this added to the timestamp.
      *
      * This is a sentinel value, marking a non-expiring cache entry AND
@@ -2172,8 +2172,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
           if ( ! $resultset ) {
             return;
           }
-          $this->apcu_clear_cache();
-
           while ( true ) {
             $row = $resultset->fetchArray( SQLITE3_NUM );
             if ( ! $row ) {
@@ -2194,11 +2192,21 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
           $offset       = $this->noexpire_timestamp_offset;
           $limit        = self::TRANSACTION_SIZE_LIMIT;
           $hit          = $limit;
+          $cleared      = false;
 
           while ( $hit >= $limit ) {
+            if ( ! $cleared ) {
+              /* Clear the APCu cache when we bulk-delete entries from SQLite. */
+              $this->apcu_clear_cache();
+              $cleared = true;
+            }
             $sql = "DELETE FROM $object_cache WHERE name IN (SELECT name FROM $object_cache WHERE expires >= $offset AND expires <= $horizon LIMIT $limit)";
             $this->sqlite->exec( $sql );
             $hit = $this->sqlite->changes();
+          }
+          if ( $cleared ) {
+            /* Clear the APCu cache again after bulk delete to avoid a race condition. */
+            $this->apcu_clear_cache();
           }
           $this->sqlite->exec( 'PRAGMA optimize;' );
         }
