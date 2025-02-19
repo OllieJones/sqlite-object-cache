@@ -21,16 +21,17 @@
  * see these files from your command line.
  *
  * Some config settings control this.
+ * WP_SQLITE_OBJECT_CACHE_APCU, if true, enables cache acceleration with APCu RAM. This setting can be updated from the plugin's Settings page.
  * WP_SQLITE_OBJECT_CACHE_DB_FILE, if defined, is the cache file path.
  *      /var/tmp/cache.sqlite puts the cache file outside the document root.
  * WP_CACHE_KEY_SALT, if present, is used as part of the cache file name, and as a prefix for APCu keys.
  * WP_SQLITE_OBJECT_CACHE_TIMEOUT is the SQLite timeout in place of 5000 milliseconds.
+ * WP_SQLITE_OBJECT_CACHE_SERIALIZE, if true, requires the use of php serialize.
  * WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE is the SQLite journal mode in place of 'WAL'.
  *   It can be DELETE | TRUNCATE | PERSIST | MEMORY | WAL. See https://www.sqlite.org/pragma.html#pragma_journal_mode.
  * WP_SQLITE_OBJECT_CACHE_INTKEY_LENGTH is the number of digits for optimizing consecutive integer cache keys, default 6.
  * WP_SQLITE_OBJECT_CACHE_INTKEY_ERODE_GAPS allows fewer SQL statements but can retrieve extra items, default 2.
  * WP_SQLITE_OBJECT_CACHE_MMAP_SIZE sets SQLite's mmap_size in MiB. Default 0: disabled.
- * WP_SQLITE_OBJECT_CACHE_APCU enables an extra cache level via APCU. Default false: disabled. Read the installation instructions!
  *
  * Credit: Till Krüss's https://wordpress.org/plugins/redis-cache/ plugin. Thanks, Till!
  *
@@ -319,6 +320,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
     private $flags_table_name;
     /**
      * Flag for availability of igbinary serialization extension.
+     * This will be false if igbinary is not available or if WP_SQLITE_OBJECT_CACHE_SERIALIZE is true.
      *
      * @var bool true if it is available.
      */
@@ -488,7 +490,8 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
       $this->apcu_active    = $apc && function_exists( 'apcu_enabled' ) && apcu_enabled() && ! $cli;
       $this->apcu_supported = $apc && $cli;
 
-      $this->has_igbinary = function_exists( 'igbinary_serialize' );
+      $force_serialize    = defined( 'WP_SQLITE_OBJECT_CACHE_SERIALIZE' ) && WP_SQLITE_OBJECT_CACHE_SERIALIZE;
+      $this->has_igbinary = function_exists( 'igbinary_serialize' ) && ! $force_serialize;
       $this->salt         = defined( 'WP_CACHE_KEY_SALT' )
         ? preg_replace( '/[^-_A-Za-z0-9]/', '_', WP_CACHE_KEY_SALT )
         : '';

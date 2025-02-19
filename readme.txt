@@ -80,14 +80,16 @@ wp sqlite-object-cache size 32`
 
 The plugin offers optional settings for your `wp-config.php` file. If you change them, deactivate the plugin first, then change them, then reactivate the plugin.
 
-1. WP_SQLITE_OBJECT_CACHE_DB_FILE. This is the SQLite file pathname. The default is …/wp-content/.ht.object_cache.sqlite. Use this if you want to place the SQLite cache file outside your document root.
-1. WP_SQLITE_OBJECT_CACHE_TIMEOUT. This is the SQLite timeout in *milliseconds*. Default: 5000. (Notice that the times shown in the Statistics tab are in *microseconds* if you compare them to this timeout setting.)
-1. WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE This is the [SQLite journal mode](https://www.sqlite.org/pragma.html#pragma_journal_mode). Default: ‘WAL’. Possible values DELETE | TRUNCATE | PERSIST | MEMORY | WAL | WAL2 | NONE. (Not all SQLite3 implementations handle WAL2.)
-1. WP_CACHE_KEY_SALT. Set this to a hard-to-guess random value to make your cache keys harder to guess. This setting works for other cache plugins.
+* WP_CACHE_KEY_SALT. Set this to a hard-to-guess random value to make your cache keys harder to guess. This setting works for other cache plugins.
+* WP_SQLITE_OBJECT_CACHE_SERIALIZE. If true, this forces the use of php's [serialize()](https://www.php.net/manual/en/function.serialize.php) scheme to store cached data in SQLite. If this is not set, the plugin uses the more efficient [igbinary](https://www.php.net/manual/en/function.igbinary-serialize.php) scheme if it is available.
+* WP_SQLITE_OBJECT_CACHE_DB_FILE. This is the SQLite file pathname. The default is …/wp-content/.ht.object_cache.sqlite. Use this if you want to place the SQLite cache file outside your document root.
+* WP_SQLITE_OBJECT_CACHE_TIMEOUT. This is the SQLite timeout in *milliseconds*. Default: 5000. (Notice that the times shown in the Statistics tab are in *microseconds* if you compare them to this timeout setting.)
+* WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE. This is the [SQLite journal mode](https://www.sqlite.org/pragma.html#pragma_journal_mode). Default: ‘WAL’. Possible values DELETE | TRUNCATE | PERSIST | MEMORY | WAL | WAL2 | NONE. (Not all SQLite3 implementations handle WAL2.)
+* WP_SQLITE_OBJECT_CACHE_APCU. If true enables cache acceleration with APCu RAM. This setting can be updated from the plugin's Settings page.
 
 <h4>Configuring the cache key salt</h4>
 
-When multiple sites share the same server hardware and software, they sometimes share the same cache data. Setting `WP_CACHE_KEY_SALT` to a hard-to-guess random value for each site makes it much harder for one site to get another site's data. Notice that this `WP_CACHE_KEY_SALT` value must be set, in your site's `wp-config.php` file, before activating your persistent object cache plugin. This works for other object cache plugins too.
+When multiple sites share the same server hardware and software, they can sometimes share the same cache data. Setting `WP_CACHE_KEY_SALT` to a hard-to-guess random value for each site makes it much harder for one site to get another site's data. Notice that this `WP_CACHE_KEY_SALT` value must be set, in your site's `wp-config.php` file, before activating your persistent object cache plugin. This works for other object cache plugins too.
 
 To set the value put a line like this in `wp-config.php`.
 
@@ -99,9 +101,9 @@ Of course, use your own random value, not the one in this example. You can get o
 
 <h4>Configuring and Using APCu</h4>
 
-[APCu](https://www.php.net/manual/en/intro.apcu.php)APCu is an in-memory storage medium.  If APCu is available on your host server, you can configure this plugin to use it.
+[APCu](https://www.php.net/manual/en/intro.apcu.php)APCu is an in-memory storage medium.  If APCu is available on your host server, you can configure this plugin to use it. There is an option to enable it on the plugin's Settings page.
 
-Put a WP_SQLITE_OBJECT_CACHE_APCU value of `true` into your `wp-config.php` file. You can use this WP-CLI command to do that.
+Or you can do it manually. Put a WP_SQLITE_OBJECT_CACHE_APCU value of `true` into your `wp-config.php` file. You can use this WP-CLI command to do that.
 
 `wp config set --raw WP_SQLITE_OBJECT_CACHE_APCU true`
 

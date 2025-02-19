@@ -38,6 +38,8 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
     $igbinary = function_exists( 'igbinary_serialize' )
       ? phpversion( 'igbinary' )
       : __( 'unavailable', 'sqlite-object-cache' );
+    $force_serialize = defined( 'WP_SQLITE_OBJECT_CACHE_SERIALIZE' ) && WP_SQLITE_OBJECT_CACHE_SERIALIZE;
+    $igbinary        .= $force_serialize ? esc_html__( '(disabled by WP_SQLITE_OBJECT_CACHE_SERIALIZE)', 'sqlite-object-cache' ) : '';
 
     if ( method_exists( $wp_object_cache, 'sqlite_get_version' ) ) {
       $msg = sprintf(

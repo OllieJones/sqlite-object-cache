@@ -107,7 +107,7 @@ class SQLite_Object_Cache_Statistics {
         $DISKratios[] = $DISKratio;
       }
       $opens []    = $data->open;
-      $elapseds [] = $data->elapsed * 0.000001;
+      $elapseds [] = $data->elapsed * 1E-9;
       $RAM []      = $data->RAM / ( 1024 * 1024 );
       array_push( $selects, ...$data->selects );
       array_push( $gets, ...$data->gets );
@@ -174,9 +174,9 @@ class SQLite_Object_Cache_Statistics {
         __( 'SQlite lookups/request', 'sqlite-object-cache' )  => $this->descriptive_stats( $DISKLookupsPerRequest ),
         __( 'SQlite saves/request', 'sqlite-object-cache' )    => $this->descriptive_stats( $SavesPerRequest ),
         __( 'MySQL queries/request', 'sqlite-object-cache' )   => $this->descriptive_stats( $DBMSqueriesPerRequest ),
+        __( 'Request durations (sec)', 'sqlite-object-cache' ) => $this->descriptive_stats( $elapseds ),
         __( 'Peak RAM usage (MiB)', 'sqlite-object-cache' )    => $this->descriptive_stats( $RAM ),
         __( 'Initialization times', 'sqlite-object-cache' )    => $this->descriptive_stats( $opens ),
-        __( 'Request durations (sec)', 'sqlite-object-cache' ) => $this->descriptive_stats( $elapseds ),
         __( 'Get times', 'sqlite-object-cache' )               => $this->descriptive_stats( $gets ),
         __( 'GetMult times', 'sqlite-object-cache' )           => $this->descriptive_stats( $get_multiples ),
         __( 'GetMult keys', 'sqlite-object-cache' )            => $this->descriptive_stats( $get_multiple_keys ),
