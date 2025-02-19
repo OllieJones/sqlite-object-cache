@@ -165,12 +165,12 @@ class SQLite_Object_Cache_Settings {
       )
     );
 
-    if ( apcu_enabled() ) {
+    if ( function_exists( 'apcu_enabled' ) && apcu_enabled() ) {
       $active = ( defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU ) ? 'on' : 'off';
       array_unshift( $fields, array(
         'id'          => 'use_apcu',
-        'label'       => __( 'Use the APCu cache', 'sqlite-object-cache' ),
-        'description' => __( 'Check to enable the use of php\'s APCu cache.', 'sqlite-object-cache' ),
+        'label'       => __( 'Use APCu', 'sqlite-object-cache' ),
+        'description' => __( 'Check to enable the use of php\'s APCu cache to improve performance.', 'sqlite-object-cache' ),
         'type'        => 'checkbox',
         'default'     => $active,
         'reset'       => $active,
@@ -220,7 +220,7 @@ class SQLite_Object_Cache_Settings {
     global $wp_object_cache;
 
     /* Opt in or opt out of the APCu. */
-    if ( apcu_enabled() ) {
+    if ( function_exists( 'apcu_enabled' ) && apcu_enabled() ) {
       $apcu_choice  = array_key_exists( 'use_apcu', $option ) && $option ['use_apcu'] === 'on';
       $apcu_current = ( defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU );
       if ( $apcu_choice !== $apcu_current ) {
@@ -558,25 +558,31 @@ class SQLite_Object_Cache_Settings {
     echo esc_html__( 'into your shell for details', 'sqlite-object-cache' ) . '.';
     echo '</p>';
     $apc = defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU;
-    if ( apcu_enabled() && ! $apc ) {
+    if ( function_exists( 'apcu_enabled' ) && apcu_enabled() && ! $apc ) {
       echo '<p>';
       echo esc_html__( 'On your site you can use php\'s', 'sqlite-object-cache' ) . ' ';
       echo '<a href="https://www.php.net/manual/en/book.apcu.php" target="_blank">' . esc_html__('APCu User Cache', 'sqlite-object-cache' ) . '</a>  ';
       echo esc_html__( 'to improve the performance of this SQLite Object Cache. ', 'sqlite-object-cache' );
-      echo esc_html__( 'To enable APCu caching please choose APCu whatever.', 'sqlite-object-cache' ) . ' ';
-
+      echo esc_html__( 'To enable APCu caching please check the "Use APCu" box.', 'sqlite-object-cache' ) . ' ';
       echo '</p>';
     }
-    if ( apcu_enabled() && $apc ) {
+    if ( function_exists( 'apcu_enabled' ) && apcu_enabled() && $apc ) {
       echo '<p>';
       echo esc_html__( 'You are using php\'s', 'sqlite-object-cache' ) . ' ';
       echo '<a href="https://www.php.net/manual/en/book.apcu.php" target="_blank">' . esc_html__('APCu User Cache', 'sqlite-object-cache' ) . '</a>  ';
       echo esc_html__( 'to improve the performance of this SQLite Object Cache. ', 'sqlite-object-cache' ) . ' ';
-      echo esc_html__( 'To disable APCu caching please whatever', 'sqlite-object-cache' ) . ' ';
+      echo esc_html__( 'To disable APCu caching please uncheck the "Use APCu" box.', 'sqlite-object-cache' ) . ' ';
       echo '</p>';
     }
-
-
+    if ( ! function_exists( 'apcu_enabled' ) || ! apcu_enabled()  ) {
+      echo '<p>';
+      echo esc_html__( 'This object cache performs better when used with php\'s', 'sqlite-object-cache' ) . ' ';
+      echo '<a href="https://www.php.net/manual/en/book.apcu.php" target="_blank">' . esc_html__('APCu User Cache', 'sqlite-object-cache' ) . '</a>  ';
+      echo esc_html__( 'extension. ', 'sqlite-object-cache' ) . ' ';
+      echo esc_html__( 'However, it is not available on your server.', 'sqlite-object-cache' ) . ' ';
+      echo esc_html__( 'It may be possible for you or your hosting service to install it.', 'sqlite-object-cache' ) . ' ';
+      echo '</p>';
+    }
   }
 
   /**
@@ -592,7 +598,7 @@ class SQLite_Object_Cache_Settings {
       ? phpversion( 'igbinary' )
       : __( 'unavailable', 'sqlite-object-cache' );
 
-    $apcu_version = apcu_enabled()
+    $apcu_version = function_exists( 'apcu_enabled' ) && apcu_enabled()
       ? phpversion( "apcu" )
       : __( 'unavailable', 'sqlite-object-cache' );
 

@@ -55,7 +55,7 @@ You can control this plugin via WP-CLI once you activate it. Please type this co
 
 <h4>Credits</h4>
 
-Thanks to [Till Krüss](https://profiles.wordpress.org/tillkruess/). His [Redis Object Cache](https://wordpress.org/plugins/redis-cache/) plugin serves as a model for this one. And thanks to [Ari Stathopoulos](https://profiles.wordpress.org/aristath/) and [Jonny Harris](https://profiles.wordpress.org/spacedmonkey/) for reviewing this. Props to Matt Jones for finding and fixing a bug that appeared on a heavily loaded system. All defects are, of course, entirely the author's responsibility.
+Thanks to [Till Krüss](https://profiles.wordpress.org/tillkruess/). His [Redis Object Cache](https://wordpress.org/plugins/redis-cache/) plugin serves as a model for this one. And thanks to [Ari Stathopoulos](https://profiles.wordpress.org/aristath/) and [Jonny Harris](https://profiles.wordpress.org/spacedmonkey/) for reviewing this. Props to Matt Jones for finding and fixing a bug that appeared on a heavily loaded system. Thanks to [Massimo Villa](https://speedable.net/about-us/) for testing help, and to [nickchomey](https://github.com/nickchomey) for a comprehensive code review. All defects are, of course, entirely the author's responsibility. 
 
 And thanks to Jetbrains for the use of their software development tools, especially [PhpStorm](https://www.jetbrains.com/phpstorm/). It's hard to imagine how a plugin like this one could be developed without PhpStorm's tools for exploring epic code bases like WordPress's.
 

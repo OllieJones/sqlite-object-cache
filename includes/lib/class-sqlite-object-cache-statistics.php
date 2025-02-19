@@ -562,7 +562,8 @@ class SQLite_Object_Cache_Statistics {
         $statssize = $sizes['stats_size'];
         $mmapsize  = $sizes['mmap_size'];
 
-        $has_apcu = defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU && apcu_enabled();
+        $has_apcu = defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU
+                    && function_exists( 'apcu_enabled' ) &&  apcu_enabled();
 
         if ( $has_apcu ) {
           $stat         = apcu_cache_info( true );
@@ -570,7 +571,7 @@ class SQLite_Object_Cache_Statistics {
           $apcu_mem     = $stat['mem_size'] / ( 1024 * 1024 );
           /* filesize row */
           echo '<tr>';
-          echo '<th scope="row" class="right">' . esc_html__( 'APCu Usage', 'sqlite-object-cache' ) . '</th>';
+          echo '<th scope="row" class="right">' . esc_html__( 'APCu RAM Usage', 'sqlite-object-cache' ) . '</th>';
           echo '<td class="right">' . esc_html( number_format_i18n( $apcu_entries ) ) . '</td>';
           echo '<td class="right">' . esc_html( number_format_i18n( $apcu_mem, 3 ) ) . '</td>';
           echo '</tr>' . PHP_EOL;
@@ -579,7 +580,7 @@ class SQLite_Object_Cache_Statistics {
         /* filesize row */
         if ( $usedsize ) {
           echo '<tr>';
-          echo '<th scope="row" class="right">' . esc_html__( 'SQLite Pages Used', 'sqlite-object-cache' ) . '</th>';
+          echo '<th scope="row" class="right">' . esc_html__( 'SQLite Disk Pages Used', 'sqlite-object-cache' ) . '</th>';
           echo '<td class="right">' . esc_html( number_format_i18n( $usedsize ) ) . '</td>';
           $sizemib = ( $usedsize * $pagesize ) / ( 1024.0 * 1024.0 );
           echo '<td class="right">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';
@@ -588,7 +589,7 @@ class SQLite_Object_Cache_Statistics {
         /* freesize row */
         if ( $freesize ) {
           echo '<tr>';
-          echo '<th scope="row" class="right">' . esc_html__( 'SQLite Pages Free', 'sqlite-object-cache' ) . '</th>';
+          echo '<th scope="row" class="right">' . esc_html__( 'SQLite Disk Pages Free', 'sqlite-object-cache' ) . '</th>';
           echo '<td class="right">' . esc_html( number_format_i18n( $freesize ) ) . '</td>';
           $sizemib = ( $freesize * $pagesize ) / ( 1024 * 1024 );
           echo '<td class="right">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';
@@ -597,7 +598,7 @@ class SQLite_Object_Cache_Statistics {
         /* memory-mapped row */
         if ( $mmapsize ) {
           echo '<tr>';
-          echo '<th scope="row" class="right">' . esc_html__( 'Memory-mapped I/O', 'sqlite-object-cache' ) . '</th>';
+          echo '<th scope="row" class="right">' . esc_html__( 'SQLite Memory mapped', 'sqlite-object-cache' ) . '</th>';
           echo '<td class="right"></td>';
           $sizemib = $mmapsize / ( 1024 * 1024 );
           echo '<td class="right">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';

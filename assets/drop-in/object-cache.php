@@ -485,7 +485,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
       /* The environment. */
       $apc                  = defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU;
       $cli                  = defined( 'WP_CLI' ) && WP_CLI;
-      $this->apcu_active    = $apc && apcu_enabled() && ! $cli;
+      $this->apcu_active    = $apc && function_exists( 'apcu_enabled' ) && apcu_enabled() && ! $cli;
       $this->apcu_supported = $apc && $cli;
 
       $this->has_igbinary = function_exists( 'igbinary_serialize' );
