@@ -6,8 +6,8 @@ Requires at least: 5.5
 Requires PHP: 5.6
 Tested up to: 6.7.2
 Tested up to: 6.7.2
-Version: 1.5.0
-Stable tag: 1.5.0
+Version: 1.5.1
+Stable tag: 1.5.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache
@@ -285,6 +285,10 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 
 == Changelog ==
+
+= 1.5.1 =
+
+* Provide APCu opt-in on the settings page.
 
 = 1.5.0 =
 

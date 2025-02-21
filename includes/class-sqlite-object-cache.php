@@ -121,7 +121,7 @@ class SQLite_Object_Cache {
    * @param string $file File constructor.
    * @param string $version Plugin version.
    */
-  public function __construct( $file = '', $version = '1.5.0' ) {
+  public function __construct( $file = '', $version = '1.5.1' ) {
     $this->_version = $version;
     $this->_token   = 'sqlite_object_cache';
 
@@ -198,6 +198,10 @@ class SQLite_Object_Cache {
     if ( ! method_exists( $wp_object_cache, 'sqlite_get_size' ) ) {
       return;
     }
+    /* Clean up old statistics. Do this even when the cache is not over size. */
+    $retention = empty ( $option['retention'] ) ? 24 : $option['retention'];
+    $wp_object_cache->sqlite_reset_statistics( $retention * HOUR_IN_SECONDS );
+
     $current_size = $wp_object_cache->sqlite_get_size();
     /* Skip this if the current size is small enough. */
     if ( $current_size <= $threshold_size ) {
@@ -214,10 +218,6 @@ class SQLite_Object_Cache {
     if ( $current_size <= $threshold_size ) {
       return;
     }
-
-    /* Clean up old statistics. */
-    $retention = empty ( $option['retention'] ) ? 24 : $option['retention'];
-    $wp_object_cache->sqlite_reset_statistics( $retention * HOUR_IN_SECONDS );
 
     /* Delete the least-recently-updated items to get to the target size. */
     $wp_object_cache->sqlite_delete_old( $target_size, $current_size );

@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache (Drop-in)
- * Version: 1.5.0
+ * Version: 1.5.1
  * Note: This Version number must match the one in SQLite_Object_Cache::_construct.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -11,7 +11,7 @@
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Requires PHP: 5.6
  * Tested up to: 6.7.2
- * Stable tag: 1.5.0
+ * Stable tag: 1.5.1
  *
  * NOTE: This uses the file .../wp-content/.ht.object_cache.sqlite
  * and the associated files .../wp-content/.ht.object_cache.sqlite-shm
@@ -94,7 +94,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
     const JOURNAL_MODE = 'WAL';  /* or 'MEMORY' */
     const TRANSACTION_SIZE_LIMIT = 64;
 
-    private $dropin_version = '1.5.0';
+    private $dropin_version = '1.5.1';
     /** @var bool True if a transaction is active. */
     private $transaction_active = false;
     /** Path to SQLite file.  @var string */
@@ -1039,7 +1039,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
           $hits    = $limit;
           while ( $hits >= $limit ) {
             /* @noinspection SqlResolve */
-
             $sql = "DELETE FROM $object_stats WHERE timestamp IN (SELECT timestamp FROM $object_stats WHERE timestamp < $expires LIMIT $limit);";
             $this->sqlite->exec( $sql );
             $hits = $this->sqlite->changes();

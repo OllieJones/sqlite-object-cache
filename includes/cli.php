@@ -46,7 +46,7 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
       /* translators: 1: version for sqlite  2: version for plugin  3: igbinary  --- for WP-CLI */
         __( 'Versions: Plugin: %2$s  SQLite: %1$s  igbinary: %3$s.', 'sqlite-object-cache' ),
         $wp_object_cache->sqlite_get_version(),
-        '1.5.0',
+        '1.5.1',
         $igbinary );
     }
 
@@ -237,21 +237,21 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
       return;
     }
     list( $options, $old_samplerate ) = $this->get_one_option( 'retainmeasurements' );
-    $old_retain = strval( ( $old_retain < 1 ) ? 1 : $old_retain );
+    $old_samplerate = strval( ( $old_samplerate < 1 ) ? 1 : $old_samplerate );
 
     if ( 1 === count( $args ) ) {
-      $new_retain = strval( $args[0] );
-      $new_retain = strval( ( $new_retain < 1 ) ? 1 : $new_retain );
-      if ( $old_retain === $new_retain ) {
+      $new_samplerate = strval( $args[0] );
+      $new_samplerate = strval( ( $new_samplerate < 1 ) ? 1 : $new_samplerate );
+      if ( $old_samplerate === $new_samplerate ) {
         /* translators: 1: retention time  --- for WP-CLI  */
         $msg = __( 'Performance measurement retention unchanged at %1$shr', 'sqlite_object_cache' );
-        $msg = sprintf( $msg, $new_retain );
+        $msg = sprintf( $msg, $new_samplerate );
         WP_CLI::log( $this->commentPrefix . $msg );
       } else {
         /* translators: 1: new retention time   2:former time  --- for WP-CLI */
         $msg                           = __( 'Performance measurement retention changed from %2$shr to %1$shr', 'sqlite_object_cache' );
-        $msg                           = sprintf( $msg, $new_retain, $old_retain );
-        $options['retainmeasurements'] = strval( $new_retain );
+        $msg                           = sprintf( $msg, $new_samplerate, $old_samplerate );
+        $options['retainmeasurements'] = strval( $new_samplerate );
 
         update_option( 'sqlite_object_cache_settings', $options, true );
         WP_CLI::success( $this->commentPrefix . $msg );
@@ -260,7 +260,7 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
     } else {
       /* translators: 1: retention time  --- for WP-CLI  */
       $msg = __( 'Performance measurement retention is %1$shr', 'sqlite_object_cache' );
-      $msg = sprintf( $msg, $old_retain );
+      $msg = sprintf( $msg, $old_samplerate );
       WP_CLI::log( $this->commentPrefix . $msg );
     }
 
@@ -309,6 +309,11 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
     if ( ! method_exists( $wp_object_cache, 'sqlite_get_size' ) ) {
       return;
     }
+
+    /* Always clean up old statistics. */
+    list( $options, $retention ) = $this->get_one_option( 'retainmeasurements' );
+    $wp_object_cache->sqlite_reset_statistics( $retention * HOUR_IN_SECONDS );
+
     $original_size = $wp_object_cache->sqlite_get_size();
     $current_size  = $original_size;
     /* Skip this if the current size is small enough. */
@@ -321,10 +326,9 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
       return;
     }
 
-
-    /* Remove expired items (transients mostly).  --- For WP-CLI */
+    /* Remove expired items (transients mostly).   */
     if ( $wp_object_cache->sqlite_remove_expired() ) {
-      /* If anything was removed, get the size again.  --- For WP-CLI */
+      /* If anything was removed, get the size again.   */
       $current_size = $wp_object_cache->sqlite_get_size();
 
       if ( $current_size < $original_size ) {
@@ -340,22 +344,6 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
       return;
     }
 
-    /* Clean up old statistics. */
-    $original_size = $current_size;
-    list( $options, $retention ) = $this->get_one_option( 'retainmeasurements' );
-    $wp_object_cache->sqlite_reset_statistics( $retention * HOUR_IN_SECONDS );
-    $current_size = $wp_object_cache->sqlite_get_size();
-    if ( $current_size < $original_size ) {
-      /* translators: 1: size removed  2: size remaining  --- For WP-CLI */
-      $msg = __( '%1$01.1fMiB of performance measurements removed from cache, leaving %2$01.1fMiB', 'sqlite_object_cache' );
-      $msg = sprintf( $msg, ( $original_size - $current_size ) / ( 1024.0 * 1024.0 ), ( $current_size ) / ( 1024.0 * 1024.0 ) );
-      WP_CLI::success( $this->commentPrefix . $msg );
-    }
-
-    if ( $current_size <= $threshold_size ) {
-      return;
-    }
-
     /* Delete the least-recently-updated items to get to the target size. */
     $original_size = $current_size;
     $wp_object_cache->sqlite_delete_old( $target_size, $current_size );
@@ -366,8 +354,6 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
       $msg = sprintf( $msg, ( $original_size - $current_size ) / ( 1024.0 * 1024.0 ), ( $current_size ) / ( 1024.0 * 1024.0 ) );
       WP_CLI::success( $this->commentPrefix . $msg );
     }
-
-    $wp_object_cache->sqlite_delete_old( $target_size, $current_size );
   }
 
   private function get_one_option(
