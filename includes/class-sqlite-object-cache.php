@@ -199,7 +199,7 @@ class SQLite_Object_Cache {
       return;
     }
     /* Clean up old statistics. Do this even when the cache is not over size. */
-    $retention = empty ( $option['retention'] ) ? 24 : $option['retention'];
+    $retention = empty ( $option['retainmeasurements'] ) ? 24 : $option['retainmeasurements'];
     $wp_object_cache->sqlite_reset_statistics( $retention * HOUR_IN_SECONDS );
 
     $current_size = $wp_object_cache->sqlite_get_size();
