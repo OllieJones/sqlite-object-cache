@@ -229,11 +229,8 @@ class SQLite_Object_Cache {
    * @return void
    */
   public function on_activation() {
-    /* make sure the autoloaded option is set when activating; avoid an extra dbms or cache hit to fetch it */
-    $option = get_option( $this->_token . '_settings', 'default' );
-    if ( 'default' === $option ) {
-      update_option( $this->_token . '_settings', array(), true );
-    }
+
+    $this->sync_apcu_global_to_option();
     if ( true === $this->has_sqlite() ) {
       add_action( 'shutdown', array( $this, 'update_dropin' ) );
     }
@@ -503,5 +500,35 @@ class SQLite_Object_Cache {
 
     ob_end_clean();
   }
+
+  /**
+   * @return bool True if APCu support is activated for this plugin.
+   */
+  public function apcu_is_activated(): bool {
+    return defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU
+           && $this->apcu_extension_is_enabled();
+  }
+
+  /**
+   * @return bool True if the APCu extension is loaded and enabled.
+   */
+  public function apcu_extension_is_enabled(): bool {
+    return function_exists( 'apcu_enabled' ) && apcu_enabled();
+  }
+
+  /**
+   *  Make sure WP_SQLITE_OBJECT_CACHE_APCU and $option['use_apcu'] match.
+   * @return void
+   */
+  public function sync_apcu_global_to_option() {
+    $config = $this->apcu_is_activated() ? 'on' : 'off';
+    $option = get_option( $this->_token . '_settings', array() );
+    $optval = array_key_exists( 'use_apcu', $option ) ? $option['use_apcu'] : '';
+    if ( $config !== $optval ) {
+      $option['use_apcu'] = $config;
+      update_option( $this->_token . '_settings', $option, true );
+    }
+  }
+
 
 }
