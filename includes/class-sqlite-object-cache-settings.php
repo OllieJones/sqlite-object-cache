@@ -165,15 +165,13 @@ class SQLite_Object_Cache_Settings {
       )
     );
 
-    if ( function_exists( 'apcu_enabled' ) && apcu_enabled() ) {
-      $active = ( defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU ) ? 'on' : 'off';
+    if ( $this->apcu_extension_is_enabled() ) {
       array_unshift( $fields, array(
         'id'          => 'use_apcu',
         'label'       => __( 'Use APCu', 'sqlite-object-cache' ),
         'description' => __( 'Check to enable the use of php\'s APCu cache to improve performance.', 'sqlite-object-cache' ),
         'type'        => 'checkbox',
-        'default'     => $active,
-        'reset'       => $active,
+        'default'     => '',
       ) );
 
     }
@@ -220,7 +218,7 @@ class SQLite_Object_Cache_Settings {
     global $wp_object_cache;
 
     /* Opt in or opt out of the APCu. */
-    if ( function_exists( 'apcu_enabled' ) && apcu_enabled() ) {
+    if ( $this->apcu_extension_is_enabled() ) {
       $apcu_choice  = array_key_exists( 'use_apcu', $option ) && $option ['use_apcu'] === 'on';
       $apcu_current = ( defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU );
       if ( $apcu_choice !== $apcu_current ) {
@@ -458,6 +456,8 @@ class SQLite_Object_Cache_Settings {
    * @return void
    */
   public function register_my_settings() {
+    $this->sync_apcu_global_to_option();
+
     if ( is_array( $this->settings ) ) {
 
       /* get the tab chosen by the user ('standard' or 'stats') */
@@ -557,8 +557,9 @@ class SQLite_Object_Cache_Settings {
     echo '<code>wp help sqlite-object-cache</code> ';
     echo esc_html__( 'into your shell for details', 'sqlite-object-cache' ) . '.';
     echo '</p>';
-    $apc = defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU;
-    if ( function_exists( 'apcu_enabled' ) && apcu_enabled() && ! $apc ) {
+    $apcu_global  = defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU;
+    $apcu_enabled = $this->apcu_extension_is_enabled();
+    if ( $apcu_enabled && ! $apcu_global ) {
       echo '<p>';
       echo esc_html__( 'On your site you can use php\'s', 'sqlite-object-cache' ) . ' ';
       echo '<a href="https://www.php.net/manual/en/book.apcu.php" target="_blank">' . esc_html__( 'APCu User Cache', 'sqlite-object-cache' ) . '</a>  ';
@@ -566,7 +567,7 @@ class SQLite_Object_Cache_Settings {
       echo esc_html__( 'To enable APCu caching please check the "Use APCu" box.', 'sqlite-object-cache' ) . ' ';
       echo '</p>';
     }
-    if ( function_exists( 'apcu_enabled' ) && apcu_enabled() && $apc ) {
+    if ( $apcu_enabled && $apcu_global ) {
       echo '<p>';
       echo esc_html__( 'You are using php\'s', 'sqlite-object-cache' ) . ' ';
       echo '<a href="https://www.php.net/manual/en/book.apcu.php" target="_blank">' . esc_html__( 'APCu User Cache', 'sqlite-object-cache' ) . '</a>  ';
@@ -574,7 +575,7 @@ class SQLite_Object_Cache_Settings {
       echo esc_html__( 'To disable APCu caching please uncheck the "Use APCu" box.', 'sqlite-object-cache' ) . ' ';
       echo '</p>';
     }
-    if ( ! function_exists( 'apcu_enabled' ) || ! apcu_enabled() ) {
+    if ( ! $apcu_enabled ) {
       echo '<p>';
       echo esc_html__( 'This object cache performs better when used with php\'s', 'sqlite-object-cache' ) . ' ';
       echo '<a href="https://www.php.net/manual/en/book.apcu.php" target="_blank">' . esc_html__( 'APCu User Cache', 'sqlite-object-cache' ) . '</a>  ';
@@ -600,7 +601,7 @@ class SQLite_Object_Cache_Settings {
     $force_serialize = defined( 'WP_SQLITE_OBJECT_CACHE_SERIALIZE' ) && WP_SQLITE_OBJECT_CACHE_SERIALIZE;
     $igbinary        .= $force_serialize ? esc_html__( '(disabled by WP_SQLITE_OBJECT_CACHE_SERIALIZE)', 'sqlite-object-cache' ) : '';
 
-    $apcu_version = function_exists( 'apcu_enabled' ) && apcu_enabled()
+    $apcu_version = $this->apcu_extension_is_enabled()
       ? phpversion( "apcu" )
       : __( 'unavailable', 'sqlite-object-cache' );
 
@@ -761,7 +762,7 @@ class SQLite_Object_Cache_Settings {
 
     $content = SQLite_Object_Cache_File::read( $conf_file );
     if ( ! $content ) {
-      throw new \Exception( 'wp-config file content is empty: ' . $conf_file );
+      throw new Exception( 'wp-config file content is empty: ' . $conf_file );
     }
 
     // Remove the line `define('WHATEVER', true/false);` first
@@ -779,10 +780,39 @@ class SQLite_Object_Cache_Settings {
     $res = SQLite_Object_Cache_File::save( $conf_file, $content, false, false, false );
 
     if ( $res !== true ) {
-      throw new \Exception( 'wp-config.php operation failed when changing `WP_CACHE` const: ' . $res );
+      throw new Exception( 'wp-config.php operation failed when changing `WP_CACHE` const: ' . $res );
     }
 
     return true;
+  }
+
+  /**
+   * @return bool True if APCu support is activated for this plugin.
+   */
+  public function apcu_is_activated(): bool {
+    return defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU
+           && $this->apcu_extension_is_enabled();
+  }
+
+  /**
+   * @return bool True if the APCu extension is loaded and enabled.
+   */
+  public function apcu_extension_is_enabled(): bool {
+    return function_exists( 'apcu_enabled' ) && apcu_enabled();
+  }
+
+  /**
+   *  Make sure WP_SQLITE_OBJECT_CACHE_APCU and $option['use_apcu'] match.
+   * @return void
+   */
+  public function sync_apcu_global_to_option() {
+    $config = $this->apcu_is_activated() ? 'on' : 'off';
+    $option = get_option( $this->parent->_token . '_settings', array() );
+    $optval = array_key_exists( 'use_apcu', $option ) ? $option['use_apcu'] : '';
+    if ( $config !== $optval ) {
+      $option['use_apcu'] = $config;
+      update_option( $this->parent->_token . '_settings', $option );
+    }
   }
 
 }
