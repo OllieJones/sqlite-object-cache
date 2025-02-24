@@ -121,7 +121,7 @@ class SQLite_Object_Cache {
    * @param string $file File constructor.
    * @param string $version Plugin version.
    */
-  public function __construct( $file = '', $version = '1.4.1' ) {
+  public function __construct( $file = '', $version = '1.5.1' ) {
     $this->_version = $version;
     $this->_token   = 'sqlite_object_cache';
 
@@ -198,6 +198,10 @@ class SQLite_Object_Cache {
     if ( ! method_exists( $wp_object_cache, 'sqlite_get_size' ) ) {
       return;
     }
+    /* Clean up old statistics. Do this even when the cache is not over size. */
+    $retention = empty ( $option['retainmeasurements'] ) ? 24 : $option['retainmeasurements'];
+    $wp_object_cache->sqlite_reset_statistics( $retention * HOUR_IN_SECONDS );
+
     $current_size = $wp_object_cache->sqlite_get_size();
     /* Skip this if the current size is small enough. */
     if ( $current_size <= $threshold_size ) {
@@ -215,10 +219,6 @@ class SQLite_Object_Cache {
       return;
     }
 
-    /* Clean up old statistics. */
-    $retention = empty ( $option['retention'] ) ? 24 : $option['retention'];
-    $wp_object_cache->sqlite_reset_statistics( $retention * HOUR_IN_SECONDS );
-
     /* Delete the least-recently-updated items to get to the target size. */
     $wp_object_cache->sqlite_delete_old( $target_size, $current_size );
   }
@@ -229,11 +229,8 @@ class SQLite_Object_Cache {
    * @return void
    */
   public function on_activation() {
-    /* make sure the autoloaded option is set when activating; avoid an extra dbms or cache hit to fetch it */
-    $option = get_option( $this->_token . '_settings', 'default' );
-    if ( 'default' === $option ) {
-      update_option( $this->_token . '_settings', array(), true );
-    }
+
+    $this->sync_apcu_global_to_option();
     if ( true === $this->has_sqlite() ) {
       add_action( 'shutdown', array( $this, 'update_dropin' ) );
     }
@@ -346,9 +343,7 @@ class SQLite_Object_Cache {
    * @author Till Krüss
    *
    */
-  public function initialize_filesystem(
-    $url, $silent = false
-  ) {
+  public function initialize_filesystem( $url, $silent = false ) {
     require_once ABSPATH . 'wp-admin/includes/file.php';
     if ( $silent ) {
       ob_start();
@@ -441,7 +436,7 @@ class SQLite_Object_Cache {
   public function validate_object_cache_dropin() {
     global $wp_object_cache;
 
-    if ( ! method_exists( $wp_object_cache, 'dropin_get_version' ) )  {
+    if ( ! method_exists( $wp_object_cache, 'dropin_get_version' ) ) {
       return false;
     }
 
@@ -486,8 +481,6 @@ class SQLite_Object_Cache {
     global $wp_filesystem;
     global $wp_object_cache;
 
-    ob_start();
-
     if ( method_exists( $wp_object_cache, 'sqlite_files' ) ) {
       if ( $this->initialize_filesystem( '', true ) ) {
         foreach ( $wp_object_cache->sqlite_files() as $file ) {
@@ -495,8 +488,6 @@ class SQLite_Object_Cache {
         }
       }
     }
-
-    ob_end_clean();
   }
 
   private function delete_dropin() {
@@ -509,5 +500,35 @@ class SQLite_Object_Cache {
 
     ob_end_clean();
   }
+
+  /**
+   * @return bool True if APCu support is activated for this plugin.
+   */
+  public function apcu_is_activated(): bool {
+    return defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU
+           && $this->apcu_extension_is_enabled();
+  }
+
+  /**
+   * @return bool True if the APCu extension is loaded and enabled.
+   */
+  public function apcu_extension_is_enabled(): bool {
+    return function_exists( 'apcu_enabled' ) && apcu_enabled();
+  }
+
+  /**
+   *  Make sure WP_SQLITE_OBJECT_CACHE_APCU and $option['use_apcu'] match.
+   * @return void
+   */
+  public function sync_apcu_global_to_option() {
+    $config = $this->apcu_is_activated() ? 'on' : 'off';
+    $option = get_option( $this->_token . '_settings', array() );
+    $optval = array_key_exists( 'use_apcu', $option ) ? $option['use_apcu'] : '';
+    if ( $config !== $optval ) {
+      $option['use_apcu'] = $config;
+      update_option( $this->_token . '_settings', $option, true );
+    }
+  }
+
 
 }

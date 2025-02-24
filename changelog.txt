@@ -1,3 +1,49 @@
+= 1.5.0 =
+
+* Use APCu to increase performance if it is available and if WP_SQLITE_OBJECT_CACHE_APCU is defined.
+
+= 1.4.1 =
+
+* More efficient testing for drop-in validity.
+* More accurate least-recently-updated cleanup.
+
+= 1.4.0 =
+
+* Add WP-CLI support.
+* Make sure to close .sqlite files to avoid file-descriptor leaks in long-running processes. Props to Matt Jones.
+
+= 1.3.8 =
+
+Add some support for new SQLite WAL2 write-ahead logging.
+Support WordPress 6.5.
+
+= 1.3.7 =
+
+Bug fix: Not all versions of SQLite can do DELETE ... LIMIT, so do transaction-size-limited DELETEs a different way.
+
+= 1.3.6 =
+
+* Clean up in chunks in an attempt to reduce contention delays and timeouts.
+* Do PRAGMA wal_checkpoint(RESTART) when cleaning up, and also occasionally, to prevent the write-ahead log from growing without bound on busy systems.
+* Retry three times if cache updates time out.
+* Increase default cache size to 16MiB for new users.
+
+= 1.3.5 =
+
+* php 8.1, php 8.2 compatibility.
+* Support for WordFence and other code using the object cache after shutdown.
+
+= 1.3.4 =
+
+* Support SQLite Memory-Mapped I/O.
+* Reduce contention delays by limiting the number of get_multiple, set_multiple, add_multiple, and delete_multiple items in each transaction.
+* Reduce index page fragmentation by using key order for set_multiple and add_multiple operations.
+* Fix initialization defect in cache deletion. Props to @gRoberts84.
+
+= 1.3.2 =
+
+* Avoid VACUUM except on cache flush, and do it only with maintenance mode enabled.
+
 = 1.3.1 =
 
 * Look for a too-large cache with a 0.001 probability on every pageview, and purge it. This works around disabled or too-infrequent WP_Cron operations.

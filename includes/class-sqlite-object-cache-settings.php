@@ -95,81 +95,94 @@ class SQLite_Object_Cache_Settings {
    */
   private function settings_fields() {
 
+    $fields = array(
+      array(
+        'id'          => 'flush',
+        'label'       => __( 'Flush now', 'sqlite-object-cache' ),
+        'description' => __( 'Check to flush the cache (delete all its entries) now.', 'sqlite-object-cache' ) . ' ' .
+                         __( 'This briefly puts your site into maintenance mode.', 'sqlite-object-cache' ),
+        'type'        => 'checkbox',
+        'default'     => '',
+        'reset'       => '',
+      ),
+      array(
+        'id'          => 'vacuum',
+        'label'       => __( 'Vacuum now', 'sqlite-object-cache' ),
+        'description' => __( 'Check to vacuum (defragment) the cache now.', 'sqlite-object-cache' ) . ' ' .
+                         __( 'This briefly puts your site into maintenance mode.', 'sqlite-object-cache' ),
+        'type'        => 'checkbox',
+        'default'     => '',
+        'reset'       => '',
+      ),
+      array(
+        'id'          => 'target_size',
+        'label'       => __( 'Cached data size', 'sqlite-object-cache' ),
+        'description' => __( 'MiB. When data in the cache grows larger than this, hourly cleanup removes the oldest entries.', 'sqlite-object-cache' ),
+        'type'        => 'number',
+        'default'     => 16,
+        'min'         => 1,
+        'step'        => 'any',
+        'cssclass'    => 'narrow',
+        'placeholder' => __( 'MiB.', 'sqlite-object-cache' ),
+      ),
+      array(
+        'id'          => 'cleanup',
+        'label'       => __( 'Clean up now', 'sqlite-object-cache' ),
+        'description' => __( 'Check to clean up the cache (delete old data) now.', 'sqlite-object-cache' ),
+        'type'        => 'checkbox',
+        'default'     => '',
+        'reset'       => '',
+      ),
+      array(
+        'id'          => 'capture',
+        'label'       => __( 'Measure performance', 'sqlite-object-cache' ),
+        'description' => __( 'Check to enable cache performance measurement. ', 'sqlite-object-cache' ),
+        'type'        => 'checkbox',
+        'default'     => '',
+      ),
+      array(
+        'id'          => 'samplerate',
+        'label'       => __( 'Measure', 'sqlite-object-cache' ),
+        'description' => __( 'percent of requests, randomly sampled.', 'sqlite-object-cache' ),
+        'type'        => 'number',
+        'default'     => 1,
+        'max'         => 100,
+        'min'         => 0,
+        'step'        => 'any',
+        'cssclass'    => 'narrow',
+        'placeholder' => __( 'Sampling percentage.', 'sqlite-object-cache' ),
+      ),
+      array(
+        'id'          => 'retainmeasurements',
+        'label'       => __( 'Retain measurements for', 'sqlite-object-cache' ),
+        'description' => __( 'hours.', 'sqlite-object-cache' ),
+        'type'        => 'number',
+        'default'     => 2,
+        'min'         => 0.1,
+        'step'        => 'any',
+        'cssclass'    => 'narrow',
+        'placeholder' => __( 'Hours to retain.', 'sqlite-object-cache' ),
+      )
+    );
+
+    if ( $this->parent->apcu_extension_is_enabled() ) {
+      array_unshift( $fields, array(
+        'id'          => 'use_apcu',
+        'label'       => __( 'Use APCu', 'sqlite-object-cache' ),
+        'description' => __( 'Check to enable the use of php\'s APCu cache to improve performance.', 'sqlite-object-cache' ),
+        'type'        => 'checkbox',
+        'default'     => '',
+      ) );
+
+    }
+
     $settings['standard'] = array(
       'title'                 => __( 'Settings', 'sqlite-object-cache' ),
       'submit'                => __( 'Save Settings', 'sqlite-object-cache' ),
       'description'           => '',
       'render_section_header' => array( $this, 'settings_section_header' ),
       'form_post_callback'    => array( $this, 'validate_settings' ),
-      'fields'                => array(
-        array(
-          'id'          => 'flush',
-          'label'       => __( 'Flush now', 'sqlite-object-cache' ),
-          'description' => __( 'Check to flush the cache (delete all its entries) now.', 'sqlite-object-cache' ) . ' ' .
-                           __( 'This briefly puts your site into maintenance mode.', 'sqlite-object-cache' ),
-          'type'        => 'checkbox',
-          'default'     => '',
-          'reset'       => '',
-        ),
-        array(
-          'id'          => 'vacuum',
-          'label'       => __( 'Vacuum now', 'sqlite-object-cache' ),
-          'description' => __( 'Check to vacuum (defragment) the cache now.', 'sqlite-object-cache' ) . ' ' .
-                           __( 'This briefly puts your site into maintenance mode.', 'sqlite-object-cache' ),
-          'type'        => 'checkbox',
-          'default'     => '',
-          'reset'       => '',
-        ),
-        array(
-          'id'          => 'target_size',
-          'label'       => __( 'Cached data size', 'sqlite-object-cache' ),
-          'description' => __( 'MiB. When data in the cache grows larger than this, hourly cleanup removes the oldest entries.', 'sqlite-object-cache' ),
-          'type'        => 'number',
-          'default'     => 16,
-          'min'         => 1,
-          'step'        => 'any',
-          'cssclass'    => 'narrow',
-          'placeholder' => __( 'MiB.', 'sqlite-object-cache' ),
-        ),
-        array(
-          'id'          => 'cleanup',
-          'label'       => __( 'Clean up now', 'sqlite-object-cache' ),
-          'description' => __( 'Check to clean up the cache (delete old data) now.', 'sqlite-object-cache' ),
-          'type'        => 'checkbox',
-          'default'     => '',
-          'reset'       => '',
-        ),
-        array(
-          'id'          => 'capture',
-          'label'       => __( 'Measure performance', 'sqlite-object-cache' ),
-          'description' => __( 'Check to enable cache performance measurement. ', 'sqlite-object-cache' ),
-          'type'        => 'checkbox',
-          'default'     => '',
-        ),
-        array(
-          'id'          => 'samplerate',
-          'label'       => __( 'Measure', 'sqlite-object-cache' ),
-          'description' => __( 'percent of requests, randomly sampled.', 'sqlite-object-cache' ),
-          'type'        => 'number',
-          'default'     => 1,
-          'max'         => 100,
-          'min'         => 0,
-          'step'        => 'any',
-          'cssclass'    => 'narrow',
-          'placeholder' => __( 'Sampling percentage.', 'sqlite-object-cache' ),
-        ),
-        array(
-          'id'          => 'retainmeasurements',
-          'label'       => __( 'Retain measurements for', 'sqlite-object-cache' ),
-          'description' => __( 'hours.', 'sqlite-object-cache' ),
-          'type'        => 'number',
-          'default'     => 2,
-          'min'         => 0.1,
-          'step'        => 'any',
-          'cssclass'    => 'narrow',
-          'placeholder' => __( 'Hours to retain.', 'sqlite-object-cache' ),
-        ),
-      ),
+      'fields'                => $fields,
     );
 
     $settings['stats'] = array(
@@ -199,11 +212,25 @@ class SQLite_Object_Cache_Settings {
    */
   public function validate_settings( $option, $name, $original_value ) {
     if ( ! is_array( $option ) ) {
-      /* weird. not an option array */
+      /* Weird. not an option array */
       return $option;
     }
     global $wp_object_cache;
 
+    /* Opt in or opt out of the APCu. */
+    if ( $this->parent->apcu_extension_is_enabled() ) {
+      $apcu_choice  = array_key_exists( 'use_apcu', $option ) && $option ['use_apcu'] === 'on';
+      $apcu_current = ( defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU );
+      if ( $apcu_choice !== $apcu_current ) {
+        add_action( 'shutdown', function () use ( $apcu_choice ) {
+          global $wp_object_cache;
+          if ( method_exists( $wp_object_cache, 'apcu_clear_cache' ) ) {
+            $wp_object_cache->apcu_clear_cache();
+          }
+          $this->wp_config_constant( 'WP_SQLITE_OBJECT_CACHE_APCU', $apcu_choice );
+        }, 999, 1 );
+      }
+    }
     if ( array_key_exists( 'flush', $option ) && $option ['flush'] === 'on' ) {
       if ( method_exists( $wp_object_cache, 'flush' ) ) {
         try {
@@ -221,7 +248,7 @@ class SQLite_Object_Cache_Settings {
       if ( method_exists( $wp_object_cache, 'vacuum' ) ) {
         try {
           $this->enter_maintenance_mode();
-          $wp_object_cache->vacuum( );
+          $wp_object_cache->vacuum();
         } finally {
           $this->exit_maintenance_mode();
         }
@@ -429,6 +456,8 @@ class SQLite_Object_Cache_Settings {
    * @return void
    */
   public function register_my_settings() {
+    $this->parent->sync_apcu_global_to_option();
+
     if ( is_array( $this->settings ) ) {
 
       /* get the tab chosen by the user ('standard' or 'stats') */
@@ -495,6 +524,7 @@ class SQLite_Object_Cache_Settings {
   public function settings_section_header( $section ) {
 
     $this->support_links();
+    $this->apcu_admonition();
     $this->versions();
 
     if ( array_key_exists( 'description', $this->settings[ $section['id'] ] ) ) {
@@ -518,13 +548,42 @@ class SQLite_Object_Cache_Settings {
     echo '<a href="' . esc_url( $reviewUrl ) . '">' . esc_html__( 'click here', 'sqlite-object-cache' ) . '</a>. ';
     echo esc_html__( 'Your feedback helps make it better, faster, and more useful', 'sqlite-object-cache' ) . '.';
     echo '</p>';
+
+  }
+
+  private function apcu_admonition() {
     echo '<p>';
     echo esc_html__( 'You can use WP-CLI to configure this plugin. Please type', 'sqlite-object-cache' ) . ' ';
     echo '<code>wp help sqlite-object-cache</code> ';
     echo esc_html__( 'into your shell for details', 'sqlite-object-cache' ) . '.';
     echo '</p>';
-
-
+    $apcu_global  = defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU;
+    $apcu_enabled = $this->parent->apcu_extension_is_enabled();
+    if ( $apcu_enabled && ! $apcu_global ) {
+      echo '<p>';
+      echo esc_html__( 'On your site you can use php\'s', 'sqlite-object-cache' ) . ' ';
+      echo '<a href="https://www.php.net/manual/en/book.apcu.php" target="_blank">' . esc_html__( 'APCu User Cache', 'sqlite-object-cache' ) . '</a>  ';
+      echo esc_html__( 'to improve the performance of this SQLite Object Cache. ', 'sqlite-object-cache' );
+      echo esc_html__( 'To enable APCu caching please check the "Use APCu" box.', 'sqlite-object-cache' ) . ' ';
+      echo '</p>';
+    }
+    if ( $apcu_enabled && $apcu_global ) {
+      echo '<p>';
+      echo esc_html__( 'You are using php\'s', 'sqlite-object-cache' ) . ' ';
+      echo '<a href="https://www.php.net/manual/en/book.apcu.php" target="_blank">' . esc_html__( 'APCu User Cache', 'sqlite-object-cache' ) . '</a>  ';
+      echo esc_html__( 'to improve the performance of this SQLite Object Cache. ', 'sqlite-object-cache' ) . ' ';
+      echo esc_html__( 'To disable APCu caching please uncheck the "Use APCu" box.', 'sqlite-object-cache' ) . ' ';
+      echo '</p>';
+    }
+    if ( ! $apcu_enabled ) {
+      echo '<p>';
+      echo esc_html__( 'This object cache performs better when used with php\'s', 'sqlite-object-cache' ) . ' ';
+      echo '<a href="https://www.php.net/manual/en/book.apcu.php" target="_blank">' . esc_html__( 'APCu User Cache', 'sqlite-object-cache' ) . '</a>  ';
+      echo esc_html__( 'extension. ', 'sqlite-object-cache' ) . ' ';
+      echo esc_html__( 'However, it is not available on your server.', 'sqlite-object-cache' ) . ' ';
+      echo esc_html__( 'It may be possible for you or your hosting service to install it.', 'sqlite-object-cache' ) . ' ';
+      echo '</p>';
+    }
   }
 
   /**
@@ -535,19 +594,28 @@ class SQLite_Object_Cache_Settings {
    */
   private function versions() {
     global $wp_object_cache;
-    $igbinary = function_exists( 'igbinary_serialize' ) && function_exists( 'igbinary_unserialize' )
-      ? __( 'available', 'sqlite-object-cache' )
+    global $wp_version;
+    $igbinary        = function_exists( 'igbinary_serialize' ) && function_exists( 'igbinary_unserialize' )
+      ? phpversion( 'igbinary' )
+      : __( 'unavailable', 'sqlite-object-cache' );
+    $force_serialize = defined( 'WP_SQLITE_OBJECT_CACHE_SERIALIZE' ) && WP_SQLITE_OBJECT_CACHE_SERIALIZE;
+    $igbinary        .= $force_serialize ? esc_html__( '(disabled by WP_SQLITE_OBJECT_CACHE_SERIALIZE)', 'sqlite-object-cache' ) : '';
+
+    $apcu_version = $this->parent->apcu_extension_is_enabled()
+      ? phpversion( "apcu" )
       : __( 'unavailable', 'sqlite-object-cache' );
 
     if ( method_exists( $wp_object_cache, 'sqlite_get_version' ) ) {
       echo '<p>' . esc_html( sprintf(
-        /* translators: 1: version for sqlite   2: version for php  3: webserver version 4: version for plugin  5: status of igbinary */
-          __( 'Versions: SQLite: %1$s  php: %2$s  Server: %3$s Plugin: %4$s  igbinary: %5$s.', 'sqlite-object-cache' ),
+        /* translators: 1: version for sqlite   2: version for php  3: webserver version 4: version for plugin  5: igbinary  6:APCu  7:WordPress */
+          __( 'Versions: WordPress: %7$s  SQLite: %1$s  php: %2$s  Server: %3$s Plugin: %4$s  APCu: %6$s  igbinary: %5$s.', 'sqlite-object-cache' ),
           $wp_object_cache->sqlite_get_version(),
           PHP_VERSION,
           $_SERVER['SERVER_SOFTWARE'],
           $this->parent->_version,
-          $igbinary ) ) . '</p>';
+          $igbinary,
+          $apcu_version,
+          $wp_version ) ) . '</p>';
     }
   }
 
@@ -665,4 +733,58 @@ class SQLite_Object_Cache_Settings {
     $maintenanceFileName = ABSPATH . '.maintenance';
     unlink( $maintenanceFileName );
   }
+
+  /**
+   * Update a variable in the wp-config.php file.
+   *
+   * If enabling, check if the variable is defined, and if not, define it.
+   * Vice versa for disabling.
+   *
+   * @author https://profiles.wordpress.org/litespeedtech/
+   */
+  private function wp_config_constant( $symbol, $enable ) {
+    if ( $enable ) {
+      if ( defined( $symbol ) && constant( $symbol ) ) {
+        return false;
+      }
+    } elseif ( ! defined( $symbol ) || ( defined( $symbol ) && ! constant( $symbol ) ) ) {
+      return false;
+    }
+
+    /**
+     * Follow WP's logic to locate wp-config file
+     * @see wp-load.php
+     */
+    $conf_file = ABSPATH . 'wp-config.php';
+    if ( ! file_exists( $conf_file ) ) {
+      $conf_file = dirname( ABSPATH ) . '/wp-config.php';
+    }
+
+    $content = SQLite_Object_Cache_File::read( $conf_file );
+    if ( ! $content ) {
+      throw new Exception( 'wp-config file content is empty: ' . $conf_file );
+    }
+
+    // Remove the line `define('WHATEVER', true/false);` first
+    if ( defined( $symbol ) ) {
+      $re      = '/define\(\s*([\'"])' . $symbol . '\1\s*,\s*\w+\s*\)\s*;/sU';
+      $content = preg_replace( $re, '', $content );
+    }
+
+    // Insert const
+    if ( $enable ) {
+      $replacement = "<?php\ndefine( '" . $symbol . "', true ); ";
+      $content     = preg_replace( '/^<\?php/', $replacement, $content );
+    }
+
+    $res = SQLite_Object_Cache_File::save( $conf_file, $content, false, false, false );
+
+    if ( $res !== true ) {
+      throw new Exception( 'wp-config.php operation failed when changing `WP_CACHE` const: ' . $res );
+    }
+
+    return true;
+  }
+
+
 }
