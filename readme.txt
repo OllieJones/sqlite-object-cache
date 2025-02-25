@@ -141,8 +141,13 @@ Notice that this setting controls the size of the data in the cache. That is the
 
 = What is APCu? =
 
-[APCu](https://www.php.net/manual/en/book.apcu.php) is php extension offering an in-memory storage medium.
+[APCu](https://www.php.net/manual/en/book.apcu.php) is php extension offering an in-memory storage medium. You can configure this plugin to use it to speed up cache lookups. 
 
+= On my server the APCu shared memory cache is too small. How can I make it bigger? =
+
+On most operating systems the size of the APCu cache is, as installed, 32MiB. If you need to increase this size you can a line to your `php.ini` file mentioning the [apc.shm_size](https://www.php.net/manual/en/apcu.configuration.php#ini.apcu.shm-size) configuration option. For example, the line `apc.shm_size = 64M` sets the size to 64MiB. Please consult your operating system or hosting provider documetation for information on how to do this. 
+
+Notice that sometimes multiple WordPress installations that run on the same server share the same APCu cache, so provide enough space for them all. And keep in mind that this plugin only uses APCu to accelerate its operations, so the consequences of setting its size too small are not great.
 
 = Does this plugin replace MariaDB or MySQL with SQLite? =
 
@@ -246,11 +251,11 @@ causes your object cache data to go into the `/tmp` folder in a file named `mysi
 
 = Can this plugin use SQLite memory-mapped I/O?
 
-**Yes**. You can use your OS's memory map feature to access and share cache data with [SQLite Memory-Mapped I/O](https://www.sqlite.org/mmap.html). On some server configurations this allows multiple php processes to share cached data more quickly. In the plugin this is disabled by default. You can enable it by telling the plugin how many MiB to use for memory mapping. For example, this wp-config setting tells the plugin to use 32MiB.
+**Yes**. You can use your OS's memory map feature to access and share cache data with [SQLite Memory-Mapped I/O](https://www.sqlite.org/mmap.html). On some server configurations this allows multiple php processes to share cached data more quickly. In the plugin this is disabled by default. You can enable it by telling the plugin how many MiB to use for memory mapping. For example, this wp-config setting tells the plugin to use 32MiB. 
 
 `define( 'WP_SQLITE_OBJECT_CACHE_MMAP_SIZE', 32 );`
 
-Notice that using memory-mapped I/O may not help performance in the highly concurrent environment of a busy web server. That is why it is disabled by default.
+Notice that using memory-mapped I/O may not help performance in the highly concurrent environment of a busy web server. That is why it is disabled by default. Notice also that this kind of memory-mapping is not the same thing as the APCu cache.
 
 = I sometimes get timeout errors from SQLite. How can I fix them? =
 
@@ -266,9 +271,9 @@ Sometimes [WP-CLI](https://wp-cli.org/) commands issued from a shell run with a 
 
 On Linux, you can run your WP-CLI shell commands like this:  `sudo -u www-data wp config list`  This ensures they run with the same user as the web server.
 
-= The Statistics display seems complex. What does it mean? =
+= The Statistics display seems complex. What does it all mean? =
 
-This plugin measures individual operations such as the time to look something up in the cache. It collects those individual measurements. The Statistics display analyzes the to show the fastest and slowest operations, the average operation, and other desciptive statistics.
+This plugin measures individual operations such as the time to look something up in the cache. It collects those individual measurements. The Statistics display analyzes them to show the fastest and slowest operations, the average operation, and other desciptive statistics.
 Please [read this](https://www.plumislandmedia.net/wordpress-plugins/sqlite-object-cache/statistics-from-sqlite-object-cache/) for more information.
 
 = Is there a joke somewhere in this? =
