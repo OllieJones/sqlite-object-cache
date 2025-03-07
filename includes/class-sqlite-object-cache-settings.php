@@ -222,13 +222,10 @@ class SQLite_Object_Cache_Settings {
       $apcu_choice  = array_key_exists( 'use_apcu', $option ) && $option ['use_apcu'] === 'on';
       $apcu_current = ( defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU );
       if ( $apcu_choice !== $apcu_current ) {
-        add_action( 'shutdown', function () use ( $apcu_choice ) {
-          global $wp_object_cache;
-          if ( method_exists( $wp_object_cache, 'apcu_clear_cache' ) ) {
-            $wp_object_cache->apcu_clear_cache();
-          }
-          $this->wp_config_constant( 'WP_SQLITE_OBJECT_CACHE_APCU', $apcu_choice );
-        }, 999, 1 );
+        if ( method_exists( $wp_object_cache, 'apcu_clear_cache' ) ) {
+          $wp_object_cache->apcu_clear_cache();
+        }
+        $this->wp_config_constant( 'WP_SQLITE_OBJECT_CACHE_APCU', $apcu_choice );
       }
     }
     if ( array_key_exists( 'flush', $option ) && $option ['flush'] === 'on' ) {
