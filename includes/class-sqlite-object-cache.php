@@ -518,16 +518,33 @@ class SQLite_Object_Cache {
 
   /**
    *  Make sure WP_SQLITE_OBJECT_CACHE_APCU and $option['use_apcu'] match.
-   * @return void
+   *
+   * @param bool $unconditional true if we should always change the option to match WP_SQLITE_OBJECT_CACHE_APCU.
+   *
+   * @return string 'on' or 'off': the current activation state of epcu.
    */
-  public function sync_apcu_global_to_option() {
-    $config = $this->apcu_is_activated() ? 'on' : 'off';
-    $option = get_option( $this->_token . '_settings', array() );
-    $optval = array_key_exists( 'use_apcu', $option ) ? $option['use_apcu'] : '';
-    if ( $config !== $optval ) {
-      $option['use_apcu'] = $config;
+  public function sync_apcu_global_to_option( $unconditional = true ) {
+    $option       = get_option( $this->_token . '_settings', array() );
+    $option_dirty = false;
+    $updated_flag = array_key_exists( 'use_apcu_updated', $option );
+    $use_apcu     = array_key_exists( 'use_apcu', $option ) && 'on' === $option['use_apcu'] ? 'on' : 'off';
+    if ( $updated_flag ) {
+      unset ( $option['use_apcu_updated'] );
+      $option_dirty = true;
+    }
+    $target_use_apcu = $this->apcu_is_activated() ? 'on' : 'off';
+    if ( ! $unconditional && $updated_flag ) {
+      $target_use_apcu = $use_apcu;
+    }
+    if ( $target_use_apcu !== $use_apcu ) {
+      $option['use_apcu'] = $target_use_apcu;
+      $option_dirty       = true;
+    }
+    if ( $option_dirty ) {
       update_option( $this->_token . '_settings', $option, true );
     }
+
+    return $target_use_apcu;
   }
 
 

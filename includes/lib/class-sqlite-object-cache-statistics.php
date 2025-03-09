@@ -377,7 +377,7 @@ class SQLite_Object_Cache_Statistics {
                              /* translators:  1 start time   2 end time both in localized format */
                                __( 'From %1$s to %2$s.', 'sqlite-object-cache' ),
                                $this->start_time, $this->end_time ) . ' ' . __( 'Times in microseconds, request durations in seconds.', 'sqlite-object-cache' ) ) . '</p>' . PHP_EOL;
-      echo '<table class="sql-object-cache-stats descriptive">' . PHP_EOL;
+      echo '<table class="sql-object-cache-stats descriptive striped">' . PHP_EOL;
       foreach ( $this->descriptions as $stat => $description ) {
         if ( ! is_array( $description ) || ! array_key_exists( 'n', $description ) || $description['n'] <= 0 ) {
           continue;
@@ -390,6 +390,7 @@ class SQLite_Object_Cache_Statistics {
         echo '</tr></thead>' . PHP_EOL;
         break;
       }
+      echo '<tbody>' . PHP_EOL;
 
       foreach ( $this->descriptions as $stat => $description ) {
         if ( ! is_array( $description ) || ! array_key_exists( 'n', $description ) || $description['n'] <= 0 ) {
@@ -545,7 +546,7 @@ class SQLite_Object_Cache_Statistics {
                                __( 'Expirations from %1$s to %2$s.', 'sqlite-object-cache' ),
                                $this->format_datestamp( $earliest ), $this->format_datestamp( $latest ) ) . ' ' . __( 'Sizes in MiB.', 'sqlite-object-cache' ) ) . '</p>' . PHP_EOL;
 
-      echo '<table class="sql-object-cache-stats">' . PHP_EOL;
+      echo '<table class="sql-object-cache-stats striped">' . PHP_EOL;
       /* table headers */
       echo '<thead><tr>';
       echo '<th scope="col" class="right">' . esc_html__( 'Cache Group', 'sqlite-object-cache' ) . '</th>';

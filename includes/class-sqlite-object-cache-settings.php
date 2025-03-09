@@ -85,6 +85,7 @@ class SQLite_Object_Cache_Settings {
    * @return void
    */
   public function init_settings() {
+    $this->parent->sync_apcu_global_to_option( true );
     $this->settings = $this->settings_fields();
   }
 
@@ -228,7 +229,8 @@ class SQLite_Object_Cache_Settings {
         }
         $this->update_wp_config_constant( 'WP_SQLITE_OBJECT_CACHE_APCU', $apcu_choice );
       }
-      $option['use_apcu'] = $apcu_choice ? 'on' : 'off';
+      $option['use_apcu_updated'] = true;
+      $option['use_apcu']         = $apcu_choice ? 'on' : 'off';
     }
     if ( array_key_exists( 'flush', $option ) && $option ['flush'] === 'on' ) {
       if ( method_exists( $wp_object_cache, 'flush' ) ) {
