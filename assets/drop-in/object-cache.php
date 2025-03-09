@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache (Drop-in)
- * Version: 1.5.1
+ * Version: 1.5.2
  * Note: This Version number must match the one in SQLite_Object_Cache::_construct.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -10,8 +10,8 @@
  * License: GPLv2+
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Requires PHP: 5.6
- * Tested up to: 6.7.2
- * Stable tag: 1.5.1
+ * Tested up to: 6.8
+ * Stable tag: 1.5.2
  *
  * NOTE: This uses the file .../wp-content/.ht.object_cache.sqlite
  * and the associated files .../wp-content/.ht.object_cache.sqlite-shm
@@ -96,7 +96,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
     const JOURNAL_MODE = 'WAL';  /* or 'MEMORY' */
     const TRANSACTION_SIZE_LIMIT = 64;
 
-    private $dropin_version = '1.5.1';
+    private $dropin_version = '1.5.2';
     /** @var bool True if a transaction is active. */
     private $transaction_active = false;
     /** Path to SQLite file.  @var string */
@@ -890,10 +890,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         $this->updateone_stmt =
           $this->sqlite->prepare( "UPDATE $tbl SET value = :value, expires = $now + :expires WHERE name = :name;" );
       }
-    }
-
-    private function is_igbinary( $data ) {
-      return is_string( $data ) && '00000002' === bin2hex( substr( $data, 0, 4 ) );
     }
 
     /**
@@ -1814,7 +1810,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      *               before putting them in the array.
      * @since 5.5.5
      */
-    public function get_multiple( &$input_keys, $group = 'default', $force = false ) {
+    public function get_multiple( $input_keys, $group = 'default', $force = false ) {
       $values = array();
       if ( count( $input_keys ) <= 1 || $force ) {
         /* Send the degenerate get_multiple calls, and forced calls, to plain old get. That logic is simpler. */

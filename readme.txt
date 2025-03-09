@@ -4,10 +4,9 @@ Contributors: OllieJones
 Tags: cache, object cache, sqlite, performance, apcu
 Requires at least: 5.5
 Requires PHP: 5.6
-Tested up to: 6.7.2
-Tested up to: 6.7.2
-Version: 1.5.1
-Stable tag: 1.5.1
+Tested up to: 6.8
+Version: 1.5.2
+Stable tag: 1.5.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache
@@ -297,6 +296,11 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 
 == Changelog ==
+
+= 1.5.2 =
+
+* Correct a regression in object fetching (failure to clone when needed).
+* Correct wrong display of Use APCu checkbox immediately after setting change
 
 = 1.5.1 =
 

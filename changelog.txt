@@ -1,3 +1,12 @@
+= 1.5.2 =
+
+* Correct a regression in object fetching (failure to clone when needed).
+* Correct wrong display of Use APCu checkbox immediately after setting change
+
+= 1.5.1 =
+
+* Provide APCu opt-in on the settings page.
+
 = 1.5.0 =
 
 * Use APCu to increase performance if it is available and if WP_SQLITE_OBJECT_CACHE_APCU is defined.
