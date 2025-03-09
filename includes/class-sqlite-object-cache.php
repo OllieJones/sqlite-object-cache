@@ -504,7 +504,7 @@ class SQLite_Object_Cache {
   /**
    * @return bool True if APCu support is activated for this plugin.
    */
-  public function apcu_is_activated(): bool {
+  public function apcu_is_activated() {
     return defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU
            && $this->apcu_extension_is_enabled();
   }
@@ -512,7 +512,7 @@ class SQLite_Object_Cache {
   /**
    * @return bool True if the APCu extension is loaded and enabled.
    */
-  public function apcu_extension_is_enabled(): bool {
+  public function apcu_extension_is_enabled() {
     return function_exists( 'apcu_enabled' ) && apcu_enabled();
   }
 

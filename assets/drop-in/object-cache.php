@@ -38,6 +38,8 @@
  * @package SQLiteCache
  */
 
+/**  @noinspection SqlDialectInspection */
+
 defined( '\\ABSPATH' ) || exit;
 
 /**
@@ -890,6 +892,24 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
       }
     }
 
+    private function is_igbinary( $data ) {
+      return is_string( $data ) && '00000002' === bin2hex( substr( $data, 0, 4 ) );
+    }
+
+    /**
+     * Serialize data for persistence if need be. Use igbinary if available.
+     *
+     * @param mixed $data To be serialized.
+     *
+     * @return string|mixed Data ready for dbms insertion.
+     */
+    private function encode( $data ) {
+      return $this->has_igbinary
+        ? igbinary_serialize( $data )
+        : maybe_serialize( $data );
+    }
+
+
     /**
      * Unserialize persistend data. Use igbinary if available.
      *
@@ -897,7 +917,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      *
      * @return string|mixed Data ready for use.
      */
-    private function maybe_unserialize( $data ) {
+    private function decode( $data ) {
       return $this->has_igbinary
         ? igbinary_unserialize( $data )
         : maybe_unserialize( $data );
@@ -909,7 +929,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      * @return mixed|string The data, cloned if an object.
      */
     private function reconstitute( $data ) {
-      $ret = $this->maybe_unserialize( $data );
+      $ret = $this->decode( $data );
       return is_object( $ret ) ? clone $ret : $ret;
     }
 
@@ -1012,19 +1032,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
       }
 
       return true;
-    }
-
-    /**
-     * Serialize data for persistence if need be. Use igbinary if available.
-     *
-     * @param mixed $data To be serialized.
-     *
-     * @return string|mixed Data ready for dbms insertion.
-     */
-    private function maybe_serialize( $data ) {
-      return $this->has_igbinary
-        ? igbinary_serialize( $data )
-        : maybe_serialize( $data );
     }
 
     /**
@@ -1200,7 +1207,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         if ( ! $row ) {
           break;
         }
-        $value = $this->maybe_unserialize( $row[0] );
+        $value = $this->decode( $row[0] );
         yield (object) $value;
       }
       $resultset->finalize();
@@ -1249,7 +1256,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         $sql  =
           "INSERT INTO $object_stats (value, timestamp) VALUES (:value, :timestamp);";
         $stmt = $this->sqlite->prepare( $sql );
-        $stmt->bindValue( ':value', $this->maybe_serialize( $record ), SQLITE3_BLOB );
+        $stmt->bindValue( ':value', $this->encode( $record ), SQLITE3_BLOB );
         $stmt->bindValue( ':timestamp', time(), SQLITE3_INTEGER );
         $result = $stmt->execute();
         $result->finalize();
@@ -1555,11 +1562,11 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         $row    = $result->fetchArray( SQLITE3_NUM );
         if ( false !== $row ) {
           $fetchsuccess = true;
-          $data         = $this->reconstitute( $row[0] );
           $expires      = $row[1];
           $expires      = ( $expires < self::NOEXPIRE_TIMESTAMP_OFFSET ) ? $expires : $expires - self::NOEXPIRE_TIMESTAMP_OFFSET;
           $expires      = $expires - time();
           $expires      = $expires > 0 ? $expires : DAY_IN_SECONDS;
+          $data         = $this->reconstitute( $row[0] );
         }
         if ( $fetchsuccess ) {
           /* Pull item into APCu */
@@ -1644,12 +1651,11 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      */
     private function put_by_name( $name, $data, $expire ) {
       $exception = null;
-      $value     = $this->maybe_serialize( $data );
       $expires   = $expire ?: $this->noexpire_timestamp_offset;
       $retries   = 3;
       while ( $retries -- > 0 ) {
         try {
-          $this->actual_put_by_name( $name, $value, $expires );
+          $this->actual_put_by_name( $name, $this->encode( $data ), $expires );
           unset( $this->not_in_persistent_cache[ $name ] );
           if ( $this->apcu_active ) {
             $astart = hrtime( true );
@@ -1906,7 +1912,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
             }
             ++ $this->persistent_hits;
             $name                 = $row[0];
-            $this->cache[ $name ] = $this->reconstitute( $row[0] );
+            $this->cache[ $name ] = $this->reconstitute( $row[1] );
 
             $expires = $row[2];
             $expires = ( $expires < self::NOEXPIRE_TIMESTAMP_OFFSET ) ? $expires : $expires - self::NOEXPIRE_TIMESTAMP_OFFSET;
