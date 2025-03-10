@@ -1,3 +1,7 @@
+= 1.5.3 =
+
+* Handle non-persistent groups correctly.
+
 = 1.5.2 =
 
 * Correct a regression in object fetching (failure to clone when needed).
