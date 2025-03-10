@@ -230,7 +230,7 @@ class SQLite_Object_Cache {
    */
   public function on_activation() {
 
-    $this->sync_apcu_global_to_option();
+    $this->sync_apcu_global_to_option( true );
     if ( true === $this->has_sqlite() ) {
       add_action( 'shutdown', array( $this, 'update_dropin' ) );
     }
@@ -524,6 +524,7 @@ class SQLite_Object_Cache {
    * @return string 'on' or 'off': the current activation state of epcu.
    */
   public function sync_apcu_global_to_option( $unconditional = true ) {
+    global $wp_object_cache;
     $option       = get_option( $this->_token . '_settings', array() );
     $option_dirty = false;
     $updated_flag = array_key_exists( 'use_apcu_updated', $option );
@@ -541,6 +542,9 @@ class SQLite_Object_Cache {
       $option_dirty       = true;
     }
     if ( $option_dirty ) {
+      if ( method_exists( $wp_object_cache, 'apcu-clear_cache' ) ) {
+        $wp_object_cache->apcu_clear_cache();
+      }
       update_option( $this->_token . '_settings', $option, true );
     }
 

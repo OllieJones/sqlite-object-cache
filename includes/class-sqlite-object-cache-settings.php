@@ -54,9 +54,6 @@ class SQLite_Object_Cache_Settings {
     $this->has    = $parent->has_sqlite();
     $this->base   = 'sqlite_object_cache_';
 
-    // Initialise settings.
-    add_action( 'init', array( $this, 'init_settings' ), 11 );
-
     // Register plugin settings.
     add_action( 'admin_init', array( $this, 'register_my_settings' ) );
 
@@ -77,16 +74,6 @@ class SQLite_Object_Cache_Settings {
 
     // Load admin JS & CSS.
     add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ), 10, 1 );
-  }
-
-  /**
-   * Initialize settings
-   *
-   * @return void
-   */
-  public function init_settings() {
-    $this->parent->sync_apcu_global_to_option( true );
-    $this->settings = $this->settings_fields();
   }
 
   /**
@@ -228,9 +215,9 @@ class SQLite_Object_Cache_Settings {
           $wp_object_cache->apcu_clear_cache();
         }
         $this->update_wp_config_constant( 'WP_SQLITE_OBJECT_CACHE_APCU', $apcu_choice );
+        $option['use_apcu_updated'] = true;
       }
-      $option['use_apcu_updated'] = true;
-      $option['use_apcu']         = $apcu_choice ? 'on' : 'off';
+      $option['use_apcu'] = $apcu_choice ? 'on' : 'off';
     }
     if ( array_key_exists( 'flush', $option ) && $option ['flush'] === 'on' ) {
       if ( method_exists( $wp_object_cache, 'flush' ) ) {
@@ -457,7 +444,8 @@ class SQLite_Object_Cache_Settings {
    * @return void
    */
   public function register_my_settings() {
-    $this->parent->sync_apcu_global_to_option();
+    $this->parent->sync_apcu_global_to_option( false );
+    $this->settings = $this->settings_fields();
 
     if ( is_array( $this->settings ) ) {
 
