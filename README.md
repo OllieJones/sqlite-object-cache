@@ -1,23 +1,23 @@
-# SQLite Object Cache #
-**Author:** Oliver Jones
-**Contributors:** [olliejones](https://profiles.wordpress.org/olliejones/)
-**Tags:** cache, object cache, sqlite, performance, apcu
-**Requires at least:** 5.5
-**Requires PHP:** 5.6
-**Tested up to:** 6.8
+# SQLite Object Cache
+
+Author: Oliver Jones \
+**Contributors:** OllieJones \
+**Tags:** cache, object cache, sqlite, performance, apcu \
+**Requires at least:** 5.5 \
+**Requires PHP:** 5.6 \
+**Tested up to:** 6.8 \
 **Version:** 1.5.3
-**Stable tag:** 1.5.3
-**License:** GPLv2 or later
-**License URI:** http://www.gnu.org/licenses/gpl-2.0.html
-**Github Plugin URI:** https://github.com/OllieJones/sqlite-object-cache
-**Primary Branch:** trunk
-**Text Domain:** sqlite-object-cache
-**Domain Path:** /languages/
-**NOTE:** This file is generated from readme.txt. That file is definitive, not this one.
+**Stable tag:** 1.5.3 \
+**License:** GPLv2 or later \
+**License URI:** http://www.gnu.org/licenses/gpl-2.0.html \
+Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache \
+Primary Branch: trunk \
+Text Domain: sqlite-object-cache \
+Domain Path: /languages/
 
 A fast persistent object cache backend for the rest of us, powered by SQLite and accelerated by APCu
 
-## Description ##
+## Description
 
 A [persistent object cache](https://developer.wordpress.org/reference/classes/wp_object_cache/#persistent-cache-plugins) helps your site perform well. This one uses the widely available [SQLite3](https://www.php.net/manual/en/book.sqlite3.php) extension, and optionally the [igbinary](https://www.php.net/manual/en/intro.igbinary.php) and [APCu](https://www.php.net/manual/en/book.apcu.php) extensions to php. Many hosting services offer those extensions, and they are easy to install on a server you control.
 
@@ -63,7 +63,7 @@ And thanks to Jetbrains for the use of their software development tools, especia
 
 We offer several plugins to help with your site's database efficiency. You can [read about them here](https://www.plumislandmedia.net/wordpress/performance/optimizing-wordpress-database-servers/).
 
-## Installation ##
+## Installation
 
 For this plugin to work for you, your server *must* have the [SQLite3](https://www.php.net/manual/en/book.sqlite3.php) extension to php installed.
 
@@ -82,18 +82,18 @@ wp config set WP_CACHE_KEY_SALT $(openssl rand -base64 12)
 wp plugin activate sqlite-object-cache
 wp sqlite-object-cache size 32`
 
-The plugin offers a few optional settings for your `wp-config.php` file. If you change them, deactivate the plugin first, then change them, then reactivate the plugin.
+The plugin offers a few optional settings for your `wp-config.php` file. Do not change them while the plugin is activated. If you change them, deactivate the plugin first, then change them, then reactivate the plugin.
 
-* WP_CACHE_KEY_SALT. Set this to a hard-to-guess random value to make your cache keys harder to guess. This setting works for other cache plugins as well.
 * WP_SQLITE_OBJECT_CACHE_SERIALIZE. When true, this forces the plugin to use 's [serialize()](https://www.php.net/manual/en/function.serialize.php) scheme to store cached data in SQLite. If this is not set, the plugin uses the more efficient [igbinary](https://www.php.net/manual/en/function.igbinary-serialize.php) scheme if it is available.
 * WP_SQLITE_OBJECT_CACHE_DB_FILE. This is the SQLite file pathname. The default is `…/wp-content/.ht.object_cache.sqlite`. Use this if you want to place the SQLite cache file outside your document root.
 * WP_SQLITE_OBJECT_CACHE_TIMEOUT. This is the SQLite timeout in *milliseconds*. Default: 5000. (Notice that the times shown in the Statistics tab are in *microseconds* if you compare them to this timeout setting.)
 * WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE. This is the [SQLite journal mode](https://www.sqlite.org/pragma.html#pragma_journal_mode). Default: ‘WAL’. Possible values DELETE | TRUNCATE | PERSIST | MEMORY | WAL | WAL2 | NONE. (Not all SQLite3 implementations handle WAL2.)
 * WP_SQLITE_OBJECT_CACHE_APCU. If true enables cache acceleration with APCu RAM. This setting can be updated from the plugin's Settings page.
+* WP_CACHE_KEY_SALT. Set this to a hard-to-guess random value to make your cache keys harder to guess. This setting works for other cache plugins as well. 
 
 <h4>Configuring the cache key salt</h4>
 
-When multiple sites share the same server hardware and software, they can sometimes share the same cache data. Setting `WP_CACHE_KEY_SALT` to a hard-to-guess random value for each site makes it much harder for one site to get another site's data. Notice that this `WP_CACHE_KEY_SALT` value must be set, in your site's `wp-config.php` file, before activating your persistent object cache plugin. This works for other object cache plugins too.
+When multiple sites share the same server hardware and software, they can sometimes share the same cache data. Setting `WP_CACHE_KEY_SALT` to a hard-to-guess random value for each site makes it much harder for one site to get another site's data. This works for other cache plugins too. Notice that this `WP_CACHE_KEY_SALT` value must be set, in your site's `wp-config.php` file, before activating any cache plugin, including page caches and persistent object caches. 
 
 To set the value put a line like this in `wp-config.php`.
 
@@ -113,17 +113,17 @@ Or, you can edit your `wp-config.php` file to add this line.
 
 `define( 'WP_SQLITE_OBJECT_CACHE_APCU', true );`
 
-## Frequently Asked Questions ##
+## Frequently Asked Questions
 
-### Does this work with a multisite WordPress installation? ###
+### Does this work with a multisite WordPress installation?
 
 **Yes**.  To see the Settings page, choose Settings > Object Cache from the first site, or any site, in the multisite installation.
 
-### How much faster will this make my site? ###
+### How much faster will this make my site?
 
 Exactly predicting each site's speedup is not possible. Still, benchmarking results comparing it to other object caching schemes are promising. Please see [this](https://www.plumislandmedia.net/wordpress-plugins/sqlite-object-cache/benchmarks/). If you run a benchmark, please let the author know by leaving a comment on that page or using the [support forum](https://wordpress.org/support/plugin/sqlite-object-cache/).
 
-### What Cached Data Size should I use for my site? ###
+### What Cached Data Size should I use for my site?
 
 The default setting for Cached Data Size is 16 megabytes (MiB). This plugin allows the actual cached data size to grow larger than that, and occasionally removes old -- the least recently updated -- data to trim back the size to the setting. Take a look at the Statistics page. If your actual cached data usage under All Groups is consistently larger than the setting, double the setting.
 
@@ -131,29 +131,29 @@ If you operate a large and busy site, try an initial setting of 32 MiB, then adj
 
 Notice that this setting controls the size of the data in the cache. That is the size shown under All Groups. The data file used by SQLite is larger than that.
 
-### What is SQLite? ###
+### What is SQLite?
 
 [SQLite](https://www.sqlite.org/about.html) is fast and efficient database software. It doesn't require a separate server. Instead, it is built into php using the [SQLite3](https://www.php.net/manual/en/book.sqlite3.php) extension. SQLite programs don't need to open network connections to send requests and wait for replies.
 
-### What is igbinary? ###
+### What is igbinary?
 
 [igbinary](https://www.php.net/manual/en/ref.igbinary.php) is a php extension that provides an efficient way to serialize and compress the kinds of data objects stored in caches. It, in some cases, uses less than half the storage space of the built-in php data [serializer](https://www.php.net/manual/en/function.serialize.php). If igbinary is available in your php configuration, this plugin uses it, unless you force it not to by setting `WP_SQLITE_OBJECT_CACHE_SERIALIZE` to `true` in  `wp-config.php`.
 
-### What is APCu? ###
+### What is APCu?
 
-[APCu](https://www.php.net/manual/en/book.apcu.php) is php extension offering an in-memory storage medium. You can configure this plugin to use it to speed up cache lookups.
+[APCu](https://www.php.net/manual/en/book.apcu.php) is php extension offering an in-memory storage medium. You can configure this plugin to use it to speed up cache lookups. 
 
-### On my server the APCu shared memory cache is too small. How can I make it bigger? ###
+### On my server the APCu shared memory cache is too small. How can I make it bigger?
 
-On most operating systems the size of the APCu cache is, as installed, 32MiB. If you need to increase this size you can a line to your `php.ini` file mentioning the [apc.shm_size](https://www.php.net/manual/en/apcu.configuration.php#ini.apcu.shm-size) configuration option. For example, the line `apc.shm_size = 64M` sets the size to 64MiB. Please consult your operating system or hosting provider documetation for information on how to do this.
+On most operating systems the size of the APCu cache is, as installed, 32MiB. If you need to increase this size you can a line to your `php.ini` file mentioning the [apc.shm_size](https://www.php.net/manual/en/apcu.configuration.php#ini.apcu.shm-size) configuration option. For example, the line `apc.shm_size = 64M` sets the size to 64MiB. Please consult your operating system or hosting provider documetation for information on how to do this. 
 
 Notice that sometimes multiple WordPress installations that run on the same server share the same APCu cache, so provide enough space for them all. And keep in mind that this plugin only uses APCu to accelerate its operations, so the consequences of setting its size too small are not great.
 
-### Does this plugin replace MariaDB or MySQL with SQLite? ###
+### Does this plugin replace MariaDB or MySQL with SQLite?
 
 **No.**  Your MariaDB or MySQL database sql server still holds all your content. All your site's imports, exports, backups and other database operations continue to function normally.  This plugin uses SQLite simply to hold named values. For example, a value named "post|3" will hold a temporary, easy-to-retrieve cached copy of post number 3. When it needs that post, WordPress can fetch it quickly from SQLite.
 
-### Wait, what? Do I really need two different kinds of SQL database? ###
+### Wait, what? Do I really need two different kinds of SQL database?
 
 No, you don't. This plugin doesn't use SQLite as a full-fledged database server.
 
@@ -163,7 +163,7 @@ Some hosting providers offer scalable high-performance [redis](https://redis.io/
 
 But many hosting providers don't offer either redis or memcached, while they do offer SQLite. This plugin enables your site to use a persistent object cache even without a separate cache server. And, because everything happens within your web server, the performance is good.
 
-### Is this plugin compatible with my page-caching plugin? ###
+### Is this plugin compatible with my page-caching plugin?
 
 **Probably**. Page caching and persistent object caching are completely separate functions in WordPress. But, some multi-feature caching plugins support optional object caching using redis or memcached. If that feature is enabled in your page cache plugin, you should not use this plugin.
 
@@ -171,29 +171,29 @@ You can find out whether your page-cache plugin also enables persistent object c
 
 Users of this plugin have found that it works well with WP Rocket, LiteSpeed Cache, WP Total Cache, WP Super Cache, and WP Fastest Cache. It also works with Cloudflare and other content delivery networks. The author has not learned of any incompatibilities in this area. (If you find one *please* start a support topic!)
 
-### Can I disable object caching for my backend dashboard or other pages or REST API operations I choose? ###
+### Can I disable object caching for my backend dashboard or other pages or REST API operations I choose?
 
 **No.**
 
 That's not how object caching works. It's different from page caching. It works at the level of individual database operations in the WordPress code, not at the level of whole pages.
 
-### Is this plugin compatible with my version of MySQL or MariaDB? ###
+### Is this plugin compatible with my version of MySQL or MariaDB?
 
 **Yes**. It does not require any specific database server version.
 
-### Is this persistent object cache faster than Redis or memcached? ###
+### Is this persistent object cache faster than Redis or memcached?
 
 **Yes.** Those cache servers require WordPress to make round-trip network requests, while this one does not.  Many users have found this caching methodology to be fast.
 
-### This cache uses a file on my server HDD/SSD, while redis and memcached use RAM. Isn't RAM faster?  ###
+### This cache uses a file on my server HDD/SSD, while redis and memcached use RAM. Isn't RAM faster?
 
 RAM is indeed faster. Modern server operating systems offer extensive page caching for files, and SQLite is designed to take advantage of that, so the data needed may already be in RAM. Using a separate cache server require the web server to issue network requests and wait for responses, whereas using SQLite does not.
 
-### Why not use the site's main MariaDB or MySql database server for the object cache? ###
+### Why not use the site's main MariaDB or MySql database server for the object cache?
 
 In WordPress, as in many web frameworks, your database server is a performance bottleneck. Using some other mechanism for the object cache avoids adding to your database workload. Web servers serve pages using multiple php processes, and each process handles its own SQLite workload while updating a shared database file. That spreads the object-cache workload out over many processes rather than centralizing it.
 
-### Do I have to back up the data in SQLite? ###
+### Do I have to back up the data in SQLite?
 
 **No.** It's a cache, and everything in it is ephemeral. When WordPress cannot find what it needs in the cache, it simply recomputes it or refetches it from the database.
 
@@ -203,31 +203,31 @@ This plugin automatically suppresses backing up your SQLite data when you use th
 
 If you use some other backup or cloning plugin, please let the author know by creating a [support topic](https://wordpress.org/support/plugin/sqlite-object-cache/). It may be possible for this plugin to tell that plugin to skip backing up the SQLite files.
 
-### If I already have another persistent object cache plugin, can I use this one? ###
+### If I already have another persistent object cache plugin, can I use this one?
 
 **No.** You only need one persistent object cache plugin, and WordPress only supports one.
 
-### If I operate a scaled-up load-balanced installation, can I use this? ###
+### If I operate a scaled-up load-balanced installation, can I use this?
 
 **No.** If you have more than one web server this doesn't work correctly. If you operate at that scale, use redis or some other cache server. (If you aren't sure whether you have a load-balanced installation, you almost certainly do not.)
 
 Please notice that SQLite does not work correctly if you put its files on a shared network drive (via CIFS, SMB, NFS, or some other drive sharing protocol).
 
-### Can I use this with the Performance Lab plugin? ###
+### Can I use this with the Performance Lab plugin?
 
 **Yes, but** you must *activate this plugin first* before you activate [Performance Lab](https://wordpress.org/plugins/performance-lab/). And, you must deactivate Performance Lab before *deactivating this plugin last*.
 
 The [Performance Lab plugin](https://wordpress.org/plugins/performance-lab/) offers some advanced and experimental ways of making your site faster. One of its features uses object-cache initialization code to start tracking performance. So there's a required order of activation if you want both to work.
 
-### How can I use this object cache in my plugin or theme code to make it run faster? ###
+### How can I use this object cache in my plugin or theme code to make it run faster?
 
 Easy. Use transients to store your cacheable data. WordPress's [Transient API](https://developer.wordpress.org/apis/transients/) uses persistent object caching if it's available, and the MariaDB or MySQL database when it isn't. The [Metadata API](https://developer.wordpress.org/apis/metadata/) and [Options API](https://developer.wordpress.org/apis/options/) also use persistent object caching.
 
-### How does this work? ###
+### How does this work?
 
 This plugin uses a [WordPress drop-in](https://developer.wordpress.org/reference/functions/get_dropins/) to extend the functionality of the WP_Cache class. When you activate the plugin it creates the dropin file `.../wp-content/object-cache.php`. Upon deactivation, it removes that file and the cached data.
 
-### Where does the plugin store the cached data? ###
+### Where does the plugin store the cached data?
 
 It's in your site's `wp_content` directory, in the file named `.ht.object-cache.sqlite`. That file's name has the `.ht.` prefix to prevent your web server from allowing it to be downloaded. SQLite also sometimes uses the files named `.ht.object-cache.sqlite-shm` and `.ht.object-cache.sqlite-wal`, so you may see any of those files.
 
@@ -249,17 +249,15 @@ You can also define `WP_CACHE_KEY_SALT` to be a hard-to-guess text string. Conti
 
 causes your object cache data to go into the `/tmp` folder in a file named `mysite-object-cache.qrstuv.sqlite`.
 
-###
 ### Can this plugin use SQLite memory-mapped I/O?
 
-**Yes**. You can use your OS's memory map feature to access and share cache data with [SQLite Memory-Mapped I/O](https://www.sqlite.org/mmap.html). On some server configurations this allows multiple php processes to share cached data more quickly. In the plugin this is disabled by default. You can enable it by telling the plugin how many MiB to use for memory mapping. For example, this wp-config setting tells the plugin to use 32MiB.
+**Yes**. You can use your OS's memory map feature to access and share cache data with [SQLite Memory-Mapped I/O](https://www.sqlite.org/mmap.html). On some server configurations this allows multiple php processes to share cached data more quickly. In the plugin this is disabled by default. You can enable it by telling the plugin how many MiB to use for memory mapping. For example, this wp-config setting tells the plugin to use 32MiB. 
 
 `define( 'WP_SQLITE_OBJECT_CACHE_MMAP_SIZE', 32 );`
 
 Notice that using memory-mapped I/O may not help performance in the highly concurrent environment of a busy web server. That is why it is disabled by default. Notice also that this kind of memory-mapping is not the same thing as the APCu cache.
 
-###
-### I sometimes get timeout errors from SQLite. How can I fix them? ###
+### I sometimes get timeout errors from SQLite. How can I fix them?
 
 Some sites occasionally generate error messages looking like this one:
 
@@ -267,18 +265,22 @@ Some sites occasionally generate error messages looking like this one:
 
 This can happen if your server places your WordPress files on network-attached storage (that is, on a network drive). To solve this, store your cached data on a locally attached drive. See the question about storing your data in a more secure place. It also can happen in a very busy site.
 
-### Why do I get errors when I use WP-CLI to administer my site? ###
+### Why do I get errors when I use WP-CLI to administer my site?
 
 Sometimes [WP-CLI](https://wp-cli.org/) commands issued from a shell run with a different user from the web server. This plugin creates one or more object-cache files. An object-cache file may not be readable or writeable by the web server if it was created by the wp-cli user. Or the other way around.
 
 On Linux, you can run your WP-CLI shell commands like this:  `sudo -u www-data wp config list`  This ensures they run with the same user as the web server.
 
-### The Statistics display seems complex. What does it all mean? ###
+### Does this plugin work with sites hosted on Microsoft Windows OSs with the IIS web server?
+
+**Yes**. But please be aware that users have reported incompatibilities between this plugin's use of APCu on the one hand and [WinCache](https://www.php.net/manual/en/book.wincache.php) and [OPcache](https://www.php.net/manual/en/book.opcache.php) on the other. If you use those caches, please deactivate this plugin before reconfiguring those cache extensions.
+
+### The Statistics display seems complex. What does it all mean?
 
 This plugin measures individual operations such as the time to look something up in the cache. It collects those individual measurements. The Statistics display analyzes them to show the fastest and slowest operations, the average operation, and other desciptive statistics.
 Please [read this](https://www.plumislandmedia.net/wordpress-plugins/sqlite-object-cache/statistics-from-sqlite-object-cache/) for more information.
 
-### Is there a joke somewhere in this? ###
+### Is there a joke somewhere in this?
 
 Q: What are the two hardest things to get right in computer science?
 
@@ -288,51 +290,57 @@ Q: What are the two hardest things to get right in computer science?
 
 Seriously, the core of WordPress has already worked out, over years of development and millions of sites, how to cache things and name them. This plugin, and the other persistent object cache plugins, simply extend that mechanism to make those things persistent.
 
-### I have another question ###
+### I have another question
 
 Please look for more questions and answers [here](https://www.plumislandmedia.net/wordpress-plugins/sqlite-object-cache/faq/). Or ask your question in the [support forum](https://wordpress.org/support/plugin/sqlite-object-cache/).
 
-## Screenshots ##
+## Screenshots
 
-1. Settings panel. Access it with Settings > Object Cache.
-2. Performance statistics panel.
+### 1. Settings panel. Access it with Settings > Object Cache.
+
+![Settings panel. Access it with Settings > Object Cache.](https://ps.w.org/sqlite-object-cache/assets/screenshot-1.png)
+
+### 2. Performance statistics panel.
+
+![Performance statistics panel.](https://ps.w.org/sqlite-object-cache/assets/screenshot-2.png)
 
 
-## Changelog ##
 
-### 1.5.3 ###
+## Changelog
+
+### 1.5.2
 
 * Handle non-persistent groups correctly.
-
-### 1.5.2 ###
+* 
+### 1.5.2
 
 * Correct a regression in object fetching (failure to clone when needed).
-* Correct wrong display of Use APCu checkbox immediately after setting change.
+* Correct wrong display of Use APCu checkbox immediately after setting change
 
-### 1.5.1 ###
+### 1.5.1
 
 * Provide APCu opt-in on the settings page.
 
-### 1.5.0 ###
+### 1.5.0
 
 * Use APCu to increase performance if it is available and if WP_SQLITE_OBJECT_CACHE_APCU is defined.
 
-### 1.4.1 ###
+### 1.4.1
 
 * More efficient testing for drop-in validity.
 * More accurate least-recently-updated cleanup.
 
-### 1.4.0 ###
+### 1.4.0
 
 * Add WP-CLI support.
 * Make sure to close .sqlite files to avoid file-descriptor leaks in long-running processes. Props to Matt Jones.
 
-### 1.3.8 ###
+### 1.3.8
 
 Add some support for new SQLite WAL2 write-ahead logging.
 Support WordPress 6.5.
 
-## Upgrade Notice ##
+## Upgrade Notice
 
 This release optionally uses php's [APCu](https://www.php.net/manual/en/book.apcu.php) RAM cache extension to speed things up. You can opt in to using it via the plugin's dashboard page at Settings -> Object Cache. Please see the plugin's Installation instructions.
 

@@ -270,6 +270,10 @@ Sometimes [WP-CLI](https://wp-cli.org/) commands issued from a shell run with a 
 
 On Linux, you can run your WP-CLI shell commands like this:  `sudo -u www-data wp config list`  This ensures they run with the same user as the web server.
 
+= Does this plugin work with sites hosted on Microsoft Windows OSs with the IIS web server? =
+
+**Yes**. But please be aware that users have reported incompatibilities between this plugin's use of APCu on the one hand and [WinCache](https://www.php.net/manual/en/book.wincache.php) and [OPcache](https://www.php.net/manual/en/book.opcache.php) on the other. If you use those caches, please deactivate this plugin before reconfiguring those cache extensions.
+
 = The Statistics display seems complex. What does it all mean? =
 
 This plugin measures individual operations such as the time to look something up in the cache. It collects those individual measurements. The Statistics display analyzes them to show the fastest and slowest operations, the average operation, and other desciptive statistics.
