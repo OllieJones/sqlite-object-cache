@@ -1835,6 +1835,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
           ++ $this->cache_hits;
         } else {
           $keys_not_found[ $key ] = $name;
+          $values[ $key ]         = false;
         }
       }
 
@@ -1933,7 +1934,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         }
         /* Do the alpha keys, if any */
         foreach ( $alphakeys as $key => $name ) {
-          if ( ! array_key_exists( $key, $values ) ) {
+          if ( false === $values[ $key ] ) {
             $success = false;
             $data    = $this->get_by_normalized_name( $name, $success );
             if ( $success ) {
@@ -1948,7 +1949,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
           }
         }
         foreach ( $intkeys as $key ) {
-          if ( ! array_key_exists( $key, $values ) ) {
+          if ( false === $values[ $key ] ) {
             $success = false;
             $data    = $this->get_by_normalized_name( $normalized[ $key ], $success );
             if ( $success ) {
