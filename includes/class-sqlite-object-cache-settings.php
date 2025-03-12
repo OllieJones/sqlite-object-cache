@@ -757,13 +757,13 @@ class SQLite_Object_Cache_Settings {
 
     // Remove the line `define('WHATEVER', true/false);` first
     if ( defined( $symbol ) ) {
-      $re      = '/define\(\s*([\'"])' . $symbol . '\1\s*,\s*\w+\s*\)\s*;/sU';
+      $re      = '/define\(\s*([\'"])' . $symbol . '\1\s*,\s*\w+\s*\)\s*;\s*[' . "\r\n" . ']*?/sU';
       $content = preg_replace( $re, '', $content );
     }
 
     // Insert const
     if ( $enable ) {
-      $replacement = "<?php\ndefine( '" . $symbol . "', true ); ";
+      $replacement = "<?php" . PHP_EOL . "define( '" . $symbol . "', true );";
       $content     = preg_replace( '/^<\?php/', $replacement, $content );
     }
 
