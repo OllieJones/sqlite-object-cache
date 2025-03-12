@@ -5,9 +5,9 @@ Author: Oliver Jones \
 **Tags:** cache, object cache, sqlite, performance, apcu \
 **Requires at least:** 5.5 \
 **Requires PHP:** 5.6 \
-**Tested up to:** 6.8 \
-**Version:** 1.5.3
-**Stable tag:** 1.5.3 \
+**Tested up to:** 6.7.2 \
+Version: 1.5.4 \
+**Stable tag:** 1.5.4 \
 **License:** GPLv2 or later \
 **License URI:** http://www.gnu.org/licenses/gpl-2.0.html \
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache \
@@ -308,9 +308,9 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 ## Changelog
 
-### 1.5.2
+### 1.5.4
 
-* Handle non-persistent groups correctly.
+* Handle non-persistent groups, get_multiple cache-misses, and MS-DOS line endings correctly.
 * 
 ### 1.5.2
 
@@ -351,5 +351,7 @@ It avoids file descriptor leaks in long-running php processes. Props to Matt Jon
 It adds a VACUUM option, to defragment its database file and release unused SSD/HDD space.
 
 This release attempts to reduce cache timeouts by doing cleanup operations in chunks, and by retrying timed-out cache update operations. It also does PRAGMA wal_checkpoint(RESTART) when cleaning up, and also occasionally, to prevent the write-ahead log from growing without bound on busy systems.
+
+It is now tested with IIS on Microsoft Windows OSs.
 
 Thanks, dear users for letting me know about defects you found, and for your patience as I figure this out. All remaining errors are solely the responsibility of the author.

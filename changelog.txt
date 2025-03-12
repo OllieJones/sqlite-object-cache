@@ -1,6 +1,6 @@
-= 1.5.3 =
+= 1.5.4 =
 
-* Handle non-persistent groups correctly.
+* Handle non-persistent groups, get_multiple cache misses, and MS-DOS line breaks correctly.
 
 = 1.5.2 =
 
