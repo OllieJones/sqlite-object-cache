@@ -71,9 +71,6 @@ class SQLite_Object_Cache_Settings {
 
     // Configure placement of plugin settings page. See readme for implementation.
     add_filter( $this->base . 'menu_settings', array( $this, 'configure_settings' ) );
-
-    // Load admin JS & CSS.
-    add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ), 10, 1 );
   }
 
   /**
@@ -512,6 +509,7 @@ class SQLite_Object_Cache_Settings {
    */
   public function settings_section_header( $section ) {
 
+    $this->enqueue_assets();
     $this->support_links();
     $this->apcu_admonition();
     $this->versions();
