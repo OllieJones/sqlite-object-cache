@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache (Drop-in)
- * Version: 1.5.4
+ * Version: 1.5.5
  * Note: This Version number must match the one in SQLite_Object_Cache::_construct.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -11,7 +11,7 @@
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Requires PHP: 5.6
  * Tested up to: 6.7.2
- * Stable tag: 1.5.4
+ * Stable tag: 1.5.5
  *
  * NOTE: This uses the file .../wp-content/.ht.object_cache.sqlite
  * and the associated files .../wp-content/.ht.object_cache.sqlite-shm
@@ -96,7 +96,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
     const JOURNAL_MODE = 'WAL';  /* or 'MEMORY' */
     const TRANSACTION_SIZE_LIMIT = 64;
 
-    private $dropin_version = '1.5.4';
+    private $dropin_version = '1.5.5';
     /** @var bool True if a transaction is active. */
     private $transaction_active = false;
     /** Path to SQLite file.  @var string */
@@ -793,7 +793,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 						   expires INT,
 						   value BLOB
 						);
-						CREATE UNIQUE INDEX IF NOT EXISTS name ON $this->cache_table_name (name);
+						CREATE UNIQUE INDEX IF NOT EXISTS cache_name ON $this->cache_table_name (name);
 						CREATE INDEX IF NOT EXISTS expires ON $this->cache_table_name (expires);";
         } else {
           /* @noinspection SqlIdentifier */
@@ -805,7 +805,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 						) WITHOUT ROWID;
 						CREATE INDEX IF NOT EXISTS expires ON $this->cache_table_name (expires);";
         }
-
         $this->sqlite->exec( $t );
 
         if ( $uses_rowid ) {
@@ -814,7 +813,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 						CREATE TABLE IF NOT EXISTS $this->flags_table_name (
 						   name TEXT NOT NULL COLLATE BINARY
 						);
-						CREATE UNIQUE INDEX IF NOT EXISTS name ON $this->flags_table_name (name);";
+						CREATE UNIQUE INDEX IF NOT EXISTS flags_name ON $this->flags_table_name (name);";
         } else {
           /* @noinspection SqlIdentifier */
           $t = "
@@ -822,9 +821,13 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 						   name TEXT NOT NULL PRIMARY KEY COLLATE BINARY
 						) WITHOUT ROWID;";
         }
-
         $this->sqlite->exec( $t );
 
+        /* Put the drop-in's version number in the SQLite file, for troubleshooting. */
+        $version = str_replace( '.', '0', $this->dropin_version );
+        if ( is_numeric( $version ) ) {
+          $this->sqlite->exec( "PRAGMA user_version=" . ( (int) $version ) . ";" );
+        }
         /* Creating SQLite tables; clear APCu at the same time. */
         $this->apcu_clear_cache();
       }

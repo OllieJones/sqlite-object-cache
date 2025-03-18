@@ -121,7 +121,7 @@ class SQLite_Object_Cache {
    * @param string $file File constructor.
    * @param string $version Plugin version.
    */
-  public function __construct( $file = '', $version = '1.5.4' ) {
+  public function __construct( $file = '', $version = '1.5.5' ) {
     $this->_version = $version;
     $this->_token   = 'sqlite_object_cache';
 
@@ -149,7 +149,7 @@ class SQLite_Object_Cache {
 
     // Handle localization.
     $this->load_plugin_textdomain();
-    add_action( 'admin-init', array( $this, 'load_localization' ), 0 );
+    add_action( 'admin_init', array( $this, 'load_localization' ), 0 );
     add_action( 'admin_init', array( $this, 'maybe_update_dropin' ) );
 
     /* handle cron cache cleanup */
