@@ -509,7 +509,6 @@ class SQLite_Object_Cache_Settings {
    */
   public function settings_section_header( $section ) {
 
-    $this->enqueue_assets();
     $this->support_links();
     $this->apcu_admonition();
     $this->versions();
@@ -634,6 +633,7 @@ class SQLite_Object_Cache_Settings {
    */
   public function settings_page() {
 
+    $this->enqueue_assets();
     /* get the tab chosen by the user ('standard' by default or 'stats') */
     $tab = isset ( $_REQUEST['tab'] ) ? sanitize_key( $_REQUEST['tab'] ) : 'standard';
 

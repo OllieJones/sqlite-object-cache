@@ -644,13 +644,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      * @return void
      */
     public static function drop_dead( $msg = null ) {
-      if ( ! $msg ) {
-        $translations = self::translationsLoaded();
-        $msg          = $translations
-          ? __( 'The SQLite Object Cache temporarily failed. Please try again now.', 'sqlite-object-cache' )
-          : 'The SQLite Object Cache temporarily failed. Please try again now.';
-      }
-      wp_die( esc_html( $msg ) );
+      wp_die( $msg ?: 'The SQLite Object Cache temporarily failed. Please try again now.' );
     }
 
     /**
@@ -665,10 +659,15 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
       $log_exception = ! ! $exception;
       $msgs          = array();
       $msgs []       = 'SQLite Object Cache:';
+      $msgs []       = $this->dropin_version;
+      $msgs []       = 'SQLite:';
       $msgs []       = $this->sqlite_get_version();
-      $msgs []       = $this->has_igbinary ? 'igbinary:' : 'no igbinary:';
-      $msgs []       = 'php ' . PHP_VERSION . ':';
-      $msgs []       = $_SERVER['SERVER_SOFTWARE'] . ':';
+      $msgs []       = $this->has_igbinary ? 'igbinary' : 'no igbinary';
+      $msgs []       = $this->apcu_active ? 'APCu active' : 'APCu inactive';
+      $msgs []       = 'php:';
+      $msgs []       = PHP_VERSION;
+      $msgs []       = 'server:';
+      $msgs []       = $_SERVER['SERVER_SOFTWARE'];
       $msgs []       = $msg;
       if ( $this->sqlite ) {
         if ( $this->sqlite->lastErrorMsg() ) {
