@@ -5,7 +5,7 @@ Author: Oliver Jones \
 **Tags:** cache, object cache, sqlite, performance, apcu \
 **Requires at least:** 5.5 \
 **Requires PHP:** 5.6 \
-**Tested up to:** 6.7.2 \
+**Tested up to:** 6.8 \
 Version: 1.5.5 \
 **Stable tag:** 1.5.5 \
 **License:** GPLv2 or later \

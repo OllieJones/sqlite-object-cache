@@ -10,7 +10,7 @@
  * License: GPLv2+
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Requires PHP: 5.6
- * Tested up to: 6.7.2
+ * Tested up to: 6.8
  * Stable tag: 1.5.5
  *
  * NOTE: This uses the file .../wp-content/.ht.object_cache.sqlite
