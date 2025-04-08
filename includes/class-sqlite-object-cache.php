@@ -147,9 +147,6 @@ class SQLite_Object_Cache {
       new SQLite_Backup_Exclusion();
     }
 
-    // Handle localization.
-    $this->load_plugin_textdomain();
-    add_action( 'admin_init', array( $this, 'load_localization' ), 0 );
     add_action( 'admin_init', array( $this, 'maybe_update_dropin' ) );
 
     /* handle cron cache cleanup */
@@ -163,22 +160,6 @@ class SQLite_Object_Cache {
         $this->clean_job( 1.25 );
       }, 999, 0 );
     }
-  }
-
-  /**
-   * Load plugin textdomain
-   *
-   * @access  public
-   * @return  void
-   * @since   1.0.0
-   */
-  public function load_plugin_textdomain() {
-    $domain = 'sqlite-object-cache';
-
-    $locale = apply_filters( 'plugin_locale', get_locale(), $domain );
-
-    load_textdomain( $domain, WP_LANG_DIR . '/' . $domain . '/' . $domain . '-' . $locale . '.mo' );
-    load_plugin_textdomain( $domain, false, dirname( plugin_basename( $this->file ) ) . '/languages/' );
   }
 
   /**
@@ -271,17 +252,6 @@ class SQLite_Object_Cache {
     }
 
     return false;
-  }
-
-  /**
-   * Load plugin localization
-   *
-   * @access  public
-   * @return  void
-   * @since   1.0.0
-   */
-  public function load_localization() {
-    load_plugin_textdomain( 'sqlite-object-cache', false, dirname( plugin_basename( $this->file ) ) . '/languages/' );
   }
 
   /**

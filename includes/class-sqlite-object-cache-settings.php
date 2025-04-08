@@ -162,8 +162,8 @@ class SQLite_Object_Cache_Settings {
     }
 
     $settings['standard'] = array(
-      'title'                 => __( 'Settings', 'sqlite-object-cache' ),
-      'submit'                => __( 'Save Settings', 'sqlite-object-cache' ),
+      'title'                 => __( 'Settings' ),
+      'submit'                => __( 'Save Changes' ),
       'description'           => '',
       'render_section_header' => array( $this, 'settings_section_header' ),
       'form_post_callback'    => array( $this, 'validate_settings' ),
