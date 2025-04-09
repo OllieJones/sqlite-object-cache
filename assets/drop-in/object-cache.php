@@ -554,25 +554,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
     }
 
     /**
-     * Load translations early if necessary and possible.
-     *
-     * @return bool
-     */
-    private static function translationsLoaded() {
-      $translations = function_exists( '__' );
-      try {
-        if ( ! $translations ) {
-          wp_load_translations_early();
-          $translations = function_exists( '__' );
-        }
-      } catch ( Exception $ex ) {
-        $translations = false;
-      }
-
-      return $translations;
-    }
-
-    /**
      * Convert a list of integers into a list of runs: consecutive integers.
      *
      * Runs expand to include up to $erode_gaps extra integers, to make
@@ -940,20 +921,11 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      */
     public static function has_sqlite( $directory = WP_CONTENT_DIR ) {
       if ( ! wp_is_writable( $directory ) ) {
-        $translations = self::translationsLoaded();
-
-        return $translations
-          ? sprintf( /* translators: 1: WP_CONTENT_DIR */ __( 'The SQLite Object Cache cannot be activated because the %s directory is not writable.', 'sqlite-object-cache' ), $directory )
-          : sprintf( 'The SQLite Object Cache cannot be activated because the %s directory is not writable.', $directory );
-
+        return sprintf( 'The SQLite Object Cache cannot be activated because the %s directory is not writable.', $directory );
       }
 
       if ( ! class_exists( 'SQLite3' ) || ! extension_loaded( 'sqlite3' ) ) {
-        $translations = self::translationsLoaded();
-
-        return $translations
-          ? __( 'The SQLite Object Cache cannot be activated because the SQLite3 extension is not loaded.', 'sqlite-object-cache' )
-          : 'The SQLite Object Cache cannot be activated because the SQLite3 extension is not loaded.';
+        return  'The SQLite Object Cache cannot be activated because the SQLite3 extension is not loaded.';
       }
 
       return true;

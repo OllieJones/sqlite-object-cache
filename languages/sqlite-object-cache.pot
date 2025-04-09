@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-03-18T14:16:49-04:00\n"
+"POT-Creation-Date: 2025-04-09T14:00:27-04:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.9.0\n"
 "X-Domain: sqlite-object-cache\n"
@@ -34,265 +34,271 @@ msgstr ""
 msgid "https://github.com/OllieJones/"
 msgstr ""
 
-#: assets/drop-in/object-cache.php:650
-msgid "The SQLite Object Cache temporarily failed. Please try again now."
-msgstr ""
-
-#. translators: 1: WP_CONTENT_DIR
-#: assets/drop-in/object-cache.php:945
-msgid "The SQLite Object Cache cannot be activated because the %s directory is not writable."
-msgstr ""
-
-#: assets/drop-in/object-cache.php:954
-msgid "The SQLite Object Cache cannot be activated because the SQLite3 extension is not loaded."
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:86
+#: includes/class-sqlite-object-cache-settings.php:89
 msgid "Flush now"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:87
+#: includes/class-sqlite-object-cache-settings.php:90
 msgid "Check to flush the cache (delete all its entries) now."
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:88
-#: includes/class-sqlite-object-cache-settings.php:97
+#: includes/class-sqlite-object-cache-settings.php:91
+#: includes/class-sqlite-object-cache-settings.php:100
 msgid "This briefly puts your site into maintenance mode."
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:95
+#: includes/class-sqlite-object-cache-settings.php:98
 msgid "Vacuum now"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:96
+#: includes/class-sqlite-object-cache-settings.php:99
 msgid "Check to vacuum (defragment) the cache now."
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:104
+#: includes/class-sqlite-object-cache-settings.php:107
 msgid "Cached data size"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:105
+#: includes/class-sqlite-object-cache-settings.php:108
 msgid "MiB. When data in the cache grows larger than this, hourly cleanup removes the oldest entries."
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:111
+#: includes/class-sqlite-object-cache-settings.php:114
 msgid "MiB."
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:115
+#: includes/class-sqlite-object-cache-settings.php:118
 msgid "Clean up now"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:116
+#: includes/class-sqlite-object-cache-settings.php:119
 msgid "Check to clean up the cache (delete old data) now."
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:123
+#: includes/class-sqlite-object-cache-settings.php:126
 msgid "Measure performance"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:124
+#: includes/class-sqlite-object-cache-settings.php:127
 msgid "Check to enable cache performance measurement. "
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:130
+#: includes/class-sqlite-object-cache-settings.php:133
 msgid "Measure"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:131
+#: includes/class-sqlite-object-cache-settings.php:134
 msgid "percent of requests, randomly sampled."
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:138
+#: includes/class-sqlite-object-cache-settings.php:141
 msgid "Sampling percentage."
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:142
+#: includes/class-sqlite-object-cache-settings.php:145
 msgid "Retain measurements for"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:143
+#: includes/class-sqlite-object-cache-settings.php:146
 msgid "hours."
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:149
+#: includes/class-sqlite-object-cache-settings.php:152
 msgid "Hours to retain."
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:156
+#: includes/class-sqlite-object-cache-settings.php:159
 msgid "Use APCu"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:157
+#: includes/class-sqlite-object-cache-settings.php:160
 msgid "Check to enable the use of php's APCu cache to improve performance."
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:165
-#: includes/class-sqlite-object-cache-settings.php:425
-#: includes/class-sqlite-object-cache-settings.php:429
-msgid "Settings"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:166
-#: includes/class-sqlite-object-cache-settings.php:644
-msgid "Save Settings"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:174
-#: includes/class-sqlite-object-cache-settings.php:431
+#: includes/class-sqlite-object-cache-settings.php:177
+#: includes/class-sqlite-object-cache-settings.php:434
 #: includes/lib/class-sqlite-object-cache-statistics.php:612
 msgid "Statistics"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:175
+#: includes/class-sqlite-object-cache-settings.php:178
 msgid "Reset Statistics"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:348
-#: includes/class-sqlite-object-cache-settings.php:642
+#: includes/class-sqlite-object-cache-settings.php:351
+#: includes/class-sqlite-object-cache-settings.php:645
 msgid "SQLite Persistent Object Cache"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:349
+#: includes/class-sqlite-object-cache-settings.php:352
 msgid "Object Cache"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:374
+#: includes/class-sqlite-object-cache-settings.php:377
 msgid "Server configuration problem"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:378
+#: includes/class-sqlite-object-cache-settings.php:381
 msgid "The SQLite Persistent Object Cache plugin requires php's SQLite3 extension."
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:379
+#: includes/class-sqlite-object-cache-settings.php:382
 msgid "That extension is not installed in your server, so the plugin cannot work."
 msgstr ""
 
 #. translators: 1 actual SQLite version. 2 required SQLite version)
-#: includes/class-sqlite-object-cache-settings.php:386
-#: includes/class-sqlite-object-cache.php:253
+#: includes/class-sqlite-object-cache-settings.php:389
+#: includes/class-sqlite-object-cache.php:234
 msgid "You cannot use the SQLite Object Cache plugin. Your server only offers SQLite3 version %1$s, but at least %2$s is required."
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:532
-msgid "For support please"
-msgstr ""
-
-#: includes/class-sqlite-object-cache-settings.php:533
-#: includes/class-sqlite-object-cache-settings.php:535
-msgid "click here"
+#: includes/class-sqlite-object-cache-settings.php:428
+#: includes/class-sqlite-object-cache-settings.php:432
+#: includes/class-sqlite-object-cache-settings.php:828
+msgid "Settings"
 msgstr ""
 
 #: includes/class-sqlite-object-cache-settings.php:534
-msgid "To rate this plugin please"
+msgid "For support please"
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:535
+#: includes/class-sqlite-object-cache-settings.php:537
+msgid "click here"
 msgstr ""
 
 #: includes/class-sqlite-object-cache-settings.php:536
+msgid "To rate this plugin please"
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:538
 msgid "Your feedback helps make it better, faster, and more useful"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:543
+#: includes/class-sqlite-object-cache-settings.php:545
 msgid "You can use WP-CLI to configure this plugin. Please type"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:545
+#: includes/class-sqlite-object-cache-settings.php:547
 msgid "into your shell for details"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:552
+#: includes/class-sqlite-object-cache-settings.php:554
 msgid "On your site you can use php's"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:553
-#: includes/class-sqlite-object-cache-settings.php:561
-#: includes/class-sqlite-object-cache-settings.php:569
+#: includes/class-sqlite-object-cache-settings.php:555
+#: includes/class-sqlite-object-cache-settings.php:563
+#: includes/class-sqlite-object-cache-settings.php:571
 msgid "APCu User Cache"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:554
-#: includes/class-sqlite-object-cache-settings.php:562
+#: includes/class-sqlite-object-cache-settings.php:556
+#: includes/class-sqlite-object-cache-settings.php:564
 msgid "to improve the performance of this SQLite Object Cache. "
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:555
+#: includes/class-sqlite-object-cache-settings.php:557
 msgid "To enable APCu caching please check the \"Use APCu\" box."
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:560
+#: includes/class-sqlite-object-cache-settings.php:562
 msgid "You are using php's"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:563
+#: includes/class-sqlite-object-cache-settings.php:565
 msgid "To disable APCu caching please uncheck the \"Use APCu\" box."
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:568
+#: includes/class-sqlite-object-cache-settings.php:570
 msgid "This object cache performs better when used with php's"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:570
+#: includes/class-sqlite-object-cache-settings.php:572
 msgid "extension. "
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:571
+#: includes/class-sqlite-object-cache-settings.php:573
 msgid "However, it is not available on your server."
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:572
+#: includes/class-sqlite-object-cache-settings.php:574
 msgid "It may be possible for you or your hosting service to install it."
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:588
-#: includes/class-sqlite-object-cache-settings.php:594
+#: includes/class-sqlite-object-cache-settings.php:590
+#: includes/class-sqlite-object-cache-settings.php:596
 #: includes/cli.php:40
 msgid "unavailable"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:590
+#: includes/class-sqlite-object-cache-settings.php:592
 #: includes/cli.php:42
 msgid "(disabled by WP_SQLITE_OBJECT_CACHE_SERIALIZE)"
 msgstr ""
 
 #. translators: 1: version for sqlite   2: version for php  3: webserver version 4: version for plugin  5: igbinary  6:APCu  7:WordPress
-#: includes/class-sqlite-object-cache-settings.php:599
+#: includes/class-sqlite-object-cache-settings.php:601
 msgid "Versions: WordPress: %7$s  SQLite: %1$s  php: %2$s  Server: %3$s Plugin: %4$s  APCu: %6$s  igbinary: %5$s."
 msgstr ""
 
-#: includes/class-sqlite-object-cache.php:246
+#: includes/class-sqlite-object-cache-settings.php:647
+msgid "Save Settings"
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:799
+msgid "Configuration"
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:812
+msgid "Versions"
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:879
+msgid "APCu utilization"
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:888
+msgid "APCu info"
+msgstr ""
+
+#: includes/class-sqlite-object-cache-settings.php:902
+msgid "SQLite utilization"
+msgstr ""
+
+#: includes/class-sqlite-object-cache.php:227
 msgid "You cannot use the SQLite Object Cache plugin. Your server does not have php's SQLite3 extension installed."
 msgstr ""
 
-#: includes/class-sqlite-object-cache.php:298
+#: includes/class-sqlite-object-cache.php:268
 msgid "Could not initialize filesystem."
 msgstr ""
 
-#: includes/class-sqlite-object-cache.php:304
+#: includes/class-sqlite-object-cache.php:274
 msgid "Object cache drop-in file doesn’t exist."
 msgstr ""
 
-#: includes/class-sqlite-object-cache.php:308
+#: includes/class-sqlite-object-cache.php:278
 msgid "Test file exists, but couldn’t be deleted."
 msgstr ""
 
-#: includes/class-sqlite-object-cache.php:312
+#: includes/class-sqlite-object-cache.php:282
 msgid "Content directory is not writable."
 msgstr ""
 
-#: includes/class-sqlite-object-cache.php:316
+#: includes/class-sqlite-object-cache.php:286
 msgid "Failed to copy test file."
 msgstr ""
 
-#: includes/class-sqlite-object-cache.php:320
+#: includes/class-sqlite-object-cache.php:290
 msgid "Copied test file doesn’t exist."
 msgstr ""
 
-#: includes/class-sqlite-object-cache.php:326
+#: includes/class-sqlite-object-cache.php:296
 msgid "Couldn’t verify test file contents."
 msgstr ""
 
-#: includes/class-sqlite-object-cache.php:330
+#: includes/class-sqlite-object-cache.php:300
 msgid "Copied test file couldn’t be deleted."
 msgstr ""
 

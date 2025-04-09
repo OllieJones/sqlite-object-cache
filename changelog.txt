@@ -1,3 +1,9 @@
+= 1.5.5 =
+
+* Some diagnostic data now appears in Site Health - Info.
+* The drop-in no longer attempts to load translations early, to eliminate an unterminated recursion.
+* A problem with index creation on ancient SQLite versions is corrected.
+
 = 1.5.4 =
 
 * Handle non-persistent groups, get_multiple cache misses, and MS-DOS line breaks correctly.

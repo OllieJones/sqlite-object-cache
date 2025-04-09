@@ -13,6 +13,8 @@ Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache
 Primary Branch: trunk
 Text Domain: sqlite-object-cache
 Domain Path: /languages/
+Donate link: https://github.com/sponsors/OllieJones
+
 
 A fast persistent object cache backend for the rest of us, powered by SQLite and accelerated by APCu
 
@@ -301,10 +303,16 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 == Changelog ==
 
+= 1.5.5 =
+
+* Some diagnostic data now appears in Site Health - Info.
+* The drop-in no longer attempts to load translations early, to eliminate an unterminated recursion.
+* A problem with index creation on ancient SQLite versions is corrected.
+
 = 1.5.4 =
 
 * Handle non-persistent groups, get_multiple cache-misses, and MS-DOS line endings correctly.
-* 
+
 = 1.5.2 =
 
 * Correct a regression in object fetching (failure to clone when needed).
@@ -318,22 +326,10 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 * Use APCu to increase performance if it is available and if WP_SQLITE_OBJECT_CACHE_APCU is defined.
 
-= 1.4.1 =
-
-* More efficient testing for drop-in validity.
-* More accurate least-recently-updated cleanup.
-
-= 1.4.0 =
-
-* Add WP-CLI support.
-* Make sure to close .sqlite files to avoid file-descriptor leaks in long-running processes. Props to Matt Jones.
-
-= 1.3.8 =
-
-Add some support for new SQLite WAL2 write-ahead logging.
-Support WordPress 6.5.
 
 == Upgrade Notice ==
+
+The plugin now presents diagnostic data on Tools->Site Health->Info.
 
 This release optionally uses php's [APCu](https://www.php.net/manual/en/book.apcu.php) RAM cache extension to speed things up. You can opt in to using it via the plugin's dashboard page at Settings -> Object Cache. Please see the plugin's Installation instructions.
 

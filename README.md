@@ -1,6 +1,6 @@
 # SQLite Object Cache
 
-Author: Oliver Jones \
+Author: Oliver Jones
 **Contributors:** OllieJones \
 **Tags:** cache, object cache, sqlite, performance, apcu \
 **Requires at least:** 5.5 \
@@ -13,7 +13,9 @@ Version: 1.5.5 \
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache \
 Primary Branch: trunk \
 Text Domain: sqlite-object-cache \
-Domain Path: /languages/
+Domain Path: /languages/ \
+**Donate link:** https://github.com/sponsors/OllieJones \
+
 
 A fast persistent object cache backend for the rest of us, powered by SQLite and accelerated by APCu
 
@@ -33,7 +35,7 @@ Without a persistent object cache, every WordPress page view must use your Maria
 
 If your site runs on a single web server machine, and that server provides the [SQLite3](https://www.php.net/manual/en/book.sqlite3.php) and [igbinary](https://www.php.net/manual/en/intro.igbinary.php) extensions to php, this plugin will almost certainly make your site work faster. And if that server provides the [APCu](https://www.php.net/manual/en/book.apcu.php) extension, this plugin uses it too.
 
-Some hosting providers offer [redis](https://redis.io/) cache servers. If your provider offers redis, it may be a good choice. You can use it via tbe [Redis Object Cache](https://wordpress.org/plugins/redis-cache/) plugin. Sites using redis have one SQL database and another non-SQL storage server: redis. Other hosting providers offer [memcached](https://memcached.org/), which has the [Memcached Object Cache](https://wordpress.org/plugins/memcached/) plugin. And some large multipurpose cache plugins, such as the [LiteSpeed Cache](https://wordpress.org/plugins/litespeed-cache/), also offer object caching based on one of those cache server software packages.
+Some hosting providers offer [redis](https://redis.io/) cache servers. If your provider offers redis, it may be a good choice. You can use it via the [Redis Object Cache](https://wordpress.org/plugins/redis-cache/) plugin. Sites using redis have one SQL database and another non-SQL storage server: redis. Other hosting providers offer [memcached](https://memcached.org/), which has the [Memcached Object Cache](https://wordpress.org/plugins/memcached/) plugin. And some large multipurpose cache plugins, such as the [LiteSpeed Cache](https://wordpress.org/plugins/litespeed-cache/), also offer object caching based on one of those cache server software packages.
 
 The cache-server approach to object caching comes into its own when you have multiple load-balanced web server machines handling your site. SQLite doesn't work correctly in a multiple-web-server environment.
 
@@ -308,10 +310,16 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 ## Changelog
 
+### 1.5.5
+
+* Some diagnostic data now appears in Site Health - Info.
+* The drop-in no longer attempts to load translations early, to eliminate an unterminated recursion.
+* A problem with index creation on ancient SQLite versions is corrected.
+
 ### 1.5.4
 
 * Handle non-persistent groups, get_multiple cache-misses, and MS-DOS line endings correctly.
-* 
+
 ### 1.5.2
 
 * Correct a regression in object fetching (failure to clone when needed).
@@ -325,22 +333,10 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 * Use APCu to increase performance if it is available and if WP_SQLITE_OBJECT_CACHE_APCU is defined.
 
-### 1.4.1
-
-* More efficient testing for drop-in validity.
-* More accurate least-recently-updated cleanup.
-
-### 1.4.0
-
-* Add WP-CLI support.
-* Make sure to close .sqlite files to avoid file-descriptor leaks in long-running processes. Props to Matt Jones.
-
-### 1.3.8
-
-Add some support for new SQLite WAL2 write-ahead logging.
-Support WordPress 6.5.
 
 ## Upgrade Notice
+
+The plugin now presents diagnostic data on Tools->Site Health->Info.
 
 This release optionally uses php's [APCu](https://www.php.net/manual/en/book.apcu.php) RAM cache extension to speed things up. You can opt in to using it via the plugin's dashboard page at Settings -> Object Cache. Please see the plugin's Installation instructions.
 

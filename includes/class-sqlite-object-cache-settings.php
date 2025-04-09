@@ -54,6 +54,9 @@ class SQLite_Object_Cache_Settings {
     $this->has    = $parent->has_sqlite();
     $this->base   = 'sqlite_object_cache_';
 
+    // Information for Site Health Info
+    add_filter( 'debug_information', array( $this, 'debug_information' ) );
+
     // Register plugin settings.
     add_action( 'admin_init', array( $this, 'register_my_settings' ) );
 
@@ -772,6 +775,166 @@ class SQLite_Object_Cache_Settings {
     }
 
     return true;
+  }
+
+  /**
+   * Put troubleshooting information into Site Health - Info
+   *
+   * @param array $info
+   *
+   * @return array
+   */
+  public function debug_information( $info ) {
+    global $wp_object_cache;
+
+    $stanza = array(
+      'label'  => 'SQLite Object Cache',
+      'fields' => array()
+    );
+
+    try {
+      $option = get_option( $this->parent->_token . '_settings', array() );
+
+      $stanza['fields']['configuration'] = array(
+        'label' => __( 'Configuration', 'sqlite-object-cache' ),
+        'value' => $this->flatten( $option ),
+      );
+
+    } catch ( \Exception $e ) {
+      /* empty, intentionally */
+    }
+
+    ob_start();
+    try {
+      $this->versions();
+      $versions                     = wp_strip_all_tags( ob_get_clean() );
+      $stanza['fields']['versions'] = array(
+        'label' => __( 'Versions', 'sqlite-object-cache' ),
+        'value' => $versions,
+      );
+    } catch ( \Exception $e ) {
+      ob_get_clean();
+    }
+
+    try {
+      $settings = array();
+      if ( $this->parent->apcu_extension_is_enabled() ) {
+        $settings = array_merge( $settings, ini_get_all( 'apcu' ) );
+      }
+      $settings = array_merge( $settings, ini_get_all( 'sqlite3' ) );
+      $settings = array_merge( $settings, $this->inis_get( 'session.save_handler', 'session.auto_start', 'session.lifetime', 'session.gc_maxlifetime' ) );
+
+      $stanza['fields']['settings'] = array(
+        'label' => __( 'Settings', 'sqlite-object-cache' ),
+        'value' => $this->flatten( $settings ),
+      );
+    } catch ( \Exception $e ) {
+      /* empty, intentionally */
+    }
+
+    try {
+      if ( $this->parent->apcu_extension_is_enabled() ) {
+
+        $sizes      = array();
+        $counts     = array();
+        $totalsize  = 0;
+        $totalcount = 0;
+        foreach ( new APCUIterator( null, APC_ITER_KEY | APC_ITER_MEM_SIZE ) as $item ) {
+          $salt   = '?';
+          $splits = explode( '|', $item['key'], 2 );
+          if ( count( $splits ) >= 2 ) {
+            $salt = $splits[0];
+          }
+          if ( ! array_key_exists( $salt, $sizes ) ) {
+            $sizes[ $salt ] = 0;
+          }
+          $sizes[ $salt ]   += $item['mem_size'];
+          $totalsize        += $item['mem_size'];
+          $counts [ $salt ] += 1;
+          $totalcount       += 1;
+        }
+
+        $apcusalt           = trim( property_exists( $wp_object_cache, 'apcusalt' ) ? $wp_object_cache->apcusalt : '', '|' );
+        $settings           = array();
+        $settings ['salt']  = $apcusalt;
+        $settings ['total'] = "$totalsize($totalcount)";
+        $siteno             = 1;
+        foreach ( $sizes as $salt => $val ) {
+          switch ( $salt ) {
+            case $apcusalt:
+              $csalt = 'mine';
+              break;
+            case '?':
+              $csalt = 'no salt';
+              break;
+            default:
+              $csalt = 'site' . $siteno ++;
+              break;
+          }
+          $settings[ $csalt ] = "$val($counts[$salt])";
+        }
+
+
+        $stanza['fields']['apcu_utilization'] = array(
+          'label' => __( 'APCu utilization', 'sqlite-object-cache' ),
+          'value' => $this->flatten( $settings ),
+        );
+
+        $apcu_cache_info = array();
+        $apcu_cache_info = array_merge( $apcu_cache_info, apcu_cache_info( true ) );
+        $apcu_cache_info = array_merge( $apcu_cache_info, apcu_sma_info( true ) );
+
+        $stanza['fields']['apcu_cache_info'] = array(
+          'label' => __( 'APCu info', 'sqlite-object-cache' ),
+          'value' => $this->flatten( $apcu_cache_info ),
+        );
+
+
+      }
+    } catch ( \Exception $e ) {
+      /* empty, intentionally */
+    }
+
+    try {
+      global $wp_object_cache;
+      if ( method_exists( $wp_object_cache, 'sqlite_sizes' ) ) {
+        $stanza['fields']['sqlite_sizes'] = array(
+          'label' => __( 'SQLite utilization', 'sqlite-object-cache' ),
+          'value' => $this->flatten( $wp_object_cache->sqlite_sizes() ),
+        );
+      }
+    } catch ( \Exception $e ) {
+      /* empty, intentionally */
+    }
+
+
+    $info['sqlite-object-cache'] = $stanza;
+    return $info;
+  }
+
+  private function inis_get( ...$list ) {
+    $result = array();
+    foreach ( $list as $item ) {
+      $val             = ini_get( $item );
+      $result[ $item ] = $val ?: '-missing-';
+    }
+    return $result;
+
+  }
+
+  private function flatten( $a ) {
+    $result = array();
+    foreach ( $a as $k => $v ) {
+      if ( is_array( $v ) ) {
+        if ( array_key_exists( 'local_value', $v ) ) {
+          $v = $v['local_value'];
+        } else {
+          $v = var_export( $v, true );
+        }
+      }
+      $result [] = $k . ':' . $v;
+    }
+    return implode( '; ', $result );
   }
 
 
