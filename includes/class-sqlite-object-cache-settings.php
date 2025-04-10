@@ -846,7 +846,8 @@ class SQLite_Object_Cache_Settings {
             $salt = $splits[0];
           }
           if ( ! array_key_exists( $salt, $sizes ) ) {
-            $sizes[ $salt ] = 0;
+            $sizes[ $salt ]  = 0;
+            $counts[ $salt ] = 0;
           }
           $sizes[ $salt ]   += $item['mem_size'];
           $totalsize        += $item['mem_size'];
