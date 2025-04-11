@@ -2,14 +2,14 @@
 # This file is distributed under the same license as the SQLite Object Cache plugin.
 msgid ""
 msgstr ""
-"Project-Id-Version: SQLite Object Cache 1.5.5\n"
+"Project-Id-Version: SQLite Object Cache 1.5.6\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/sqlite-object-cache\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-04-09T14:00:27-04:00\n"
+"POT-Creation-Date: 2025-04-11T19:06:01-04:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.9.0\n"
 "X-Domain: sqlite-object-cache\n"
@@ -254,15 +254,15 @@ msgstr ""
 msgid "Versions"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:879
+#: includes/class-sqlite-object-cache-settings.php:880
 msgid "APCu utilization"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:888
+#: includes/class-sqlite-object-cache-settings.php:889
 msgid "APCu info"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:902
+#: includes/class-sqlite-object-cache-settings.php:903
 msgid "SQLite utilization"
 msgstr ""
 

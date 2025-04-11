@@ -6,15 +6,15 @@ Author: Oliver Jones
 **Requires at least:** 5.5 \
 **Requires PHP:** 5.6 \
 **Tested up to:** 6.8 \
-Version: 1.5.5 \
-**Stable tag:** 1.5.5 \
+Version: 1.5.6 \
+**Stable tag:** 1.5.6 \
 **License:** GPLv2 or later \
 **License URI:** http://www.gnu.org/licenses/gpl-2.0.html \
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache \
 Primary Branch: trunk \
 Text Domain: sqlite-object-cache \
 Domain Path: /languages/ \
-**Donate link:** https://github.com/sponsors/OllieJones \
+**Donate link:** https://github.com/sponsors/OllieJones
 
 
 A fast persistent object cache backend for the rest of us, powered by SQLite and accelerated by APCu
@@ -275,7 +275,7 @@ On Linux, you can run your WP-CLI shell commands like this:  `sudo -u www-data w
 
 ### Does this plugin work with sites hosted on Microsoft Windows OSs with the IIS web server?
 
-**Yes**. But please be aware that users have reported incompatibilities between this plugin's use of APCu on the one hand and [WinCache](https://www.php.net/manual/en/book.wincache.php) and [OPcache](https://www.php.net/manual/en/book.opcache.php) on the other. If you use those caches, please deactivate this plugin before reconfiguring those cache extensions.
+**Yes**. But please be aware that users have reported cache corruption when using APCu. And please be sure to use the so-called "non thread safe" versions of php executables and DLLs.
 
 ### The Statistics display seems complex. What does it all mean?
 
@@ -294,7 +294,7 @@ Seriously, the core of WordPress has already worked out, over years of developme
 
 ### I have another question
 
-Please look for more questions and answers [here](https://www.plumislandmedia.net/wordpress-plugins/sqlite-object-cache/faq/). Or ask your question in the [support forum](https://wordpress.org/support/plugin/sqlite-object-cache/).
+Please look for more questions and answers [here](https://www.plumislandmedia.net/wordpress-plugins/sqlite-object-cache/faq/). Or ask your question in the [support forum](https://wordpress.org/support/plugin/sqlite-object-cache/). If you start a support forum topic, please go to Tools->Site Health->Info, copy your site info from there and paste it into your support topic.
 
 ## Screenshots
 
@@ -309,6 +309,10 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 
 ## Changelog
+
+### 1.5.6
+
+* Fix a warning generating diagnostic info.
 
 ### 1.5.5
 
