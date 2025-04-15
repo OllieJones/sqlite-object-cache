@@ -305,7 +305,8 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 = 1.5.6 =
 
-* Fix a warning generating diagnostic info.
+* Fix a warning while generating diagnostic info.
+* Update wp-config.php more robustly.
 
 = 1.5.5 =
 

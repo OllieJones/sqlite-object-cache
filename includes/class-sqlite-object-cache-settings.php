@@ -730,17 +730,8 @@ class SQLite_Object_Cache_Settings {
    *
    * If enabling, check if the variable is defined, and if not, define it.
    * Vice versa for disabling.
-   *
-   * @author https://profiles.wordpress.org/litespeedtech/
    */
   private function update_wp_config_constant( $symbol, $enable ) {
-    if ( $enable ) {
-      if ( defined( $symbol ) && constant( $symbol ) ) {
-        return false;
-      }
-    } elseif ( ! defined( $symbol ) || ( defined( $symbol ) && ! constant( $symbol ) ) ) {
-      return false;
-    }
 
     /**
      * Follow WP's logic to locate wp-config file
@@ -750,30 +741,17 @@ class SQLite_Object_Cache_Settings {
     if ( ! file_exists( $conf_file ) ) {
       $conf_file = dirname( ABSPATH ) . '/wp-config.php';
     }
-
-    $content = SQLite_Object_Cache_File::read( $conf_file );
-    if ( ! $content ) {
-      throw new Exception( 'wp-config file content is empty: ' . $conf_file );
-    }
-
+    $config = new SQLite_Object_Cache_File( $conf_file );
     // Remove the line `define('WHATEVER', true/false);` first
-    if ( defined( $symbol ) ) {
-      $re      = '/define\(\s*([\'"])' . $symbol . '\1\s*,\s*\w+\s*\)\s*;\s*[' . "\r\n" . ']*?/sU';
-      $content = preg_replace( $re, '', $content );
-    }
-
-    // Insert const
+    $removed  = $config->remove( $symbol );
+    $inserted = false;
     if ( $enable ) {
-      $replacement = "<?php" . PHP_EOL . "define( '" . $symbol . "', true );";
-      $content     = preg_replace( '/^<\?php/', $replacement, $content );
+      $cmd      = "define( '" . $symbol . "', true );";
+      $inserted = $config->insert_before( $cmd );
     }
-
-    $res = SQLite_Object_Cache_File::save( $conf_file, $content, false, false, false );
-
-    if ( $res !== true ) {
-      throw new Exception( 'wp-config.php operation failed when changing `WP_CACHE` const: ' . $res );
+    if ( $removed !== $inserted ) {
+      $config->save();
     }
-
     return true;
   }
 

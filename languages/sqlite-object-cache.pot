@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-04-11T19:06:01-04:00\n"
+"POT-Creation-Date: 2025-04-15T17:35:03-04:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.9.0\n"
 "X-Domain: sqlite-object-cache\n"
@@ -154,7 +154,7 @@ msgstr ""
 
 #: includes/class-sqlite-object-cache-settings.php:428
 #: includes/class-sqlite-object-cache-settings.php:432
-#: includes/class-sqlite-object-cache-settings.php:828
+#: includes/class-sqlite-object-cache-settings.php:806
 msgid "Settings"
 msgstr ""
 
@@ -246,23 +246,23 @@ msgstr ""
 msgid "Save Settings"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:799
+#: includes/class-sqlite-object-cache-settings.php:777
 msgid "Configuration"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:812
+#: includes/class-sqlite-object-cache-settings.php:790
 msgid "Versions"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:880
+#: includes/class-sqlite-object-cache-settings.php:858
 msgid "APCu utilization"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:889
+#: includes/class-sqlite-object-cache-settings.php:867
 msgid "APCu info"
 msgstr ""
 
-#: includes/class-sqlite-object-cache-settings.php:903
+#: includes/class-sqlite-object-cache-settings.php:881
 msgid "SQLite utilization"
 msgstr ""
 

@@ -2,10 +2,100 @@
 if ( ! defined( 'ABSPATH' ) ) {
   exit;
 }
+
 /**
  * Read and write an existing file.
  */
 class SQLite_Object_Cache_File {
+
+  private $lines;
+  private $filename;
+
+  public function __construct( $filename ) {
+
+    $this->filename = $filename;
+    $this->lines    = self::read_lines( $this->filename );
+
+  }
+
+  public function remove( $item ) {
+    $result = array();
+    $found  = false;
+    foreach ( $this->lines as $line ) {
+      if ( ! str_contains( $line, $item ) ) {
+        $result[] = $line;
+      } else {
+        $found = true;
+      }
+    }
+    if ( $found ) {
+      $this->lines = $result;
+    }
+    return $found;
+  }
+
+  /**
+   * @throws Exception if no opening php tag was found.
+   */
+  public function insert_before( $item, $before = "That's all, stop editing!" ) {
+    $result = array();
+    $found  = false;
+    foreach ( $this->lines as $line ) {
+      if ( ! $found && str_contains( $line, $before ) ) {
+        $result[] = $item;
+        $found    = true;
+      }
+      $result[] = $line;
+    }
+    if ( $found ) {
+      $this->lines = $result;
+      return true;
+    } else {
+      return $this->insert_after( $item );
+    }
+  }
+
+  /**
+   * @throws Exception
+   */
+  public function insert_after( $item, $after = '<?php' ) {
+    $result = array();
+    $found  = false;
+    foreach ( $this->lines as $line ) {
+      $result[] = $line;
+      if ( ! $found && str_contains( $line, $after ) ) {
+        $result[] = $item;
+        $found    = true;
+      }
+    }
+    if ( ! $found ) {
+      throw new \Exception( 'No opening php tag in ', $this->filename );
+    }
+    $this->lines = $result;
+    return true;
+  }
+
+  /**
+   * Read data into line-by-line array.
+   *
+   * @param string $filename
+   *
+   * @return array
+   */
+  public static function read_lines( $filename ) {
+    $str    = self::read( $filename );
+    $result = explode( "\n", $str );
+    $result = array_map( function ( $line ) {
+      return ltrim( $line, "\r" );
+    }, $result );
+    return $result;
+  }
+
+  public static function write_lines( $filename, $lines ) {
+    $lines = array_filter( $lines );
+    self::save( $filename, implode( "\n", $lines ) );
+  }
+
 
   /**
    * Read data from file.
@@ -18,32 +108,21 @@ class SQLite_Object_Cache_File {
     if ( ! file_exists( $filename ) ) {
       return '';
     }
-
     if ( ! is_readable( $filename ) ) {
       return false;
     }
-
     $content = file_get_contents( $filename );
     return self::remove_zero_space( $content );
   }
 
   /**
    * Save data to file.
-   *
-   * @param string $filename
-   * @param string $data
-   *
-   * @return bool True if the save succeeded.
    */
-  public static function save( $filename, $data ) {
+  public function save() {
 
-    if ( ! file_exists( $filename ) ) {
-      return false;
-    }
+    $data = implode( "\n", $this->lines );
     $data = self::remove_zero_space( $data );
-    $ret  = file_put_contents( $filename, $data, LOCK_EX );
-
-    return ( false !== $ret );
+    file_put_contents( $this->filename, $data, LOCK_EX );
   }
 
   /**
