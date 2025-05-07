@@ -91,11 +91,6 @@ class SQLite_Object_Cache_File {
     return $result;
   }
 
-  public static function write_lines( $filename, $lines ) {
-    $lines = array_filter( $lines );
-    self::save( $filename, implode( "\n", $lines ) );
-  }
-
 
   /**
    * Read data from file.

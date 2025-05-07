@@ -40,6 +40,8 @@
 
 /**  @noinspection SqlDialectInspection */
 
+use JetBrains\PhpStorm\NoReturn;
+
 defined( '\\ABSPATH' ) || exit;
 
 /**
@@ -624,7 +626,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      *
      * @return void
      */
-    public static function drop_dead( $msg = null ) {
+    #[NoReturn] public static function drop_dead( $msg = null ) {
       wp_die( $msg ?: 'The SQLite Object Cache temporarily failed. Please try again now.' );
     }
 
@@ -925,7 +927,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
       }
 
       if ( ! class_exists( 'SQLite3' ) || ! extension_loaded( 'sqlite3' ) ) {
-        return  'The SQLite Object Cache cannot be activated because the SQLite3 extension is not loaded.';
+        return 'The SQLite Object Cache cannot be activated because the SQLite3 extension is not loaded.';
       }
 
       return true;
@@ -970,14 +972,13 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
       if ( is_array( $options ) && array_key_exists( 'capture', $options ) && 'on' === $options['capture'] ) {
         if ( array_key_exists( 'samplerate', $options ) && is_numeric( $options['samplerate'] ) ) {
           /* samplerate is a percentage likelihood in the option setting */
-          $samplerate = $options['samplerate'] * 0.01;
-          if ( $samplerate > 0.0 ) {
+          $samplerate = $options['samplerate'];
+          if ( $samplerate > 0 ) {
             /* a random sample at $samplerate */
-            if ( $samplerate >= 1.0 ) {
+            if ( $samplerate >= 100 ) {
               return true;
             }
-
-            return $samplerate >= lcg_value();
+            return ( $samplerate * 10000 ) > rand( 1, 1000000 );
           }
         }
       }
