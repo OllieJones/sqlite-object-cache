@@ -176,8 +176,8 @@ class SQLite_Object_Cache_Statistics {
         __( 'RAM hit ratio', 'sqlite-object-cache' )           => $this->descriptive_stats( $RAMratios ),
         __( 'APCu hit ratio', 'sqlite-object-cache' )          => $this->descriptive_stats( $APCUratios ),
         __( 'SQLite hit ratio', 'sqlite-object-cache' )        => $this->descriptive_stats( $DISKratios ),
-        __( 'SQlite lookups/request', 'sqlite-object-cache' )  => $this->descriptive_stats( $DISKLookupsPerRequest ),
-        __( 'SQlite saves/request', 'sqlite-object-cache' )    => $this->descriptive_stats( $SavesPerRequest ),
+        __( 'SQLite lookups/request', 'sqlite-object-cache' )  => $this->descriptive_stats( $DISKLookupsPerRequest ),
+        __( 'SQLite saves/request', 'sqlite-object-cache' )    => $this->descriptive_stats( $SavesPerRequest ),
         __( 'MySQL queries/request', 'sqlite-object-cache' )   => $this->descriptive_stats( $DBMSqueriesPerRequest ),
         __( 'Request durations (sec)', 'sqlite-object-cache' ) => $this->descriptive_stats( $elapseds ),
         __( 'Peak RAM usage (MiB)', 'sqlite-object-cache' )    => $this->descriptive_stats( $RAM ),
@@ -187,7 +187,7 @@ class SQLite_Object_Cache_Statistics {
         __( 'GetMult keys', 'sqlite-object-cache' )            => $this->descriptive_stats( $get_multiple_keys ),
         __( 'Save times', 'sqlite-object-cache' )              => $this->descriptive_stats( $inserts ),
         __( 'Delete times', 'sqlite-object-cache' )            => $this->descriptive_stats( $deletes ),
-        __( 'SQLite checkpoint times', 'sqlite-object-cache' ) => $this->descriptive_stats( $checkpoints ),
+        __( 'Checkpoint times (sec)', 'sqlite-object-cache' )  => $this->descriptive_stats( $checkpoints ),
         __( 'APCu hit times', 'sqlite-object-cache' )          => $this->descriptive_stats( $APCufetchhit ),
         __( 'APCu miss times', 'sqlite-object-cache' )         => $this->descriptive_stats( $APCufetchmiss ),
         __( 'APCu save times', 'sqlite-object-cache' )         => $this->descriptive_stats( $APCustore ),
@@ -381,7 +381,7 @@ class SQLite_Object_Cache_Statistics {
       echo '<p>' . esc_html( sprintf(
                              /* translators:  1 start time   2 end time both in localized format */
                                __( 'From %1$s to %2$s.', 'sqlite-object-cache' ),
-                               $this->start_time, $this->end_time ) . ' ' . __( 'Times in microseconds, request durations in seconds.', 'sqlite-object-cache' ) ) . '</p>' . PHP_EOL;
+                               $this->start_time, $this->end_time ) . ' ' . __( 'Times in microseconds, checkpoint and request durations in seconds.', 'sqlite-object-cache' ) ) . '</p>' . PHP_EOL;
       echo '<table class="sql-object-cache-stats descriptive striped">' . PHP_EOL;
       foreach ( $this->descriptions as $stat => $description ) {
         if ( ! is_array( $description ) || ! array_key_exists( 'n', $description ) || $description['n'] <= 0 ) {
@@ -542,7 +542,7 @@ class SQLite_Object_Cache_Statistics {
         if ( $count >= $this->max_scan ) {
           echo '<p>' . esc_html(
               sprintf(
-                /* translators: 1 a localized number of cache items. */
+              /* translators: 1 a localized number of cache items. */
                 __( 'Only showing sizes for the first %1$s cache items.', 'sqlite-object-cache' ),
                 number_format_i18n( $this->max_scan, 0 ) ) ) . '</p>';
           break;

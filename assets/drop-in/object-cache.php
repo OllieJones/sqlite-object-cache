@@ -1170,11 +1170,11 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      * @throws Exception Announce SQLite failure.
      * @noinspection SqlResolve
      */
-    public function &sqlite_load_statistics() {
+    public function sqlite_load_statistics() {
       $object_stats = self::OBJECT_STATS_TABLE;
       $this->maybe_create_stats_table( $object_stats );
-      $sql       = "SELECT value FROM $object_stats;";
-      $stmt      = $this->sqlite->prepare( $sql );
+      $sql  = "SELECT value FROM $object_stats;";
+      $stmt = $this->sqlite->prepare( $sql );
       try {
         $resultset = $stmt->execute();
         while ( true ) {
@@ -1458,21 +1458,20 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      * @since 3.4.0
      */
     protected function cache_item_exists( $name ) {
-      $exists = array_key_exists( $name, $this->cache );
-      if ( ! $exists ) {
-        if ( array_key_exists( $name, $this->not_in_persistent_cache ) ) {
-          return false;
-        }
-        $val = $this->get_by_name( $name, $fetchsuccess );
-        if ( $fetchsuccess ) {
-          $this->cache[ $name ] = $val;
-          $exists               = true;
-          $this->persistent_hits ++;
-          unset( $this->not_in_persistent_cache[ $name ] );
-        } else {
-          $this->persistent_misses ++;
-          $this->not_in_persistent_cache[ $name ] = true;
-        }
+      $exists = false;
+
+      if ( array_key_exists( $name, $this->not_in_persistent_cache ) ) {
+        return false;
+      }
+      $val = $this->get_by_name( $name, $fetchsuccess );
+      if ( $fetchsuccess ) {
+        $this->cache[ $name ] = $val;
+        $exists               = true;
+        $this->persistent_hits ++;
+        unset( $this->not_in_persistent_cache[ $name ] );
+      } else {
+        $this->persistent_misses ++;
+        $this->not_in_persistent_cache[ $name ] = true;
       }
 
       return $exists;
@@ -1508,10 +1507,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      * @return mixed|null Cached item, cloned if an object. Null if not found. (Cached item can be false.)
      */
     private function get_by_name( $name, &$success ) {
-      if ( array_key_exists( $name, $this->not_in_persistent_cache ) ) {
-        $success = false;
-        return null;
-      }
       if ( $this->apcu_active ) {
         $astart = hrtime( true );
         $data   = apcu_fetch( $this->apcusalt . $name, $fetchsuccess );
@@ -2621,7 +2616,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
     private function checkpoint() {
       $start = hrtime( true );
       $this->sqlite->exec( 'PRAGMA wal_checkpoint(RESTART)' );
-      $this->checkpoint_times[] = hrtime( true ) - $start;
+      $this->checkpoint_times[] = 0.000001 * (hrtime( true ) - $start);
     }
 
     /**
