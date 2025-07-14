@@ -45,14 +45,21 @@ class SQLite_Object_Cache_Settings {
   public $has = '';
 
   /**
+   * @var string The plugin file name.
+   */
+  private $plugin_file;
+
+  /**
    * Constructor function.
    *
    * @param object $parent Parent object.
+   * @param string $plugin_file Plugin top-level file name.
    */
-  public function __construct( $parent ) {
-    $this->parent = $parent;
-    $this->has    = $parent->has_sqlite();
-    $this->base   = 'sqlite_object_cache_';
+  public function __construct( $parent, $plugin_file ) {
+    $this->parent      = $parent;
+    $this->has         = $parent->has_sqlite();
+    $this->base        = 'sqlite_object_cache_';
+    $this->plugin_file = $plugin_file;
 
     // Information for Site Health Info
     add_filter( 'debug_information', array( $this, 'debug_information' ) );
@@ -74,6 +81,31 @@ class SQLite_Object_Cache_Settings {
 
     // Configure placement of plugin settings page. See readme for implementation.
     add_filter( $this->base . 'menu_settings', array( $this, 'configure_settings' ) );
+    // Spoonsor link.
+    add_filter( 'plugin_row_meta', array( $this, 'filter_plugin_row_meta' ), 10, 2 );
+
+  }
+
+  /**
+   * Filters the array of row meta for each plugin in the Plugins list table.
+   *
+   * @param array<int, string> $plugin_meta An array of the plugin's metadata.
+   * @param string $plugin_file Path to the plugin file relative to the plugins directory.
+   *
+   * @return array<int, string> Updated array of the plugin's metadata.
+   */
+  public function filter_plugin_row_meta( array $plugin_meta, $plugin_file ) {
+    if ( $this->plugin_file !== $plugin_file ) {
+      return $plugin_meta;
+    }
+
+    $plugin_meta[] = sprintf(
+      '<a href="%1$s"><span class="dashicons dashicons-star-filled" aria-hidden="true" style="font-size:14px;line-height:1.3"></span>%2$s</a>',
+      'https://github.com/sponsors/OllieJones',
+      esc_html_x( 'Sponsor', 'verb', 'sqplite-object-cache' )
+    );
+
+    return $plugin_meta;
   }
 
   /**

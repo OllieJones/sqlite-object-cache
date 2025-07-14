@@ -46,7 +46,7 @@ But, for single-server site configurations, SQLite, possibly assisted by APCu, p
 
 Please look at [Installation](https://wordpress.org/plugins/sqlite-object-cache/#installation) to learn how to configure this plugin to use APCu. The plugin works fast without it, and faster with it.
 
-WP-CLI: Even if APCu is in use, caching with SQLite is necessary when your web site uses WP-CLI, because WP-CLI programs do not have acces to the APCu cache. This plugin writes all cached data both to APCu and to SQLite and makes sure the two are synchronized.
+WP-CLI: Even if APCu is in use, caching with SQLite is necessary when your web site uses WP-CLI, because WP-CLI programs do not have access to the APCu cache. This plugin writes all cached data both to APCu and to SQLite and makes sure the two are synchronized.
 
 <h4>WP-CLI</h4>
 
@@ -265,6 +265,8 @@ Some sites occasionally generate error messages looking like this one:
 `Unable to execute statement: database is locked in /var/www/wp-content/object-cache.php:1234`
 
 This can happen if your server places your WordPress files on network-attached storage (that is, on a network drive). To solve this, store your cached data on a locally attached drive. See the question about storing your data in a more secure place. It also can happen in a very busy site.
+
+Timeout errors can also happen if your Cached Data Size, or your site, is very large. Try reducing your Cached Data Size. If that doesn't help eliminate timeout errors, try setting the  `WP_SQLITE_OBJECT_CACHE_TIMEOUT` parameter in your `wp-config.php` file to something larger than the default 5000 milliseconds.
 
 = Why do I get errors when I use WP-CLI to administer my site? =
 

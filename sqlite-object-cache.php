@@ -47,7 +47,7 @@ function sqlite_object_cache() {
   $instance = new SQLite_Object_Cache( __FILE__, '1.5.6' );
 
   if ( is_admin() ) {
-    $instance->settings = new SQLite_Object_Cache_Settings( $instance );
+    $instance->settings = new SQLite_Object_Cache_Settings( $instance, plugin_basename( __FILE__ ));
   }
 
   return $instance;

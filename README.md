@@ -47,7 +47,7 @@ But, for single-server site configurations, SQLite, possibly assisted by APCu, p
 
 Please look at [Installation](https://wordpress.org/plugins/sqlite-object-cache/#installation) to learn how to configure this plugin to use APCu. The plugin works fast without it, and faster with it.
 
-WP-CLI: Even if APCu is in use, caching with SQLite is necessary when your web site uses WP-CLI, because WP-CLI programs do not have acces to the APCu cache. This plugin writes all cached data both to APCu and to SQLite and makes sure the two are synchronized.
+WP-CLI: Even if APCu is in use, caching with SQLite is necessary when your web site uses WP-CLI, because WP-CLI programs do not have access to the APCu cache. This plugin writes all cached data both to APCu and to SQLite and makes sure the two are synchronized.
 
 <h4>WP-CLI</h4>
 

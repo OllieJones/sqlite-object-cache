@@ -1091,28 +1091,31 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      * @throws Exception Announce SQLite failure.
      * @noinspection SqlResolve
      */
-    public function sqlite_load_usages( $timestamps = true ) {
+    public function &sqlite_load_usages( $timestamps = true ) {
       $object_cache = self::OBJECT_CACHE_TABLE;
       $offset       = $this->noexpire_timestamp_offset;
       $sql          = "SELECT name, LENGTH(value) + LENGTH(name) length, expires FROM $object_cache";
       $stmt         = $this->sqlite->prepare( $sql );
-      $resultset    = $stmt->execute();
-      while ( true ) {
-        $row = $resultset->fetchArray( SQLITE3_ASSOC );
-        if ( ! $row ) {
-          break;
-        }
-        $row = (object) $row;
-        if ( $timestamps ) {
-          $expires = $row->expires;
-          if ( $expires >= self::NOEXPIRE_TIMESTAMP_OFFSET ) {
-            $expires -= self::NOEXPIRE_TIMESTAMP_OFFSET;
+      try {
+        $resultset = $stmt->execute();
+        while ( true ) {
+          $row = $resultset->fetchArray( SQLITE3_ASSOC );
+          if ( ! $row ) {
+            break;
           }
-          $row->expires = $expires;
+          $row = (object) $row;
+          if ( $timestamps ) {
+            $expires = $row->expires;
+            if ( $expires >= self::NOEXPIRE_TIMESTAMP_OFFSET ) {
+              $expires -= self::NOEXPIRE_TIMESTAMP_OFFSET;
+            }
+            $row->expires = $expires;
+          }
+          yield $row;
         }
-        yield $row;
+      } finally {
+        $resultset->finalize();
       }
-      $resultset->finalize();
     }
 
     public function sqlite_sizes() {
@@ -1167,21 +1170,24 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      * @throws Exception Announce SQLite failure.
      * @noinspection SqlResolve
      */
-    public function sqlite_load_statistics() {
+    public function &sqlite_load_statistics() {
       $object_stats = self::OBJECT_STATS_TABLE;
       $this->maybe_create_stats_table( $object_stats );
       $sql       = "SELECT value FROM $object_stats;";
       $stmt      = $this->sqlite->prepare( $sql );
-      $resultset = $stmt->execute();
-      while ( true ) {
-        $row = $resultset->fetchArray( SQLITE3_NUM );
-        if ( ! $row ) {
-          break;
+      try {
+        $resultset = $stmt->execute();
+        while ( true ) {
+          $row = $resultset->fetchArray( SQLITE3_NUM );
+          if ( ! $row ) {
+            break;
+          }
+          $value = $this->decode( $row[0] );
+          yield (object) $value;
         }
-        $value = $this->decode( $row[0] );
-        yield (object) $value;
+      } finally {
+        $resultset->finalize();
       }
-      $resultset->finalize();
     }
 
     /**

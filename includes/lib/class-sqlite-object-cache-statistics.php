@@ -44,6 +44,11 @@ class SQLite_Object_Cache_Statistics {
    */
   private $options;
 
+  /**
+   * @var int Maximum number of cache items to include in size toble.
+   */
+  private $max_scan = 1000000;
+
   public function __construct( $options ) {
     $this->options = $options;
   }
@@ -532,6 +537,14 @@ class SQLite_Object_Cache_Statistics {
         }
         $grouplength[ $group ] += $item->length;
         $groupcount[ $group ] ++;
+        if ( $count >= $this->max_scan ) {
+          echo '<p>' . esc_html(
+              sprintf(
+                /* translators: 1 a localized number of cache items. */
+                __( 'Only showing sizes for the first %1$s cache items.', 'sqlite-object-cache' ),
+                number_format_i18n( $this->max_scan, 0 ) ) ) . '</p>';
+          break;
+        }
       }
     } catch ( Exception $ex ) {
       echo '<p>' . esc_html__( 'Cannot load some or all cache items.', 'sqlite-object-cache' ) . '</p>';
@@ -564,7 +577,7 @@ class SQLite_Object_Cache_Statistics {
         $mmapsize  = $sizes['mmap_size'];
 
         $has_apcu = defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU
-                    && function_exists( 'apcu_enabled' ) &&  apcu_enabled();
+                    && function_exists( 'apcu_enabled' ) && apcu_enabled();
 
         if ( $has_apcu ) {
           $stat         = apcu_cache_info( true );
