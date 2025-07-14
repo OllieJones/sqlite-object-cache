@@ -403,8 +403,10 @@ class SQLite_Object_Cache_Statistics {
         }
         echo '<tr>';
         echo '<th scope="row">' . esc_html( $stat ) . '</th>';
+        $decimals = 0;
         foreach ( $description as $value ) {
-          echo '<td>' . esc_html( round( $value ?: 0.0, 2 ) ) . '</td>';
+          echo '<td>' . esc_html( number_format_i18n( $value ?: 0.0, $decimals ) ) . '</td>';
+          $decimals = 2;
         }
         echo '</tr>' . PHP_EOL;
       }

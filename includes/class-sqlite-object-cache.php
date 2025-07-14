@@ -128,7 +128,7 @@ class SQLite_Object_Cache {
     // Load plugin environment variables.
     $this->file             = $file;
     $this->dir              =
-      trailingslashit( dirname( WP_CONTENT_DIR . '/plugins/' . plugin_basename( $this->file ) ) );
+      trailingslashit( dirname( trailingslashit (WP_PLUGIN_DIR ) . plugin_basename( $this->file ) ) );
     $this->assets_dir       = trailingslashit( $this->dir . 'assets' );
     $this->dropinfilesource = $this->assets_dir . 'drop-in/object-cache.php';
     $this->dropinfiledest   = trailingslashit( WP_CONTENT_DIR ) . 'object-cache.php';
