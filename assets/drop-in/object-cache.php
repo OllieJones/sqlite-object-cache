@@ -626,7 +626,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      *
      * @return void
      */
-    #[NoReturn] public static function drop_dead( $msg = null ) {
+    public static function drop_dead( $msg = null ) {
       wp_die( $msg ?: 'The SQLite Object Cache temporarily failed. Please try again now.' );
     }
 
@@ -2592,17 +2592,34 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      * @return void
      */
     private function delete_offending_files( $retries = 0 ) {
-      error_log( "sqlite_object_cache failure, deleting sqlite files to retry. $retries" );
-      require_once ABSPATH . 'wp-admin/includes/file.php';
-      ob_start();
       $this->apcu_clear_cache();
-      $credentials = request_filesystem_credentials( '' );
-      WP_Filesystem( $credentials );
-      global $wp_filesystem;
-      foreach ( $this->sqlite_files() as $file ) {
-        $wp_filesystem->delete( $file );
+      try {
+        /* It may be too early to use file.php. */
+        if ( false && function_exists( '__' ) ) { //HACK HACK
+          error_log( "sqlite_object_cache failure, \$wp_filesystem->deleting sqlite files to retry. $retries" );
+          ob_start();
+          require_once ABSPATH . 'wp-admin/includes/file.php';
+          $credentials = request_filesystem_credentials( '' );
+          WP_Filesystem( $credentials );
+          global $wp_filesystem;
+          foreach ( $this->sqlite_files() as $file ) {
+            $wp_filesystem->delete( $file );
+          }
+          ob_end_clean();
+        } else {
+          error_log( "sqlite_object_cache failure, unlinking sqlite files to retry. $retries" );
+          ob_start();
+          foreach ( $this->sqlite_files() as $file ) {
+            if ( @file_exists(realpath($file))) {
+              @unlink( realpath( $file ) );
+            }
+          }
+          ob_end_clean();
+        }
+      } catch ( Exception $e ) {
+        error_log( "sqlite_object_cache cleanup failure: " . $e->getMessage() );
+
       }
-      ob_end_clean();
     }
 
     /**
@@ -2616,7 +2633,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
     private function checkpoint() {
       $start = hrtime( true );
       $this->sqlite->exec( 'PRAGMA wal_checkpoint(RESTART)' );
-      $this->checkpoint_times[] = 0.000001 * (hrtime( true ) - $start);
+      $this->checkpoint_times[] = 0.000001 * ( hrtime( true ) - $start );
     }
 
     /**
