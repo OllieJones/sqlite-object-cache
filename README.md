@@ -5,9 +5,9 @@ Author: Oliver Jones
 **Tags:** cache, object cache, sqlite, performance, apcu \
 **Requires at least:** 5.5 \
 **Requires PHP:** 5.6 \
-**Tested up to:** 6.8 \
-Version: 1.5.6 \
-**Stable tag:** 1.5.6 \
+**Tested up to:** 6.8.3 \
+Version: 1.5.7 \
+**Stable tag:** 1.5.7 \
 **License:** GPLv2 or later \
 **License URI:** http://www.gnu.org/licenses/gpl-2.0.html \
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache \
@@ -267,6 +267,8 @@ Some sites occasionally generate error messages looking like this one:
 
 This can happen if your server places your WordPress files on network-attached storage (that is, on a network drive). To solve this, store your cached data on a locally attached drive. See the question about storing your data in a more secure place. It also can happen in a very busy site.
 
+Timeout errors can also happen if your Cached Data Size, or your site, is very large. Try reducing your Cached Data Size. If that doesn't help eliminate timeout errors, try setting the  `WP_SQLITE_OBJECT_CACHE_TIMEOUT` parameter in your `wp-config.php` file to something larger than the default 5000 milliseconds.
+
 ### Why do I get errors when I use WP-CLI to administer my site?
 
 Sometimes [WP-CLI](https://wp-cli.org/) commands issued from a shell run with a different user from the web server. This plugin creates one or more object-cache files. An object-cache file may not be readable or writeable by the web server if it was created by the wp-cli user. Or the other way around.
@@ -300,19 +302,24 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 ### 1. Settings panel. Access it with Settings > Object Cache.
 
-![Settings panel. Access it with Settings > Object Cache.](https://ps.w.org/sqlite-object-cache/assets/screenshot-1.png)
+[missing image]
 
 ### 2. Performance statistics panel.
 
-![Performance statistics panel.](https://ps.w.org/sqlite-object-cache/assets/screenshot-2.png)
+[missing image]
 
 
 
 ## Changelog
 
+### 1.5.7
+
+* Flush the cache immediately after any software installation or upgrade operation.
+
 ### 1.5.6
 
-* Fix a warning generating diagnostic info.
+* Fix a warning while generating diagnostic info.
+* Update wp-config.php more robustly.
 
 ### 1.5.5
 
@@ -340,18 +347,6 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 ## Upgrade Notice
 
-The plugin now presents diagnostic data on Tools->Site Health->Info.
-
-This release optionally uses php's [APCu](https://www.php.net/manual/en/book.apcu.php) RAM cache extension to speed things up. You can opt in to using it via the plugin's dashboard page at Settings -> Object Cache. Please see the plugin's Installation instructions.
-
-This release offers WP-CLI support. Give the command `wp help sqlite-object-cache` for usage instructions.
-
-It avoids file descriptor leaks in long-running php processes. Props to Matt Jones (no relation to the author).
-
-It adds a VACUUM option, to defragment its database file and release unused SSD/HDD space.
-
-This release attempts to reduce cache timeouts by doing cleanup operations in chunks, and by retrying timed-out cache update operations. It also does PRAGMA wal_checkpoint(RESTART) when cleaning up, and also occasionally, to prevent the write-ahead log from growing without bound on busy systems.
-
-It is now tested with IIS on Microsoft Windows OSs.
+The plugin now flushes the persistent cache immediately after any software installation or upgrade operation.
 
 Thanks, dear users for letting me know about defects you found, and for your patience as I figure this out. All remaining errors are solely the responsibility of the author.

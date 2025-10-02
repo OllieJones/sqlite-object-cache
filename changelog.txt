@@ -1,3 +1,12 @@
+= 1.5.7 =
+
+* Flush the cache immediately after any software installation or upgrade operation.
+
+= 1.5.6 =
+
+* Fix a warning while generating diagnostic info.
+* Update wp-config.php more robustly.
+
 = 1.5.5 =
 
 * Some diagnostic data now appears in Site Health - Info.

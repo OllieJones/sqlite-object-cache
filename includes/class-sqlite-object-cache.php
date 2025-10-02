@@ -121,7 +121,7 @@ class SQLite_Object_Cache {
    * @param string $file File constructor.
    * @param string $version Plugin version.
    */
-  public function __construct( $file = '', $version = '1.5.6' ) {
+  public function __construct( $file = '', $version = '1.5.7' ) {
     $this->_version = $version;
     $this->_token   = 'sqlite_object_cache';
 
@@ -145,9 +145,33 @@ class SQLite_Object_Cache {
       $this->admin = new SQLite_Object_Cache_Admin_API();
       // Suppress backups
       new SQLite_Backup_Exclusion();
+
+      add_action( 'admin_notices', function () {
+        $purged = get_site_transient( 'sqlite-object-cache-flush-on-update' );
+        if ( $purged ) {
+          delete_site_transient( 'sqlite-object-cache-flush-on-update' );
+          $message = esc_html( __('A software installation or upgrade operation flushed the SQLite Object Cache.', 'sqlite-object-cache'))
+          ?>
+          <div class="notice notice-info sqlite-object-cache is-dismissible">
+            <p><?php echo $message?></p>
+          </div>
+          <?php
+        }
+    } );
     }
 
     add_action( 'admin_init', array( $this, 'maybe_update_dropin' ) );
+
+    /* Ensure nothing is cached after software upgrades. */
+    add_action( 'upgrader_process_complete', function () {
+      add_action( 'shutdown', function() {
+        wp_cache_flush();
+        set_site_transient( 'sqlite-object-cache-flush-on-update', true, HOUR_IN_SECONDS );
+      }, 999 );
+      wp_cache_flush();
+    }, 0 );
+
+
 
     /* handle cron cache cleanup */
     add_action( self::CLEAN_EVENT_HOOK, array( $this, 'clean_job' ), 10, 0 );

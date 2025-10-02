@@ -4,9 +4,9 @@ Contributors: OllieJones
 Tags: cache, object cache, sqlite, performance, apcu
 Requires at least: 5.5
 Requires PHP: 5.6
-Tested up to: 6.8
-Version: 1.5.6
-Stable tag: 1.5.6
+Tested up to: 6.8.3
+Version: 1.5.7
+Stable tag: 1.5.7
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache
@@ -305,6 +305,10 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 == Changelog ==
 
+= 1.5.7 =
+
+* Flush the cache immediately after any software installation or upgrade operation.
+
 = 1.5.6 =
 
 * Fix a warning while generating diagnostic info.
@@ -336,18 +340,6 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 == Upgrade Notice ==
 
-The plugin now presents diagnostic data on Tools->Site Health->Info.
-
-This release optionally uses php's [APCu](https://www.php.net/manual/en/book.apcu.php) RAM cache extension to speed things up. You can opt in to using it via the plugin's dashboard page at Settings -> Object Cache. Please see the plugin's Installation instructions.
-
-This release offers WP-CLI support. Give the command `wp help sqlite-object-cache` for usage instructions.
-
-It avoids file descriptor leaks in long-running php processes. Props to Matt Jones (no relation to the author).
-
-It adds a VACUUM option, to defragment its database file and release unused SSD/HDD space.
-
-This release attempts to reduce cache timeouts by doing cleanup operations in chunks, and by retrying timed-out cache update operations. It also does PRAGMA wal_checkpoint(RESTART) when cleaning up, and also occasionally, to prevent the write-ahead log from growing without bound on busy systems.
-
-It is now tested with IIS on Microsoft Windows OSs.
+The plugin now flushes the persistent cache immediately after any software installation or upgrade operation.
 
 Thanks, dear users for letting me know about defects you found, and for your patience as I figure this out. All remaining errors are solely the responsibility of the author.
