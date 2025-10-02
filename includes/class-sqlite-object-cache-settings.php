@@ -16,6 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class SQLite_Object_Cache_Settings {
 
+  static $statistics_help_url = 'https://www.plumislandmedia.net/wordpress-plugins/sqlite-object-cache/statistics-from-sqlite-object-cache/';
+
   /**
    * The main plugin object.
    *
@@ -699,6 +701,10 @@ class SQLite_Object_Cache_Settings {
 
         // Output tab.
         echo '<a href="' . esc_url( $tab_link ) . '" class="' . esc_attr( $class ) . '">' . esc_html( $data['title'] ) . '</a>' . PHP_EOL;
+      }
+
+      if ( 'stats' === $tab ) {
+        echo '<a href="' . esc_url( self::$statistics_help_url ) . '" class="nav-tab" target="_blank">' . esc_html__( 'Help', 'sqlite-object-cache' ) . '</a>' . PHP_EOL;
       }
 
       echo '</h2>' . PHP_EOL;

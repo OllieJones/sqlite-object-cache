@@ -315,6 +315,7 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 ### 1.5.7
 
 * Flush the cache immediately after any software installation or upgrade operation.
+* Add a Help tab to the statistics display.
 
 ### 1.5.6
 
@@ -348,5 +349,7 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 ## Upgrade Notice
 
 The plugin now flushes the persistent cache immediately after any software installation or upgrade operation.
+
+It presents a Help tab on the Statistics display showing an explanation.
 
 Thanks, dear users for letting me know about defects you found, and for your patience as I figure this out. All remaining errors are solely the responsibility of the author.
