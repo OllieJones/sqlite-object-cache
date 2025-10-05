@@ -147,7 +147,7 @@ Notice that this setting controls the size of the data in the cache. That is the
 
 ### On my server the APCu shared memory cache is too small. How can I make it bigger?
 
-On most operating systems the size of the APCu cache is, as installed, 32MiB. If you need to increase this size you can a line to your `php.ini` file mentioning the [apc.shm_size](https://www.php.net/manual/en/apcu.configuration.php#ini.apcu.shm-size) configuration option. For example, the line `apc.shm_size = 64M` sets the size to 64MiB. Please consult your operating system or hosting provider documetation for information on how to do this. 
+On most operating systems the size of the APCu cache is, as installed, 32MiB. If you need to increase this size you can add a line to your `php.ini` file mentioning the [apc.shm_size](https://www.php.net/manual/en/apcu.configuration.php#ini.apcu.shm-size) configuration option. For example, the line `apc.shm_size = 64M` sets the size to 64MiB. Please consult your operating system or hosting provider documetation for information on how to do this. 
 
 Notice that sometimes multiple WordPress installations that run on the same server share the same APCu cache, so provide enough space for them all. And keep in mind that this plugin only uses APCu to accelerate its operations, so the consequences of setting its size too small are not great.
 
@@ -161,7 +161,7 @@ No, you don't. This plugin doesn't use SQLite as a full-fledged database server.
 
 A persistent object cache needs some kind of storage mechanism. SQLite serves this plugin as a fast and simple key / value storage mechanism.
 
-Some hosting providers offer scalable high-performance [redis](https://redis.io/) cache servers.  You can use it via [Redis Object Cache](https://wordpress.org/plugins/redis-cache/) plugin. Sites using redis have one SQL database and another non-SQL storage scheme: redis. Other hosting providers offer [memcached](https://memcached.org/), which has the [Memcached Object Cache](https://wordpress.org/plugins/memcached/).
+Some hosting providers offer the scalable high-performance [redis](https://redis.io/) cache server.  You can use it via [Redis Object Cache](https://wordpress.org/plugins/redis-cache/) plugin. Sites using redis have one SQL database and another non-SQL storage scheme: redis. Some other hosting providers offer [memcached](https://memcached.org/), which has the [Memcached Object Cache](https://wordpress.org/plugins/memcached/).
 
 But many hosting providers don't offer either redis or memcached, while they do offer SQLite. This plugin enables your site to use a persistent object cache even without a separate cache server. And, because everything happens within your web server, the performance is good.
 
@@ -315,7 +315,8 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 ### 1.5.7
 
 * Flush the cache immediately after any software installation or upgrade operation.
-* Add a Help tab to the statistics display.
+* To eliminate state data delete all transients from the database on activation and deactivation.
+* Add a Help tab and hyperlink to the statistics display.
 
 ### 1.5.6
 
@@ -348,7 +349,7 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 ## Upgrade Notice
 
-The plugin now flushes the persistent cache immediately after any software installation or upgrade operation.
+The plugin now flushes the persistent cache immediately after any software installation or upgrade operation. It also deletes all transients from the MariaDB / MySQL database on activation and deactivation to get rid of stale data.
 
 It presents a Help tab on the Statistics display showing an explanation.
 

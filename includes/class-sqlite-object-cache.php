@@ -238,6 +238,7 @@ class SQLite_Object_Cache {
     $this->sync_apcu_global_to_option( true );
     if ( true === $this->has_sqlite() ) {
       add_action( 'shutdown', array( $this, 'update_dropin' ) );
+      add_action( 'shutdown', array( $this, 'delete_all_transients_from_db' ) );
     }
   }
 
@@ -469,6 +470,7 @@ class SQLite_Object_Cache {
     wp_unschedule_hook( self::CLEAN_EVENT_HOOK );
     $this->delete_sqlite_files();
     $this->delete_dropin();
+    $this->delete_all_transients_from_db();
   }
 
   private function delete_sqlite_files() {
@@ -495,7 +497,63 @@ class SQLite_Object_Cache {
     ob_end_clean();
   }
 
-  /**
+    /**
+     * Deletes all transients from the database.
+     *
+     * It is necessary to do this when deactivating a persistent object cache
+     * because the transients are kept there, and the ones in the database are
+     * possibly stale.
+     *
+     * The multi-table delete syntax is used to delete the transient record
+     * from table a, and the corresponding transient_timeout record from table b.
+     *
+     * This hammers performance. But deactivating a persistent object cache is
+     * not a common operation.
+     *
+     * @global wpdb $wpdb WordPress database abstraction object.
+     */
+    public function delete_all_transients_from_db() {
+        global $wpdb;
+
+        $wpdb->query(
+                $wpdb->prepare(
+                        "DELETE a, b FROM {$wpdb->options} a, {$wpdb->options} b
+			WHERE a.option_name LIKE %s
+			AND a.option_name NOT LIKE %s
+			AND b.option_name = CONCAT( '_transient_timeout_', SUBSTRING( a.option_name, 12 ) )",
+                        $wpdb->esc_like( '_transient_' ) . '%',
+                        $wpdb->esc_like( '_transient_timeout_' ) . '%'
+                )
+        );
+
+        if ( ! is_multisite() ) {
+            // Single site stores site transients in the options table.
+            $wpdb->query(
+                    $wpdb->prepare(
+                            "DELETE a, b FROM {$wpdb->options} a, {$wpdb->options} b
+				WHERE a.option_name LIKE %s
+				AND a.option_name NOT LIKE %s
+				AND b.option_name = CONCAT( '_site_transient_timeout_', SUBSTRING( a.option_name, 17 ) )",
+                            $wpdb->esc_like( '_site_transient_' ) . '%',
+                            $wpdb->esc_like( '_site_transient_timeout_' ) . '%'
+                    )
+            );
+        } elseif ( is_multisite() && is_main_site() && is_main_network() ) {
+            // Multisite stores site transients in the sitemeta table.
+            $wpdb->query(
+                    $wpdb->prepare(
+                            "DELETE a, b FROM {$wpdb->sitemeta} a, {$wpdb->sitemeta} b
+				WHERE a.meta_key LIKE %s
+				AND a.meta_key NOT LIKE %s
+				AND b.meta_key = CONCAT( '_site_transient_timeout_', SUBSTRING( a.meta_key, 17 ) ",
+                            $wpdb->esc_like( '_site_transient_' ) . '%',
+                            $wpdb->esc_like( '_site_transient_timeout_' ) . '%'
+                    )
+            );
+        }
+    }
+
+    /**
    * @return bool True if APCu support is activated for this plugin.
    */
   public function apcu_is_activated() {
