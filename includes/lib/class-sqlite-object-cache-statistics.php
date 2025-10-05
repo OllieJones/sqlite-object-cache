@@ -642,7 +642,7 @@ class SQLite_Object_Cache_Statistics {
       foreach ( $groups as $group ) {
         /* detail row */
         echo '<tr>';
-        echo '<td scope="row" class="right">' . esc_html( $group ) . '</td>';
+        echo '<td class="right">' . esc_html( $group ) . '</td>';
         echo '<td class="right">' . esc_html( number_format_i18n( $groupcount[ $group ], 0 ) ) . '</td>';
         $sizemib = $grouplength[ $group ] / ( 1024 * 1024 );
         echo '<td class="right">' . esc_html( number_format_i18n( $sizemib, 3 ) ) . '</td>';
