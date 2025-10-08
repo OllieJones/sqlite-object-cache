@@ -1,6 +1,12 @@
+= 1.6.0 =
+
+* Multisite: put the settings and statistics panels on the main site only.
+
 = 1.5.7 =
 
 * Flush the cache immediately after any software installation or upgrade operation.
+* To eliminate state data delete all transients from the database on activation and deactivation.
+* Add a Help tab and hyperlink to the statistics display.
 
 = 1.5.6 =
 

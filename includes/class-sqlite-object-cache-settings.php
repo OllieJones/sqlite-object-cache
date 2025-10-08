@@ -73,34 +73,39 @@ class SQLite_Object_Cache_Settings {
     // Register plugin settings.
     add_action( 'admin_init', array( $this, 'register_my_settings' ) );
 
-    // Add settings page to menu.
-    add_action( 'admin_menu', array( $this, 'add_menu_item' ) );
+    if ( is_main_site() ) {
+      // Add settings page to menu.
+      add_action( 'admin_menu', array( $this, 'add_menu_item' ) );
 
-    // Add settings link to plugins page.
-    add_filter(
-      'plugin_action_links_' . plugin_basename( $this->parent->file ),
-      array(
-        $this,
-        'add_settings_link',
-      )
-    );
+      // Add settings link to plugins page.
+      add_filter(
+        'plugin_action_links_' . plugin_basename( $this->parent->file ),
+        array(
+          $this,
+          'add_settings_link',
+        )
+      );
+    }
 
     // For multisite, propagate the option value to all subsites.
     if ( is_multisite() ) {
-      add_action( 'update_option_' . $this->parent->_token . '_settings', array( $this, 'catch_option'), 20, 3 );
+      add_action( 'update_option_' . $this->parent->_token . '_settings', array( $this, 'catch_option' ), 20, 3 );
     }
 
     // Configure placement of plugin settings page. See readme for implementation.
     add_filter( $this->base . 'menu_settings', array( $this, 'configure_settings' ) );
+
     // Spoonsor link.
     add_filter( 'plugin_row_meta', array( $this, 'filter_plugin_row_meta' ), 10, 2 );
 
   }
+
   /**
    * Fires after the value of our option has been successfully updated.
-   * @param mixed  $old_value The old option value.
-   * @param mixed  $value     The new option value.
-   * @param string $option    Option name.
+   *
+   * @param mixed $old_value The old option value.
+   * @param mixed $value The new option value.
+   * @param string $option Option name.
    */
   public function catch_option( $old_value, $value, $option ) {
     if ( false === $this->caught_option_value ) {
@@ -116,10 +121,17 @@ class SQLite_Object_Cache_Settings {
    *
    * @return void
    */
-  public function propagate_option () {
-    remove_action('update_option_' . $this->parent->_token . '_settings', array( $this, 'catch_option'), 20);
+  public function propagate_option() {
+    remove_action( 'update_option_' . $this->parent->_token . '_settings', array( $this, 'catch_option' ), 20 );
     $current_site = get_current_blog_id();
-    foreach ( get_sites( array( 'number' => 0, 'fields' => 'ids', 'no_found_rows' => true, 'orderby' => false ) ) as $site_id ) {
+    foreach (
+      get_sites( array(
+        'number'        => 0,
+        'fields'        => 'ids',
+        'no_found_rows' => true,
+        'orderby'       => false
+      ) ) as $site_id
+    ) {
       if ( $site_id !== $current_site ) {
         try {
           switch_to_blog( $site_id );
@@ -147,10 +159,15 @@ class SQLite_Object_Cache_Settings {
       return $plugin_meta;
     }
 
+    if ( is_multisite() && (is_network_admin() || ! is_main_site() ) ) {
+      $plugin_meta[] =
+        esc_html__( 'See the main site\'s dashboard for settings.', 'sqlite-object-cache' );
+    }
+
     $plugin_meta[] = sprintf(
       '<a href="%1$s"><span class="dashicons dashicons-star-filled" aria-hidden="true" style="font-size:14px;line-height:1.3"></span>%2$s</a>',
       'https://github.com/sponsors/OllieJones',
-      esc_html_x( 'Sponsor', 'verb', 'sqplite-object-cache' )
+      esc_html_x( 'Sponsor', 'verb', 'sqlite-object-cache' )
     );
 
     return $plugin_meta;
