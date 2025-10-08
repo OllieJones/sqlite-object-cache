@@ -50,6 +50,10 @@ class SQLite_Object_Cache_Settings {
    * @var string The plugin file name.
    */
   private $plugin_file;
+  /**
+   * @var mixed
+   */
+  private $caught_option_value = false;
 
   /**
    * Constructor function.
@@ -81,11 +85,53 @@ class SQLite_Object_Cache_Settings {
       )
     );
 
+    // For multisite, propagate the option value to all subsites.
+    if ( is_multisite() ) {
+      add_action( 'update_option_' . $this->parent->_token . '_settings', array( $this, 'catch_option'), 20, 3 );
+    }
+
     // Configure placement of plugin settings page. See readme for implementation.
     add_filter( $this->base . 'menu_settings', array( $this, 'configure_settings' ) );
     // Spoonsor link.
     add_filter( 'plugin_row_meta', array( $this, 'filter_plugin_row_meta' ), 10, 2 );
 
+  }
+  /**
+   * Fires after the value of our option has been successfully updated.
+   * @param mixed  $old_value The old option value.
+   * @param mixed  $value     The new option value.
+   * @param string $option    Option name.
+   */
+  public function catch_option( $old_value, $value, $option ) {
+    if ( false === $this->caught_option_value ) {
+      add_action( 'shutdown', array( $this, 'propagate_option' ) );
+    }
+    $this->caught_option_value = $value;
+  }
+
+  /**
+   * Shutdown action handler to copy our option to all subsites.
+   *
+   * We use this rather than a site option because this gets us autoloading.
+   *
+   * @return void
+   */
+  public function propagate_option () {
+    remove_action('update_option_' . $this->parent->_token . '_settings', array( $this, 'catch_option'), 20);
+    $current_site = get_current_blog_id();
+    foreach ( get_sites( array( 'number' => 0, 'fields' => 'ids', 'no_found_rows' => true, 'orderby' => false ) ) as $site_id ) {
+      if ( $site_id !== $current_site ) {
+        try {
+          switch_to_blog( $site_id );
+          update_option( $this->parent->_token . '_settings', $this->caught_option_value, true );
+        } catch ( Exception $ex ) {
+          /* Avoid crashes on option propagation */
+          error_log( 'SQLite Object Cache problem propagaging option value. Blog ' . $site_id . ':' . $ex->getMessage() );
+        } finally {
+          restore_current_blog();
+        }
+      }
+    }
   }
 
   /**

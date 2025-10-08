@@ -515,7 +515,6 @@ class SQLite_Object_Cache {
             // Single site stores site transients in the options table.
             $this->clear_blog_transients( '_site_transient_' );
         } else {
-            $current_site = get_current_blog_id();
             foreach ( get_sites( array( 'number' => 0, 'fields' => 'ids', 'no_found_rows' => true, 'orderby' => false ) ) as $site_id ) {
                 try {
                     switch_to_blog( $site_id );
@@ -523,9 +522,10 @@ class SQLite_Object_Cache {
                 } catch ( Exception $ex ) {
                     /* Avoid crashes on transient clearing */
                     error_log( 'SQLite Object Cache problem clearing transients. Blog ' . $site_id . ':' . $ex->getMessage() );
+                } finally {
+                    restore_current_blog();
                 }
             }
-            switch_to_blog( $current_site );
             // Multisite stores site transients in the sitemeta table.
             $wpdb->query(
                     $wpdb->prepare(
