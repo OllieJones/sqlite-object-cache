@@ -67,13 +67,13 @@ class SQLite_Object_Cache_Settings {
     $this->base        = 'sqlite_object_cache_';
     $this->plugin_file = $plugin_file;
 
-    // Information for Site Health Info
-    add_filter( 'debug_information', array( $this, 'debug_information' ) );
-
     // Register plugin settings.
     add_action( 'admin_init', array( $this, 'register_my_settings' ) );
 
     if ( is_main_site() ) {
+      // Information for Site Health Info
+      add_filter( 'debug_information', array( $this, 'debug_information' ) );
+
       // Add settings page to menu.
       add_action( 'admin_menu', array( $this, 'add_menu_item' ) );
 
