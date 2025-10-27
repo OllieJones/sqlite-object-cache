@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2025-10-08T12:09:46-04:00\n"
+"POT-Creation-Date: 2025-10-27T17:41:26-04:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.9.0\n"
 "X-Domain: sqlite-object-cache\n"
@@ -280,7 +280,7 @@ msgid "SQLite utilization"
 msgstr ""
 
 #: includes/class-sqlite-object-cache.php:153
-msgid "A software installation or upgrade operation flushed the SQLite Object Cache."
+msgid "A routine software installation or upgrade operation caused a flush of the SQLite Object Cache. This is normal operation."
 msgstr ""
 
 #: includes/class-sqlite-object-cache.php:251
