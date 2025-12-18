@@ -106,7 +106,12 @@ class SQLite_Object_Cache {
      * Path for the drop-in in the plugin tree.
      * @var string
      */
-    public $dropinfilesource;
+    public $fastdropinfilesource;
+    /**
+     * Path for the drop-in in the plugin tree.
+     * @var string
+     */
+    public $stddropinfilesource;
 
     /**
      * Minimum required sqlite version.
@@ -126,12 +131,13 @@ class SQLite_Object_Cache {
         $this->_token   = 'sqlite_object_cache';
 
         // Load plugin environment variables.
-        $this->file             = $file;
-        $this->dir              =
+        $this->file                 = $file;
+        $this->dir                  =
                 trailingslashit( dirname( trailingslashit( WP_PLUGIN_DIR ) . plugin_basename( $this->file ) ) );
-        $this->assets_dir       = trailingslashit( $this->dir . 'assets' );
-        $this->dropinfilesource = $this->assets_dir . 'drop-in/object-cache.php';
-        $this->dropinfiledest   = trailingslashit( WP_CONTENT_DIR ) . 'object-cache.php';
+        $this->assets_dir           = trailingslashit( $this->dir . 'assets' );
+        $this->stddropinfilesource  = $this->assets_dir . 'drop-in/object-cache.php';
+        $this->fastdropinfilesource = $this->assets_dir . 'drop-in/fast-object-cache.php';
+        $this->dropinfiledest       = trailingslashit( WP_CONTENT_DIR ) . 'object-cache.php';
 
         $this->assets_url = esc_url( trailingslashit( plugins_url( '/assets/', $this->file ) ) );
 
@@ -294,8 +300,12 @@ class SQLite_Object_Cache {
 
         $testfiledest = WP_CONTENT_DIR . '/sqlite-write-test.tmp';
 
-        if ( ! $wp_filesystem->exists( $this->dropinfilesource ) ) {
+        if ( ! $wp_filesystem->exists( $this->stddropinfilesource ) ) {
             return new WP_Error( 'exists', __( 'Object cache drop-in file doesn’t exist.', 'sqlite-object-cache' ) );
+        }
+
+        if ( ! $wp_filesystem->exists( $this->fastdropinfilesource ) ) {
+            return new WP_Error( 'exists', __( 'Fast object cache drop-in file doesn’t exist.', 'sqlite-object-cache' ) );
         }
 
         if ( $wp_filesystem->exists( $testfiledest ) && ! $wp_filesystem->delete( $testfiledest ) ) {
@@ -306,7 +316,7 @@ class SQLite_Object_Cache {
             return new WP_Error( 'copy', __( 'Content directory is not writable.', 'sqlite-object-cache' ) );
         }
 
-        if ( ! $wp_filesystem->copy( $this->dropinfilesource, $testfiledest, true, FS_CHMOD_FILE ) ) {
+        if ( ! $wp_filesystem->copy( $this->stddropinfilesource, $testfiledest, true, FS_CHMOD_FILE ) ) {
             return new WP_Error( 'copy', __( 'Failed to copy test file.', 'sqlite-object-cache' ) );
         }
 
@@ -405,11 +415,18 @@ class SQLite_Object_Cache {
      */
     public function update_dropin() {
         global $wp_filesystem;
-        $has = $this->has_sqlite();
+        $has              = $this->has_sqlite();
+        $option           = get_option( $this->_token . '_settings', array() );
+        $fast_eligible    = version_compare( phpversion(), '7.3', 'ge' )
+                            && version_compare( $this->sqlite_get_version(), '3.24', 'ge' )  //TODO wrong version
+                            && function_exists( 'igbinary_serialize' )
+                            && ( ! array_key_exists( 'capture', $option ) || 'on' !== $option['capture'] );
+        $dropinfilesource = $fast_eligible ? $this->fastdropinfilesource : $this->stddropinfilesource;
+
         if ( true === $has && $this->initialize_filesystem( '', true ) ) {
 
             $this->delete_sqlite_files();
-            $result = $wp_filesystem->copy( $this->dropinfilesource, $this->dropinfiledest, true, FS_CHMOD_FILE );
+            $result = $wp_filesystem->copy( $dropinfilesource, $this->dropinfiledest, true, FS_CHMOD_FILE );
             /**
              * Fires on cache enable event
              *
@@ -434,8 +451,9 @@ class SQLite_Object_Cache {
             return false;
         }
 
-        $dropin = get_plugin_data( $this->dropinfiledest );
-        $plugin = get_plugin_data( $this->dropinfilesource );
+        $dropin     = get_plugin_data( $this->dropinfiledest );
+        $stdplugin  = get_plugin_data( $this->stddropinfilesource );
+        $fastplugin = get_plugin_data( $this->fastdropinfilesource );
 
         /**
          * Filters the drop-in validation state
@@ -448,9 +466,9 @@ class SQLite_Object_Cache {
          */
         return apply_filters(
                 'sqlite_object_cache_validate_dropin',
-                $dropin['PluginURI'] === $plugin['PluginURI'],
+                $dropin['PluginURI'] === $stdplugin['PluginURI'],
                 $dropin['PluginURI'],
-                $plugin['PluginURI']
+                $stdplugin['PluginURI']
         );
     }
 
@@ -515,7 +533,14 @@ class SQLite_Object_Cache {
             // Single site stores site transients in the options table.
             $this->clear_blog_transients( '_site_transient_' );
         } else {
-            foreach ( get_sites( array( 'number' => 0, 'fields' => 'ids', 'no_found_rows' => true, 'orderby' => false ) ) as $site_id ) {
+            foreach (
+                    get_sites( array(
+                            'number'        => 0,
+                            'fields'        => 'ids',
+                            'no_found_rows' => true,
+                            'orderby'       => false
+                    ) ) as $site_id
+            ) {
                 try {
                     switch_to_blog( $site_id );
                     $this->clear_blog_transients();
@@ -529,7 +554,7 @@ class SQLite_Object_Cache {
             // Multisite stores site transients in the sitemeta table.
             $wpdb->query(
                     $wpdb->prepare(
-                            "DELETE FROM {$wpdb->sitemeta} WHERE a.meta_key LIKE %s",
+                            "DELETE FROM $wpdb->sitemeta WHERE a.meta_key LIKE %s",
                             $wpdb->esc_like( '_site_transient_' ) . '%'
                     )
             );
@@ -543,11 +568,11 @@ class SQLite_Object_Cache {
      *
      * @return void
      */
-    private function clear_blog_transients( $tag = '_transient_') {
+    private function clear_blog_transients( $tag = '_transient_' ) {
         global $wpdb;
         $wpdb->query(
                 $wpdb->prepare(
-                        "DELETE FROM {$wpdb->options}	WHERE option_name LIKE %s",
+                        "DELETE FROM $wpdb->options	WHERE option_name LIKE %s",
                         $wpdb->esc_like( $tag ) . '%'
                 )
         );
@@ -594,7 +619,7 @@ class SQLite_Object_Cache {
             $option_dirty       = true;
         }
         if ( $option_dirty ) {
-            if ( method_exists( $wp_object_cache, 'apcu-clear_cache' ) ) {
+            if ( method_exists( $wp_object_cache, 'apcu_clear_cache' ) ) {
                 $wp_object_cache->apcu_clear_cache();
             }
             update_option( $this->_token . '_settings', $option, true );
