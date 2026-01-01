@@ -150,10 +150,10 @@ class SQLite_Object_Cache {
                 $purged = get_site_transient( 'sqlite-object-cache-flush-on-update' );
                 if ( $purged ) {
                     delete_site_transient( 'sqlite-object-cache-flush-on-update' );
-                    $message = esc_html( __( 'A routine software installation or upgrade operation caused a flush of the SQLite Object Cache. This is normal operation.', 'sqlite-object-cache' ) )
+                    $message = __( 'A software installation or upgrade operation flushed the SQLite Object Cache.', 'sqlite-object-cache' );
                     ?>
                     <div class="notice notice-info sqlite-object-cache is-dismissible">
-                        <p><?php echo $message ?></p>
+                        <p><?php echo esc_html( $message ); ?></p>
                     </div>
                     <?php
                 }
@@ -183,6 +183,11 @@ class SQLite_Object_Cache {
                 $this->clean_job( 1.25 );
             }, 999, 0 );
         }
+
+        /* Admin bar flush button - works on both frontend and backend. */
+        add_action( 'admin_bar_menu', array( $this, 'admin_bar_flush_button' ), 100 );
+        add_action( 'init', array( $this, 'handle_admin_bar_flush' ) );
+        add_action( 'admin_notices', array( $this, 'maybe_show_flush_notice' ) );
     }
 
     /**
@@ -601,6 +606,121 @@ class SQLite_Object_Cache {
         }
 
         return $target_use_apcu;
+    }
+
+    /**
+     * Add a flush button to the admin bar.
+     *
+     * @param WP_Admin_Bar $wp_admin_bar The admin bar instance.
+     *
+     * @return void
+     */
+    public function admin_bar_flush_button( $wp_admin_bar ) {
+        if ( ! is_user_logged_in() || ! is_admin_bar_showing() ) {
+            return;
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        // Only show on main site for multisite installations.
+        if ( is_multisite() && ! is_main_site() ) {
+            return;
+        }
+
+        $flush_url  = add_query_arg(
+            array( 'sqlite_object_cache_action' => 'flush' ),
+            remove_query_arg( 'sqlite_object_cache_action' )
+        );
+        $nonced_url = wp_nonce_url( $flush_url, 'sqlite_object_cache_flush' );
+
+        $wp_admin_bar->add_node(
+            array(
+                'id'    => 'sqlite-object-cache-flush',
+                'title' => __( 'Flush Object Cache', 'sqlite-object-cache' ),
+                'href'  => $nonced_url,
+                'meta'  => array(
+                    'title' => __( 'Flush the SQLite Object Cache', 'sqlite-object-cache' ),
+                ),
+            )
+        );
+    }
+
+    /**
+     * Handle the admin bar flush action.
+     *
+     * @return void
+     */
+    public function handle_admin_bar_flush() {
+        if ( ! isset( $_GET['sqlite_object_cache_action'] ) ) {
+            return;
+        }
+
+        $action = sanitize_key( wp_unslash( $_GET['sqlite_object_cache_action'] ) );
+
+        if ( 'flush' !== $action ) {
+            return;
+        }
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( esc_html__( 'You do not have permission to flush the object cache.', 'sqlite-object-cache' ) );
+        }
+
+        check_admin_referer( 'sqlite_object_cache_flush' );
+
+        wp_cache_flush();
+
+        // Use user-specific transient to prevent cross-user notice display in multisite.
+        $transient_key = 'sqlite_object_cache_flushed_' . get_current_user_id();
+        set_transient( $transient_key, true, 30 );
+
+        $referer = wp_get_referer();
+        if ( $referer ) {
+            $redirect_url = $referer;
+        } else {
+            $redirect_url = is_admin() ? admin_url() : home_url();
+        }
+        // Remove action and nonce query parameters from URL.
+        $redirect_url = remove_query_arg( array( 'sqlite_object_cache_action', '_wpnonce' ), $redirect_url );
+
+        wp_safe_redirect( $redirect_url );
+        exit;
+    }
+
+    /**
+     * Get the user-specific transient key for flush notices.
+     *
+     * @return string
+     */
+    private function get_flush_transient_key() {
+        return 'sqlite_object_cache_flushed_' . get_current_user_id();
+    }
+
+    /**
+     * Check for flush transient and show notice if set.
+     *
+     * @return void
+     */
+    public function maybe_show_flush_notice() {
+        $transient_key = $this->get_flush_transient_key();
+        if ( get_transient( $transient_key ) ) {
+            delete_transient( $transient_key );
+            $this->show_flush_notice();
+        }
+    }
+
+    /**
+     * Display a notice when the object cache was flushed via admin bar.
+     *
+     * @return void
+     */
+    public function show_flush_notice() {
+        ?>
+        <div class="notice notice-success sqlite-object-cache is-dismissible">
+            <p><?php esc_html_e( 'SQLite Object Cache flushed successfully.', 'sqlite-object-cache' ); ?></p>
+        </div>
+        <?php
     }
 
 }
