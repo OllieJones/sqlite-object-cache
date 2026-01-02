@@ -676,7 +676,7 @@ class SQLite_Object_Cache {
 
         wp_cache_flush();
 
-        // Use user-specific transient to prevent cross-user notice display in multisite.
+        // Use a user-specific transient so only the initiating user sees the flush notice (applies to both single-site and multisite).
         $transient_key = 'sqlite_object_cache_flushed_' . get_current_user_id();
         set_transient( $transient_key, true, 30 );
 
