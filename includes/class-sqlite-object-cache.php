@@ -616,7 +616,7 @@ class SQLite_Object_Cache {
      * @return void
      */
     public function admin_bar_flush_button( $wp_admin_bar ) {
-        if ( ! is_user_logged_in() || ! is_admin_bar_showing() ) {
+        if ( ! is_admin_bar_showing() ) {
             return;
         }
 
@@ -667,6 +667,11 @@ class SQLite_Object_Cache {
             wp_die( esc_html__( 'You do not have permission to flush the object cache.', 'sqlite-object-cache' ) );
         }
 
+        // Only allow flush on main site for multisite installations (matches button visibility).
+        if ( is_multisite() && ! is_main_site() ) {
+            wp_die( esc_html__( 'Cache flush is only available on the main site.', 'sqlite-object-cache' ) );
+        }
+
         check_admin_referer( 'sqlite_object_cache_flush' );
 
         wp_cache_flush();
@@ -689,21 +694,12 @@ class SQLite_Object_Cache {
     }
 
     /**
-     * Get the user-specific transient key for flush notices.
-     *
-     * @return string
-     */
-    private function get_flush_transient_key() {
-        return 'sqlite_object_cache_flushed_' . get_current_user_id();
-    }
-
-    /**
      * Check for flush transient and show notice if set.
      *
      * @return void
      */
     public function maybe_show_flush_notice() {
-        $transient_key = $this->get_flush_transient_key();
+        $transient_key = 'sqlite_object_cache_flushed_' . get_current_user_id();
         if ( get_transient( $transient_key ) ) {
             delete_transient( $transient_key );
             $this->show_flush_notice();
