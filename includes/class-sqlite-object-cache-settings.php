@@ -247,6 +247,13 @@ class SQLite_Object_Cache_Settings {
         'step'        => 'any',
         'cssclass'    => 'narrow',
         'placeholder' => __( 'Hours to retain.', 'sqlite-object-cache' ),
+      ),
+      array(
+        'id'          => 'adminbarflush',
+        'label'       => __( 'Show', 'sqlite-object-cache' ),
+        'description' => __( 'Flush Object Cache button in the admin bar.', 'sqlite-object-cache' ),
+        'type'        => 'checkbox',
+        'default'     => '',
       )
     );
 

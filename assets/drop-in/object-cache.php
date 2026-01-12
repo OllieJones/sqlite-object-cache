@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache (Drop-in)
- * Version: 1.6.0
+ * Version: 1.6.1
  * Note: This Version number must match the one in SQLite_Object_Cache::_construct.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -11,7 +11,7 @@
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Requires PHP: 5.6
  * Tested up to: 6.9
- * Stable tag: 1.6.0
+ * Stable tag: 1.6.1
  *
  * NOTE: This uses the file .../wp-content/.ht.object_cache.sqlite
  * and the associated files .../wp-content/.ht.object_cache.sqlite-shm
@@ -39,8 +39,6 @@
  */
 
 /**  @noinspection SqlDialectInspection */
-
-use JetBrains\PhpStorm\NoReturn;
 
 defined( '\\ABSPATH' ) || exit;
 

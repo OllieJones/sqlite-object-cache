@@ -5,8 +5,8 @@ Tags: cache, object cache, sqlite, performance, apcu
 Requires at least: 5.5
 Requires PHP: 5.6
 Tested up to: 6.9
-Version: 1.6.0
-Stable tag: 1.6.0
+Version: 1.6.1
+Stable tag: 1.6.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache
@@ -305,6 +305,10 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 == Changelog ==
 
+### 1.6.1
+
+* Add an optional Flush Object Cache button to the admin bar. Props to Nick Chomey.
+
 = 1.6.0 =
 
 * Multisite: put the settings and statistics panels on the main site only.
@@ -351,5 +355,7 @@ The plugin now displays its settings and statistics panels only on the main site
 The plugin now flushes the persistent cache immediately after any software installation or upgrade operation. It also deletes all transients from the MariaDB / MySQL database on activation and deactivation to get rid of stale data.
 
 It presents a Help tab on the Statistics display showing an explanation.
+
+It shows an optional Flush Object Cache button on the admin bar. Props to Nick Chomey.
 
 Thanks, dear users for letting me know about defects you found, and for your patience as I figure this out. All remaining errors are solely the responsibility of the author.

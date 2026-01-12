@@ -121,7 +121,7 @@ class SQLite_Object_Cache {
      * @param string $file File constructor.
      * @param string $version Plugin version.
      */
-    public function __construct( $file = '', $version = '1.6.0' ) {
+    public function __construct( $file = '', $version = '1.6.1' ) {
         $this->_version = $version;
         $this->_token   = 'sqlite_object_cache';
 
@@ -185,9 +185,16 @@ class SQLite_Object_Cache {
         }
 
         /* Admin bar flush button - works on both frontend and backend. */
-        add_action( 'admin_bar_menu', array( $this, 'admin_bar_flush_button' ), 100 );
-        add_action( 'init', array( $this, 'handle_admin_bar_flush' ) );
-        add_action( 'admin_notices', array( $this, 'maybe_show_flush_notice' ) );
+        $option = get_option( $this->_token . '_settings', array() );
+        if ( array_key_exists ('adminbarflush', $option ) && 'on' === $option['adminbarflush'] ) {
+            add_action( 'init', array( $this, 'handle_admin_bar_flush' ) );
+            add_action ( 'init', function() {
+                if ( ! ( is_multisite() && ! is_main_site() ) &&  current_user_can( 'manage_options') ) {
+                    add_action( 'admin_bar_menu', array( $this, 'admin_bar_flush_button' ), 100 );
+                    add_action( 'admin_notices', array( $this, 'maybe_show_flush_notice' ) );
+                }
+            });
+        }
     }
 
     /**
@@ -641,7 +648,7 @@ class SQLite_Object_Cache {
                 'title' => __( 'Flush Object Cache', 'sqlite-object-cache' ),
                 'href'  => $nonced_url,
                 'meta'  => array(
-                    'title' => __( 'Flush the SQLite Object Cache', 'sqlite-object-cache' ),
+                    'title' => __( 'Flush the SQLite Object Cache now', 'sqlite-object-cache' ),
                 ),
             )
         );
