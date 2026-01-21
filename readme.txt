@@ -350,12 +350,6 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 == Upgrade Notice ==
 
-The plugin now displays its settings and statistics panels only on the main site of a multisite installation.
-
-The plugin now flushes the persistent cache immediately after any software installation or upgrade operation. It also deletes all transients from the MariaDB / MySQL database on activation and deactivation to get rid of stale data.
-
-It presents a Help tab on the Statistics display showing an explanation.
-
-It shows an optional Flush Object Cache button on the admin bar. Props to Nick Chomey.
+Better flushing, Props to Nick Chomey. Better multisite support.
 
 Thanks, dear users for letting me know about defects you found, and for your patience as I figure this out. All remaining errors are solely the responsibility of the author.

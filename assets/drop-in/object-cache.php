@@ -40,7 +40,7 @@
 
 /**  @noinspection SqlDialectInspection */
 
-defined( '\\ABSPATH' ) || exit;
+if ( ! defined( 'ABSPATH' ) ) exit;
 
 /**
  * hrtime polyfill if needed, pre php 7.3.
@@ -625,7 +625,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      * @return void
      */
     public static function drop_dead( $msg = null ) {
-      wp_die( $msg ?: 'The SQLite Object Cache temporarily failed. Please try again now.' );
+      wp_die( esc_html( $msg ?: 'The SQLite Object Cache temporarily failed. Please try again now.' ) );
     }
 
     /**
@@ -638,6 +638,12 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
      */
     private function error_log( $msg, $exception = null ) {
       $log_exception = ! ! $exception;
+      $server_software = 'unk';
+      // phpcs:disable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash
+      if  (isset( $_SERVER['SERVER_SOFTWARE'] ) && is_string( $_SERVER['SERVER_SOFTWARE'] ) ) {
+        $server_software = $_SERVER['SERVER_SOFTWARE'];
+      }
+      // phpcs:enable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash
       $msgs          = array();
       $msgs []       = 'SQLite Object Cache:';
       $msgs []       = $this->dropin_version;
@@ -648,7 +654,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
       $msgs []       = 'php:';
       $msgs []       = PHP_VERSION;
       $msgs []       = 'server:';
-      $msgs []       = $_SERVER['SERVER_SOFTWARE'];
+      $msgs []       = esc_html ( $server_software );
       $msgs []       = $msg;
       if ( $this->sqlite ) {
         if ( $this->sqlite->lastErrorMsg() ) {
@@ -976,6 +982,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
             if ( $samplerate >= 100 ) {
               return true;
             }
+            // phpcs:ignore 	WordPress.WP.AlternativeFunctions.rand_rand
             return ( $samplerate * 10000 ) > rand( 1, 1000000 );
           }
         }
@@ -995,6 +1002,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
           $this->capture( $this->monitoring_options );
         }
         /* Once in a while checkpoint the whole WAL log, so it doesn't grow without bound on a busy site. */
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.rand_rand
         if ( 1 === rand( 1, 5000 ) ) {
           $this->checkpoint();
         }
@@ -1433,12 +1441,14 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         wp_load_translations_early();
       }
 
+      // phpcs:disable WordPress.WP.I18n.MissingArgDomain,WordPress.Security.EscapeOutput.OutputNotEscaped
       $message =
+        // Core I18n Phrases
         is_string( $key ) ? __( 'Cache key must not be an empty string.' )
-          /* translators: %s: The type of the given cache key. */
+          /* translators: This i18n string is from core. */
           : sprintf( __( 'Cache key must be integer or non-empty string, %s given.' ), $type );
-      // phpcs:ignore
       _doing_it_wrong( sprintf( '%s::%s', __CLASS__, debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS, 2 )[1]['function'] ), $message, '6.1.0' );
+      //phpcs:enable WordPress.WP.I18n.MissingArgDomain,WordPress.Security.EscapeOutput.OutputNotEscaped
 
       return false;
     }
@@ -2610,6 +2620,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
           ob_start();
           foreach ( $this->sqlite_files() as $file ) {
             if ( @file_exists(realpath($file))) {
+              // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
               @unlink( realpath( $file ) );
             }
           }
@@ -2687,6 +2698,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
    * @subpackage Cache
    */
 
+  // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
   /**
    * Sets up Object Cache Global and assigns it.
    *
@@ -3111,5 +3123,6 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
 
     $wp_object_cache->reset();
   }
+  // phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
 endif;
 // phpcs:enable Generic.WhiteSpace.ScopeIndent.IncorrectExact, Generic.WhiteSpace.ScopeIndent.Incorrect

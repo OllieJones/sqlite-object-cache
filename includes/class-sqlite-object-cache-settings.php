@@ -184,7 +184,7 @@ class SQLite_Object_Cache_Settings {
       array(
         'id'          => 'flush',
         'label'       => __( 'Flush now', 'sqlite-object-cache' ),
-        'description' => __( 'Check to flush the cache (delete all its entries) now.', 'sqlite-object-cache' ) . ' ' .
+        'description' => __( 'Check to flush the cache (delete all its entries, including all transients) now.', 'sqlite-object-cache' ) . ' ' .
                          __( 'This briefly puts your site into maintenance mode.', 'sqlite-object-cache' ),
         'type'        => 'checkbox',
         'default'     => '',
@@ -269,7 +269,10 @@ class SQLite_Object_Cache_Settings {
     }
 
     $settings['standard'] = array(
+      // Using core I18n.
+      // phpcs:ignore WordPress.WP.I18n.MissingArgDomain
       'title'                 => __( 'Settings' ),
+      // phpcs:ignore WordPress.WP.I18n.MissingArgDomain
       'submit'                => __( 'Save Changes' ),
       'description'           => '',
       'render_section_header' => array( $this, 'settings_section_header' ),
@@ -284,7 +287,7 @@ class SQLite_Object_Cache_Settings {
       'form_post_callback'    => array( $this, 'validate_reset_stats' ),
     );
 
-    return apply_filters( $this->parent->_token . '_settings_fields', $settings );
+    return apply_filters( 'sqlite_object_cache_settings_fields', $settings );
   }
 
   /**
@@ -448,7 +451,7 @@ class SQLite_Object_Cache_Settings {
     $this->complain_if_sqlite3_unavailable();
 
     return apply_filters(
-      $this->base . 'menu_settings',
+      'sqlite_object_cachemenu_settings',
       array(
         'location'    => 'options', // Possible settings: options, menu, submenu.
         'parent_slug' => 'options-general.php',
@@ -554,6 +557,7 @@ class SQLite_Object_Cache_Settings {
     if ( is_array( $this->settings ) ) {
 
       /* get the tab chosen by the user ('standard' or 'stats') */
+      // phpcs:ignore WordPress.Security.NonceVerification.Recommended
       $tab = isset ( $_REQUEST['tab'] ) ? sanitize_key( $_REQUEST['tab'] ) : 'standard';
 
       $default_option = array();
@@ -590,7 +594,7 @@ class SQLite_Object_Cache_Settings {
             add_settings_field(
               $field['id'],
               $field['label'],
-              array( $this->parent->admin, 'echo_field' ),
+              array( $this, 'echo_field' ),
               $this->parent->_token . '_settings',
               $section,
               array(
@@ -700,12 +704,19 @@ class SQLite_Object_Cache_Settings {
       : __( 'unavailable', 'sqlite-object-cache' );
 
     if ( method_exists( $wp_object_cache, 'sqlite_get_version' ) ) {
+      $server_software = 'unk';
+      // phpcs:disable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash
+      if  (isset( $_SERVER['SERVER_SOFTWARE'] ) && is_string( $_SERVER['SERVER_SOFTWARE'] ) ) {
+        $server_software = $_SERVER['SERVER_SOFTWARE'];
+      }
+      // phpcs:enable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash
       echo '<p>' . esc_html( sprintf(
         /* translators: 1: version for sqlite   2: version for php  3: webserver version 4: version for plugin  5: igbinary  6:APCu  7:WordPress */
           __( 'Versions: WordPress: %7$s  SQLite: %1$s  php: %2$s  Server: %3$s Plugin: %4$s  APCu: %6$s  igbinary: %5$s.', 'sqlite-object-cache' ),
           $wp_object_cache->sqlite_get_version(),
           PHP_VERSION,
-          $_SERVER['SERVER_SOFTWARE'],
+          // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+          $server_software,
           $this->parent->_version,
           $igbinary,
           $apcu_version,
@@ -742,6 +753,7 @@ class SQLite_Object_Cache_Settings {
 
     $this->enqueue_assets();
     /* get the tab chosen by the user ('standard' by default or 'stats') */
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended
     $tab = isset ( $_REQUEST['tab'] ) ? sanitize_key( $_REQUEST['tab'] ) : 'standard';
 
     // Build page HTML.
@@ -784,8 +796,8 @@ class SQLite_Object_Cache_Settings {
     echo '<form method="post" action="options.php" enctype="multipart/form-data">' . PHP_EOL;
 
     // Get settings fields.
-    settings_fields( $this->parent->_token . '_settings' );
-    do_settings_sections( $this->parent->_token . '_settings' );
+    settings_fields( 'sqlite_object_cache_settings' );
+    do_settings_sections( 'sqlite_object_cache_settings' );
 
     echo '<p class="submit">' . PHP_EOL;
     echo '<input type="hidden" name="tab" value="' . esc_attr( $tab ) . '" />' . PHP_EOL;
@@ -830,7 +842,7 @@ class SQLite_Object_Cache_Settings {
    */
   private function exit_maintenance_mode() {
     $maintenanceFileName = ABSPATH . '.maintenance';
-    unlink( $maintenanceFileName );
+    wp_delete_file( $maintenanceFileName );
   }
 
   /**
@@ -1023,6 +1035,129 @@ class SQLite_Object_Cache_Settings {
     }
     return implode( '; ', $result );
   }
+
+  /**
+   * Generate HTML for displaying fields.
+   *
+   * @param mixed $idata Data array.
+   * @param object $post Post object.
+   */
+  public function echo_field( $idata = array(), $post = null ) {
+
+    // Get field info.
+    if ( isset( $idata['field'] ) ) {
+      $field = $idata['field'];
+    } else {
+      $field = $idata;
+    }
+
+    $option_name = '';
+    if ( isset( $idata['option'] ) ) {
+      $option_name = $idata['option'];
+    }
+
+    /* Get saved data. */
+    $field_id = $field['id'];
+    $data     = null;
+
+    /* Data to display, if set */
+    $option = get_option( $option_name, array() );
+    if ( is_array( $option ) && array_key_exists( $field_id, $option ) ) {
+      $data = $option[ $field_id ];
+    }
+
+    /* the reset element sets the value of the field, overriding whatever is in the option */
+    if ( array_key_exists( 'reset', $field ) ) {
+      $data = $field['reset'];
+    }
+
+    /* Show default data if no option saved and default is supplied. */
+    if ( null === $data && isset( $field['default'] ) ) {
+      $data = $field['default'];
+    } elseif ( null === $data ) {
+      $data = '';
+    }
+
+    /* CSS class array */
+    $classes = array();
+    if ( array_key_exists( 'cssclass', $field ) ) {
+      $classes = is_array( $field['cssclass'] ) ? $field['cssclass'] : array( $field['cssclass'] );
+    }
+
+    echo '<input ';
+    echo 'id="' . esc_attr( $field['id'] ) . '" ';
+    $this->echo_classes( $classes ) . ' ';
+    echo 'name="' . esc_attr( $option_name ) . '[' . esc_attr( $field_id ) . ']" ';
+    if ( array_key_exists( 'placeholder', $field ) ) {
+      echo 'placeholder="' . esc_attr( $field['placeholder'] ) . '" ';
+    }
+    switch ( $field['type'] ) {
+
+      case 'text':
+      case 'url':
+      case 'email':
+        echo 'type="text" ';
+        echo 'value="' . esc_attr( $data ) . '" ';
+        break;
+
+      case 'number':
+        echo 'type="number" ';
+        echo 'value="' . esc_attr( $data ) . '" ';
+        if ( isset( $field['min'] ) ) {
+          echo 'min="' . esc_attr( $field['min'] ) . '" ';
+        }
+        if ( isset( $field['max'] ) ) {
+          echo 'max="' . esc_attr( $field['max'] ) . '" ';
+        }
+        if ( isset( $field['step'] ) ) {
+          echo 'step="' . esc_attr( $field['step'] ) . '" ';
+        }
+        break;
+
+      case 'password':
+      case 'hidden':
+        echo 'type="' . esc_attr( $field['type'] ) . '" ';
+        echo 'value="' . esc_attr( $data ) . '" ';
+        break;
+
+      case 'checkbox':
+        echo 'type="checkbox" ';
+        if ( 'on' === $data ) {
+          echo 'checked="checked" ';
+        }
+        break;
+    }
+    echo '>' . PHP_EOL;
+
+    if ( ! $post ) {
+      echo '<label for="' . esc_attr( $field['id'] ) . '">' . PHP_EOL;
+    }
+
+    echo '<span class="description">' . esc_html( $field['description'] ) . '</span>' . PHP_EOL;
+
+    if ( ! $post ) {
+      echo '</label>' . PHP_EOL;
+    }
+  }
+
+  /**
+   * Given an array of CSS class names ['foo', 'bar'] echo class="foo bar".
+   *
+   * If the array is empty just echo a space.
+   *
+   * @param array $classes
+   *
+   * @return void
+   */
+  private function echo_classes( array $classes ) {
+    if ( count( $classes ) > 0 ) {
+      echo 'class="';
+      echo esc_html( implode( ' ', array_map( 'esc_attr', $classes ) ) );
+      echo '"';
+    }
+    echo ' ';
+  }
+
 
 
 }

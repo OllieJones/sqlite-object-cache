@@ -141,8 +141,6 @@ class SQLite_Object_Cache {
         register_deactivation_hook( $this->file, array( $this, 'on_deactivation' ) );
 
         if ( is_admin() ) {
-            // Load API for generic admin functions.
-            $this->admin = new SQLite_Object_Cache_Admin_API();
             // Suppress backups
             new SQLite_Backup_Exclusion();
 
@@ -177,8 +175,10 @@ class SQLite_Object_Cache {
         if ( ! wp_next_scheduled( self::CLEAN_EVENT_HOOK ) ) {
             wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', self::CLEAN_EVENT_HOOK );
         }
-        /* Handle probabilistic non-cron cleanup, one request in 2000. */
-        if ( 1 === rand( 1, 2000 ) ) {
+        /* Handle probabilistic non-cron cleanup, one request in 2500. */
+        /* We don't need cryptographic-grade random numbering here. */
+        // phpcs:ignore 	WordPress.WP.AlternativeFunctions.rand_rand
+        if ( 1 === rand( 1, 2500 ) ) {
             add_action( 'shutdown', function () {
                 $this->clean_job( 1.25 );
             }, 999, 0 );
@@ -532,19 +532,20 @@ class SQLite_Object_Cache {
                     switch_to_blog( $site_id );
                     $this->clear_blog_transients();
                 } catch ( Exception $ex ) {
-                    /* Avoid crashes on transient clearing */
-                    error_log( 'SQLite Object Cache problem clearing transients. Blog ' . $site_id . ':' . $ex->getMessage() );
+                    /* Empty, intentionally. Don't crash clearing transients. */
                 } finally {
                     restore_current_blog();
                 }
             }
             // Multisite stores site transients in the sitemeta table.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
             $wpdb->query(
                     $wpdb->prepare(
-                            "DELETE FROM {$wpdb->sitemeta} WHERE a.meta_key LIKE %s",
+                    "DELETE FROM {$wpdb->sitemeta} WHERE a.meta_key LIKE %s",
                             $wpdb->esc_like( '_site_transient_' ) . '%'
                     )
             );
+
         }
     }
 
@@ -557,6 +558,7 @@ class SQLite_Object_Cache {
      */
     private function clear_blog_transients( $tag = '_transient_') {
         global $wpdb;
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $wpdb->query(
                 $wpdb->prepare(
                         "DELETE FROM {$wpdb->options}	WHERE option_name LIKE %s",
@@ -648,7 +650,7 @@ class SQLite_Object_Cache {
                 'title' => __( 'Flush Object Cache', 'sqlite-object-cache' ),
                 'href'  => $nonced_url,
                 'meta'  => array(
-                    'title' => __( 'Flush the SQLite Object Cache now', 'sqlite-object-cache' ),
+                    'title' => __( 'Delete all object cache entries now, including all transients.', 'sqlite-object-cache' ),
                 ),
             )
         );

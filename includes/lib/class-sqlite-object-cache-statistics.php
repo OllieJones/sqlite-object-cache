@@ -93,8 +93,8 @@ class SQLite_Object_Cache_Statistics {
     if ( method_exists( $wp_object_cache, 'sqlite_remove_expired' ) ) {
       $wp_object_cache->sqlite_remove_expired();
     }
-
-    echo '<!-- apcusalt: ' . $wp_object_cache->apcusalt . '-->' . PHP_EOL;
+    // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+    echo '<!-- apcusalt: ' . esc_attr( $wp_object_cache->apcusalt ) . '-->' . PHP_EOL;
     foreach ( $wp_object_cache->sqlite_load_statistics() as $data ) {
       $first                   = min( $data->time, $first );
       $last                    = max( $data->time, $last );
