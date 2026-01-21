@@ -668,6 +668,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         $msgs [] = '(' . $exception->getCode() . ')';
         $msgs [] = $exception->getTraceAsString();
       }
+      // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
       error_log( implode( ' ', $msgs ) );
     }
 
@@ -1441,14 +1442,14 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         wp_load_translations_early();
       }
 
-      // phpcs:disable WordPress.WP.I18n.MissingArgDomain,WordPress.Security.EscapeOutput.OutputNotEscaped
+      // phpcs:disable WordPress.WP.I18n.MissingArgDomain,WordPress.Security.EscapeOutput.OutputNotEscaped,WordPress.PHP.DevelopmentFunctions.error_log_debug_backtrace
       $message =
         // Core I18n Phrases
         is_string( $key ) ? __( 'Cache key must not be an empty string.' )
           /* translators: This i18n string is from core. */
           : sprintf( __( 'Cache key must be integer or non-empty string, %s given.' ), $type );
       _doing_it_wrong( sprintf( '%s::%s', __CLASS__, debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS, 2 )[1]['function'] ), $message, '6.1.0' );
-      //phpcs:enable WordPress.WP.I18n.MissingArgDomain,WordPress.Security.EscapeOutput.OutputNotEscaped
+      //phpcs:enable WordPress.WP.I18n.MissingArgDomain,WordPress.Security.EscapeOutput.OutputNotEscaped,,WordPress.PHP.DevelopmentFunctions.error_log_debug_backtrace
 
       return false;
     }
@@ -2602,33 +2603,19 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
     private function delete_offending_files( $retries = 0 ) {
       $this->apcu_clear_cache();
       try {
-        /* It may be too early to use file.php. */
-        if ( false && function_exists( '__' ) ) {
-          error_log( "sqlite_object_cache failure, \$wp_filesystem->deleting sqlite files to retry. $retries" );
-          ob_start();
-          require_once ABSPATH . 'wp-admin/includes/file.php';
-
-          $credentials = request_filesystem_credentials( '' );
-          WP_Filesystem( $credentials );
-          global $wp_filesystem;
-          foreach ( $this->sqlite_files() as $file ) {
-            $wp_filesystem->delete( $file );
+        // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+        error_log( "sqlite_object_cache failure, unlinking sqlite files to retry. $retries" );
+        ob_start();
+        foreach ( $this->sqlite_files() as $file ) {
+          if ( @file_exists( realpath( $file ) ) ) {
+            // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
+            @unlink( realpath( $file ) );
           }
-          ob_end_clean();
-        } else {
-          error_log( "sqlite_object_cache failure, unlinking sqlite files to retry. $retries" );
-          ob_start();
-          foreach ( $this->sqlite_files() as $file ) {
-            if ( @file_exists(realpath($file))) {
-              // phpcs:ignore WordPress.WP.AlternativeFunctions.unlink_unlink
-              @unlink( realpath( $file ) );
-            }
-          }
-          ob_end_clean();
         }
+        ob_end_clean();
       } catch ( Exception $e ) {
+        // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
         error_log( "sqlite_object_cache cleanup failure: " . $e->getMessage() );
-
       }
     }
 

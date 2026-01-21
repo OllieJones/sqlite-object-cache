@@ -18,13 +18,6 @@ class SQLite_Object_Cache {
     const CLEAN_EVENT_HOOK = 'sqlite_object_cache_clean';
 
     /**
-     * Local instance of SQLite_Object_Cache_Admin_API
-     *
-     * @var SQLite_Object_Cache_Admin_API|null
-     */
-    public $admin;
-
-    /**
      * Settings class object
      *
      * @var     object

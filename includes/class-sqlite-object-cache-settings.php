@@ -137,8 +137,7 @@ class SQLite_Object_Cache_Settings {
           switch_to_blog( $site_id );
           update_option( $this->parent->_token . '_settings', $this->caught_option_value, true );
         } catch ( Exception $ex ) {
-          /* Avoid crashes on option propagation */
-          error_log( 'SQLite Object Cache problem propagaging option value. Blog ' . $site_id . ':' . $ex->getMessage() );
+          /* Empty, intentionally. Don't crash on asset cleanup. */
         } finally {
           restore_current_blog();
         }
@@ -1028,6 +1027,7 @@ class SQLite_Object_Cache_Settings {
         if ( array_key_exists( 'local_value', $v ) ) {
           $v = $v['local_value'];
         } else {
+          // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_var_export
           $v = var_export( $v, true );
         }
       }
