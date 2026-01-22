@@ -158,7 +158,7 @@ class SQLite_Object_Cache_Settings {
       return $plugin_meta;
     }
 
-    if ( is_multisite() && (is_network_admin() || ! is_main_site() ) ) {
+    if ( is_multisite() && ( is_network_admin() || ! is_main_site() ) ) {
       $plugin_meta[] =
         esc_html__( 'See the main site\'s dashboard for settings.', 'sqlite-object-cache' );
     }
@@ -705,7 +705,7 @@ class SQLite_Object_Cache_Settings {
     if ( method_exists( $wp_object_cache, 'sqlite_get_version' ) ) {
       $server_software = 'unk';
       // phpcs:disable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash
-      if  (isset( $_SERVER['SERVER_SOFTWARE'] ) && is_string( $_SERVER['SERVER_SOFTWARE'] ) ) {
+      if ( isset( $_SERVER['SERVER_SOFTWARE'] ) && is_string( $_SERVER['SERVER_SOFTWARE'] ) ) {
         $server_software = $_SERVER['SERVER_SOFTWARE'];
       }
       // phpcs:enable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash
@@ -952,7 +952,7 @@ class SQLite_Object_Cache_Settings {
           $totalcount       += 1;
         }
 
-        $apcusalt           = trim( property_exists( $wp_object_cache, 'apcusalt' ) ? $wp_object_cache->apcusalt : '', '|' );
+        $apcusalt           = trim( property_exists( $wp_object_cache, 'apcusalt' ) && is_string( $wp_object_cache->apcusalt ) ? $wp_object_cache->apcusalt : '', '|' );
         $settings           = array();
         $settings ['salt']  = $apcusalt;
         $settings ['total'] = "$totalsize($totalcount)";
@@ -1157,7 +1157,6 @@ class SQLite_Object_Cache_Settings {
     }
     echo ' ';
   }
-
 
 
 }

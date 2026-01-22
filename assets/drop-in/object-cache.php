@@ -96,7 +96,7 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
     const JOURNAL_MODE = 'WAL';  /* or 'MEMORY' */
     const TRANSACTION_SIZE_LIMIT = 64;
 
-    private $dropin_version = '1.6.0';
+    private $dropin_version = '1.6.1';
     /** @var bool True if a transaction is active. */
     private $transaction_active = false;
     /** Path to SQLite file.  @var string */
