@@ -163,6 +163,7 @@ class SQLite_Object_Cache_Settings {
         esc_html__( 'See the main site\'s dashboard for settings.', 'sqlite-object-cache' );
     }
 
+    /** @noinspection HtmlUnknownTarget */
     $plugin_meta[] = sprintf(
       '<a href="%1$s"><span class="dashicons dashicons-star-filled" aria-hidden="true" style="font-size:14px;line-height:1.3"></span>%2$s</a>',
       'https://github.com/sponsors/OllieJones',

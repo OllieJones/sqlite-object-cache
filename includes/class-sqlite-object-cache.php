@@ -141,9 +141,9 @@ class SQLite_Object_Cache {
                 $purged = get_site_transient( 'sqlite-object-cache-flush-on-update' );
                 if ( $purged ) {
                     delete_site_transient( 'sqlite-object-cache-flush-on-update' );
-                    $message = __( 'A software installation or upgrade operation flushed the SQLite Object Cache.', 'sqlite-object-cache' );
+                    $message = __( 'Purged the SQLite Object Cache successfully after a software installation or upgrade.', 'sqlite-object-cache' );
                     ?>
-                    <div class="notice notice-info sqlite-object-cache is-dismissible">
+                    <div class="notice notice-success sqlite-object-cache is-dismissible">
                         <p><?php echo esc_html( $message ); ?></p>
                     </div>
                     <?php
