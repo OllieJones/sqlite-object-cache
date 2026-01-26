@@ -42,6 +42,10 @@
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
+if ( defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) && WP_SQLITE_OBJECT_CACHE_DISABLED ) {
+  return;
+}
+
 /**
  * hrtime polyfill if needed, pre php 7.3.
  */
@@ -54,10 +58,6 @@ if ( ! function_exists( 'hrtime' ) ) {
     $result[1] = 1000 * $result [1];
     return $result;
   }
-}
-
-if ( defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) && WP_SQLITE_OBJECT_CACHE_DISABLED ) {
-  return;
 }
 
 /**
