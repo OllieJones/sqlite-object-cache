@@ -315,6 +315,8 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 ### 1.6.1
 
 * Add an optional Flush Object Cache button to the admin bar. Props to Nick Chomey.
+* Fix a defect in testing for writability of the .sqlite files. Props to @powerkiki: Adrien Crivelli.
+
 
 ### 1.6.0
 
@@ -357,12 +359,4 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 ## Upgrade Notice
 
-The plugin now displays its settings and statistics panels only on the main site of a multisite installation.
-
-The plugin now flushes the persistent cache immediately after any software installation or upgrade operation. It also deletes all transients from the MariaDB / MySQL database on activation and deactivation to get rid of stale data.
-
-It presents a Help tab on the Statistics display showing an explanation.
-
-It shows an optional Flush Object Cache button on the admin bar. Props to Nick Chomey.
-
-Thanks, dear users for letting me know about defects you found, and for your patience as I figure this out. All remaining errors are solely the responsibility of the author.
+Shorten drop-in file, get rid of plugin-checker flags, add optional Flush button to admin bar, fix writability check bug.

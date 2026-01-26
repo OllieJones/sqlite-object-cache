@@ -305,9 +305,11 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 == Changelog ==
 
-### 1.6.1
+= 1.6.1 =
 
 * Add an optional Flush Object Cache button to the admin bar. Props to Nick Chomey.
+* Fix a defect in testing for writability of the .sqlite files. Props to @powerkiki: Adrien Crivelli.
+
 
 = 1.6.0 =
 
@@ -350,6 +352,4 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 == Upgrade Notice ==
 
-Better flushing, Props to Nick Chomey. Better multisite support.
-
-Thanks, dear users for letting me know about defects you found, and for your patience as I figure this out. All remaining errors are solely the responsibility of the author.
+Shorten drop-in file, get rid of plugin-checker flags, add optional Flush button to admin bar, fix writability check bug.

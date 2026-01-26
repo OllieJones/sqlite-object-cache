@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-01-22T23:44:23+00:00\n"
+"POT-Creation-Date: 2026-01-26T18:04:33+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.9.0\n"
 "X-Domain: sqlite-object-cache\n"
@@ -288,7 +288,7 @@ msgid "SQLite utilization"
 msgstr ""
 
 #: includes/class-sqlite-object-cache.php:144
-msgid "Purged the SQLite Object Cache successfully after a software installation or upgrade."
+msgid "Flushed the SQLite Object Cache successfully after a software installation or upgrade."
 msgstr ""
 
 #: includes/class-sqlite-object-cache.php:256
