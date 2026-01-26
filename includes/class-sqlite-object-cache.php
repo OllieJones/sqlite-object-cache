@@ -138,10 +138,10 @@ class SQLite_Object_Cache {
             new SQLite_Backup_Exclusion();
 
             add_action( 'admin_notices', function () {
-                $purged = get_site_transient( 'sqlite-object-cache-flush-on-update' );
-                if ( $purged ) {
+                $flushed = get_site_transient( 'sqlite-object-cache-flush-on-update' );
+                if ( $flushed ) {
                     delete_site_transient( 'sqlite-object-cache-flush-on-update' );
-                    $message = __( 'Purged the SQLite Object Cache successfully after a software installation or upgrade.', 'sqlite-object-cache' );
+                    $message = __( 'Flushed the SQLite Object Cache successfully after a software installation or upgrade.', 'sqlite-object-cache' );
                     ?>
                     <div class="notice notice-success sqlite-object-cache is-dismissible">
                         <p><?php echo esc_html( $message ); ?></p>
