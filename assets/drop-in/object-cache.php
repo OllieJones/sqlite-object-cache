@@ -616,6 +616,12 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
         }
       }
 
+      $directory = dirname( $result );
+      if ( ! wp_is_writable( $directory ) ) {
+          $message = sprintf( 'The SQLite Object Cache cannot be activated because the %s directory is not writable.', $directory );
+          WP_Object_Cache::drop_dead( $message );
+      }
+
       return $result;
     }
 
@@ -922,14 +928,9 @@ if ( ! defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) || ! WP_SQLITE_OBJECT_CACHE_
     /**
      * Determine whether we can use SQLite3.
      *
-     * @param string $directory The directory to hold the .sqlite file. Default WP_CONTENT_DIR.
-     *
      * @return bool|string true, or an error message.
      */
-    public static function has_sqlite( $directory = WP_CONTENT_DIR ) {
-      if ( ! wp_is_writable( $directory ) ) {
-        return sprintf( 'The SQLite Object Cache cannot be activated because the %s directory is not writable.', $directory );
-      }
+    public static function has_sqlite() {
 
       if ( ! class_exists( 'SQLite3' ) || ! extension_loaded( 'sqlite3' ) ) {
         return 'The SQLite Object Cache cannot be activated because the SQLite3 extension is not loaded.';
