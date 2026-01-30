@@ -49,7 +49,7 @@ if ( defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) && WP_SQLITE_OBJECT_CACHE_DISA
 }
 
 
-#ifdef php72
+#ifndef PHP73
 /**
  * hrtime polyfill if needed, pre php 7.3.
  */
@@ -103,7 +103,12 @@ class WP_Object_Cache {
   const JOURNAL_MODE = 'WAL';  /* or 'MEMORY' */
   const TRANSACTION_SIZE_LIMIT = 64;
 
-  private $dropin_version = '1.6.1';
+  /**
+   * @var array One-level associative array $name=>$value
+   */
+  private $cache = array();
+
+  private $dropin_version = '1.6.2';
   /** @var bool True if a transaction is active. */
   private $transaction_active = false;
   /** Path to SQLite file.  @var string */
@@ -158,6 +163,26 @@ class WP_Object_Cache {
    * @var int
    */
   public $persistent_misses = 0;
+
+  #ifndef NOAPCU
+  /**
+   *  The APCu cache is active in this request
+   * @var bool
+   */
+  private $apcu_active = false;
+  /**
+   *  The APCu cache is active in this site, but not in this request.
+   *
+   *  This happens for wp-cli programs.
+   * @var bool
+   */
+  private $apcu_supported = false;
+  private $salt;
+  /**
+   * @var string
+   */
+  public $apcusalt;
+
   /**
    * Amount of times the apcu cache had the item.
    *
@@ -172,6 +197,29 @@ class WP_Object_Cache {
    * @var int
    */
   public $apcu_misses = 0;
+  /**
+   * Prepared statement to clear a flagt.
+   *
+   * @var SQLite3Stmt
+   */
+  private $clearflag_stmt;
+
+  /**
+   * Prepared statement to set a flagt.
+   *
+   * @var SQLite3Stmt
+   */
+  private $setflag_stmt;
+  /**
+   * Flags table name.
+   *
+   * @var string  Usually 'object_flags'.
+   */
+  private $flags_table_name;
+
+
+  #endif
+
   /**
    * The blog prefix to prepend to keys in non-global groups.
    *
@@ -233,10 +281,6 @@ class WP_Object_Cache {
   );
 
   /**
-   * @var array One-level associative array $name=>$value
-   */
-  private $cache = array();
-  /**
    * Holds the value of is_multisite().
    *
    * @since 3.5.0
@@ -279,6 +323,7 @@ class WP_Object_Cache {
    */
   private $upsertone_stmt;
 
+  #ifndef SQLIT324
   /**
    * Prepared statement to insert one cache element.
    *
@@ -292,20 +337,7 @@ class WP_Object_Cache {
    * @var SQLite3Stmt
    */
   private $updateone_stmt;
-
-  /**
-   * Prepared statement to clear a flagt.
-   *
-   * @var SQLite3Stmt
-   */
-  private $clearflag_stmt;
-
-  /**
-   * Prepared statement to set a flagt.
-   *
-   * @var SQLite3Stmt
-   */
-  private $setflag_stmt;
+  #endif
 
   /**
    * Associative array of items we know ARE NOT in SQLite.
@@ -321,12 +353,6 @@ class WP_Object_Cache {
    * @var string  Usually 'object_cache'.
    */
   private $cache_table_name;
-  /**
-   * Flags table name.
-   *
-   * @var string  Usually 'object_flags'.
-   */
-  private $flags_table_name;
   #ifndef IGBINARY
   /**
    * Flag for availability of igbinary serialization extension.
@@ -469,23 +495,6 @@ class WP_Object_Cache {
    * @var int mmap_size setting for SQLite. Zero to disable.
    */
   private $mmap_size = 0;
-  /**
-   *  The APCu cache is active in this request
-   * @var bool
-   */
-  private $apcu_active = false;
-  /**
-   *  The APCu cache is active in this site, but not in this request.
-   *
-   *  This happens for wp-cli programs.
-   * @var bool
-   */
-  private $apcu_supported = false;
-  private $salt;
-  /**
-   * @var string
-   */
-  public $apcusalt;
 
 #ifndef NOSTATS
   #define TIMENOW() hrtime( true )
@@ -509,10 +518,12 @@ class WP_Object_Cache {
     $this->cache_group_types();
 
     /* The environment. */
-    $apc                  = defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU;
     $cli                  = defined( 'WP_CLI' ) && WP_CLI;
+    #ifndef NOAPCU
+    $apc                  = defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU;
     $this->apcu_active    = $apc && function_exists( 'apcu_enabled' ) && apcu_enabled() && ! $cli;
     $this->apcu_supported = $apc && $cli;
+    #endif
 
     $force_serialize = defined( 'WP_SQLITE_OBJECT_CACHE_SERIALIZE' ) && WP_SQLITE_OBJECT_CACHE_SERIALIZE;
     #ifndef IGBINARY
@@ -521,6 +532,7 @@ class WP_Object_Cache {
     $this->salt = defined( 'WP_CACHE_KEY_SALT' )
       ? preg_replace( '/[^-_A-Za-z0-9]/', '_', WP_CACHE_KEY_SALT )
       : '';
+    #ifndef NOAPCU
     if ( $this->apcu_active ) {
       /* As unique as possible to avoid collisions with other instances on the same server. */
       $this->apcusalt = ( ( '' !== $this->salt )
@@ -529,6 +541,7 @@ class WP_Object_Cache {
             0, 12 ) ) . '|';
 
     }
+    #endif
     $this->sqlite_path = $this->create_database_path();
 
     $this->sqlite_timeout = defined( 'WP_SQLITE_OBJECT_CACHE_TIMEOUT' )
@@ -557,14 +570,20 @@ class WP_Object_Cache {
     $this->multisite                 = is_multisite();
     $this->blog_prefix               = $this->multisite ? get_current_blog_id() . ':' : '';
     $this->cache_table_name          = self::OBJECT_CACHE_TABLE;
-    $this->flags_table_name          = self::OBJECT_FLAGS_TABLE;
     $this->noexpire_timestamp_offset = self::NOEXPIRE_TIMESTAMP_OFFSET;
+
+    #ifndef NOAPCU
+    $this->flags_table_name          = self::OBJECT_FLAGS_TABLE;
+    #endif
+
     $this->open_connection();
 
+    #ifndef NOAPCU
     /* If wp-cli code cached something into SQLite, clear the APCu cache because it's stale. */
     if ( $this->apcu_active && $this->clear_flag() ) {
       $this->apcu_clear_cache();
     }
+    #endif
   }
 
   /**
@@ -688,7 +707,11 @@ class WP_Object_Cache {
     #else
     $msgs [] = 'igbinary';
     #endif
+    #ifndef NOAPCU
     $msgs [] = $this->apcu_active ? 'APCu active' : 'APCu inactive';
+    #else
+    $msgs [] = 'APCu disabled';
+    #endif
     $msgs [] = 'php:';
     $msgs [] = PHP_VERSION;
     $msgs [] = 'server:';
@@ -808,9 +831,11 @@ class WP_Object_Cache {
     $q = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND tbl_name = '$this->cache_table_name';";
     $r = $this->sqlite->querySingle( $q );
     if ( 0 === $r ) {
+      #ifndef SQLITE383
       /* later versions of SQLite3 have clustered primary keys, "WITHOUT ROWID" */
       $uses_rowid = version_compare( $this->sqlite_get_version(), '3.8.2' ) < 0;
       if ( $uses_rowid ) {
+        #endif
         /* @noinspection SqlIdentifier */
         $t = "
 						CREATE TABLE IF NOT EXISTS $this->cache_table_name (
@@ -820,6 +845,7 @@ class WP_Object_Cache {
 						);
 						CREATE UNIQUE INDEX IF NOT EXISTS cache_name ON $this->cache_table_name (name);
 						CREATE INDEX IF NOT EXISTS expires ON $this->cache_table_name (expires);";
+        #ifndef SQLITE383
       } else {
         /* @noinspection SqlIdentifier */
         $t = "
@@ -830,15 +856,20 @@ class WP_Object_Cache {
 						) WITHOUT ROWID;
 						CREATE INDEX IF NOT EXISTS expires ON $this->cache_table_name (expires);";
       }
+      #endif
       $this->sqlite->exec( $t );
 
+      #ifndef NOAPCU
+      #ifndef SQLITE383
       if ( $uses_rowid ) {
+        #endif
         /* @noinspection SqlIdentifier */
         $t = "
 						CREATE TABLE IF NOT EXISTS $this->flags_table_name (
 						   name TEXT NOT NULL COLLATE BINARY
 						);
 						CREATE UNIQUE INDEX IF NOT EXISTS flags_name ON $this->flags_table_name (name);";
+        #ifndef SQLITE383
       } else {
         /* @noinspection SqlIdentifier */
         $t = "
@@ -846,7 +877,9 @@ class WP_Object_Cache {
 						   name TEXT NOT NULL PRIMARY KEY COLLATE BINARY
 						) WITHOUT ROWID;";
       }
+      #endif
       $this->sqlite->exec( $t );
+      #endif
 
       /* Put the drop-in's version number in the SQLite file, for troubleshooting. */
       $version = str_replace( '.', '0', $this->dropin_version );
@@ -854,13 +887,16 @@ class WP_Object_Cache {
         $this->sqlite->exec( "PRAGMA user_version=" . ( (int) $version ) . ";" );
       }
       /* Creating SQLite tables; clear APCu at the same time. */
+      #ifndef NOAPCU
       $this->apcu_clear_cache();
+      #endif
     }
     $this->sqlite->exec( 'COMMIT' );
   }
 
+  #ifndef NOSTATS
   /**
-   * Do the necessary Data Definition Language work.
+   * Do the necessary Data Definition Language work to create the stats table.
    *
    * @param string $tbl The name of the table.
    *
@@ -885,6 +921,7 @@ class WP_Object_Cache {
     }
     $this->sqlite->exec( 'COMMIT' );
   }
+  #endif
 
   /**
    * Create the prepared statements to use.
@@ -904,20 +941,22 @@ class WP_Object_Cache {
     $this->deleteone_stmt   = $this->sqlite->prepare( "DELETE FROM $tbl WHERE name = :name;" );
     $this->deletegroup_stmt = $this->sqlite->prepare( "DELETE FROM $tbl WHERE name LIKE :group || '%';" );
     /*
-     * Some versions of SQLite3 built into php predate the 3.38 advent of unixepoch() (2022-02-22).
-     * And, others predate the 3.24 advent of UPSERT (that is, ON CONFLICT) syntax.
-     * In that case we have to do attempt-update then insert to get updates to work. Sigh.
-     */
+     * Some versions of SQLite3 predate the 3.24 advent of UPSERT (that is, ON CONFLICT) syntax.
+     * In that case we have to do attempt-update then insert to get updates to work. Sigh.    */
+    #ifndef SQLITE324
     $has_upsert = version_compare( $this->sqlite_get_version(), '3.24', 'ge' );
     if ( $has_upsert ) {
+      #endif
       $this->upsertone_stmt =
         $this->sqlite->prepare( "INSERT INTO $tbl (name, value, expires) VALUES (:name, :value, $now + :expires) ON CONFLICT(name) DO UPDATE SET value=excluded.value, expires=excluded.expires;" );
+    #ifndef SQLITE324
     } else {
       $this->insertone_stmt =
         $this->sqlite->prepare( "INSERT INTO $tbl (name, value, expires) VALUES (:name, :value, $now + :expires);" );
       $this->updateone_stmt =
         $this->sqlite->prepare( "UPDATE $tbl SET value = :value, expires = $now + :expires WHERE name = :name;" );
     }
+    #endif
   }
 
   #ifndef IGBINARY
@@ -927,6 +966,7 @@ class WP_Object_Cache {
   #define ENCODE($data) igbinary_serialize( $data )
   #define DECODE($data) igbinary_unserialize( $data )
   #endif
+
   /**
    * Serialize data for persistence if need be. Use igbinary if available.
    *
@@ -996,6 +1036,7 @@ class WP_Object_Cache {
     $this->monitoring_options = $options;
   }
 
+  #ifndef NOSTATS
   /**
    * Is recording this performance sample appropriate.
    *
@@ -1031,6 +1072,7 @@ class WP_Object_Cache {
 
     return false;
   }
+  #endif
 
   /**
    * Capture statistics if need be. Leave the connection open for late-arriving cache operations.
@@ -1039,9 +1081,11 @@ class WP_Object_Cache {
    */
   public function close() {
     if ( $this->sqlite ) {
+      #ifndef NOSTATS
       if ( $this->is_sample() ) {
         $this->capture( $this->monitoring_options );
       }
+      #endif
       /* Once in a while checkpoint the whole WAL log, so it doesn't grow without bound on a busy site. */
       // phpcs:ignore WordPress.WP.AlternativeFunctions.rand_rand
       if ( 1 === rand( 1, 5000 ) ) {
@@ -1052,6 +1096,7 @@ class WP_Object_Cache {
     return true;
   }
 
+  #ifndef NOSTATS
   /**
    * Remove statistics entries from the cache
    *
@@ -1083,6 +1128,7 @@ class WP_Object_Cache {
       $this->error_log( 'SQLite Object Cache exception resetting statistics. ', $ex );
     }
   }
+  #endif
 
   /**
    * Remove old entries.
@@ -1166,15 +1212,19 @@ class WP_Object_Cache {
   }
 
   public function sqlite_sizes() {
+    #ifndef NOSTATS
     $object_stats = self::OBJECT_STATS_TABLE;
     $this->maybe_create_stats_table( $object_stats );
+    #endif
 
     $items = array(
       'page_size'   => 'PRAGMA page_size;',
       'free_pages'  => 'PRAGMA freelist_count;',
       'total_pages' => 'PRAGMA page_count;',
+      #ifndef NOSTATS
       'stats_items' => "SELECT COUNT(value) FROM $object_stats;",
       'stats_size'  => "SELECT SUM(LENGTH(value)+ 4) FROM $object_stats;",
+      #endif
       'mmap_size'   => "PRAGMA mmap_size;",
     );
 
@@ -1210,6 +1260,7 @@ class WP_Object_Cache {
     return $stmt->execute();
   }
 
+  #ifndef NOSTATS
   /**
    * Read rows from the stored statistics.
    *
@@ -1236,7 +1287,9 @@ class WP_Object_Cache {
       $resultset->finalize();
     }
   }
+  #endif
 
+  #ifndef NOSTATS
   /**
    * Do the performance-capture operation.
    *
@@ -1267,11 +1320,13 @@ class WP_Object_Cache {
       'checkpoints'       => $this->checkpoint_times,
       'DBMSqueries'       => $wpdb->num_queries,
       'RAM'               => memory_get_peak_usage( true ),
+      #ifndef NOAPCU
       'APCuhits'          => $this->apcu_hits,
       'APCumisses'        => $this->apcu_misses,
       'APCufetchhit'      => $this->apcu_fetch_hit_times,
       'APCufetchmiss'     => $this->apcu_fetch_miss_times,
       'APCustore'         => $this->apcu_store_times,
+      #endif
 
     );
     $object_stats = self::OBJECT_STATS_TABLE;
@@ -1289,6 +1344,7 @@ class WP_Object_Cache {
     }
     unset( $record, $stmt );
   }
+  #endif
 
   /** Get the version of the drop-in.
    *
@@ -1497,7 +1553,7 @@ class WP_Object_Cache {
   /**
    * Determine whether a key exists in the cache.
    *
-   * As a side-effect and optimization, copy the value from the SQLite store
+   * As a side effect and optimization, copy the value from the SQLite store
    * to RAM if it exists in the SQLite store.
    *
    * @param int|string $name Cache key to check for existence.
@@ -1556,6 +1612,7 @@ class WP_Object_Cache {
    * @return mixed|null Cached item, cloned if an object. Null if not found. (Cached item can be false.)
    */
   private function get_by_name( $name, &$success ) {
+    #ifndef NOAPCU
     if ( $this->apcu_active ) {
       $astart = TIMENOW();
       $data   = apcu_fetch( $this->apcusalt . $name, $fetchsuccess );
@@ -1572,6 +1629,7 @@ class WP_Object_Cache {
         STASHSTAT( $this->apcu_fetch_miss_times[], TIMENOW() - $astart );
       }
     }
+    #endif
     $data         = null;
     $fetchsuccess = false;
     $expires      = 0;
@@ -1591,11 +1649,13 @@ class WP_Object_Cache {
       }
       if ( $fetchsuccess ) {
         /* Pull item into APCu */
+        #ifndef NOAPCU
         if ( $this->apcu_active ) {
           $astart = TIMENOW();
           apcu_store( $this->apcusalt . $name, $data, $expires );
           STASHSTAT( $this->apcu_store_times[], TIMENOW() - $astart );
         }
+        #endif
 
         unset ( $this->not_in_persistent_cache[ $name ] );
       } else {
@@ -1678,11 +1738,13 @@ class WP_Object_Cache {
       try {
         $this->actual_put_by_name( $name, ENCODE( $data ), $expires );
         unset( $this->not_in_persistent_cache[ $name ] );
+        #ifndef NOAPCU
         if ( $this->apcu_active ) {
           $astart = TIMENOW();
           apcu_store( $this->apcusalt . $name, $data, $expire ?: DAY_IN_SECONDS );
           STASHSTAT( $this->apcu_store_times[], TIMENOW() - $astart );
         }
+        #endif
         return;
       } catch ( Exception $ex ) {
         $exception = $ex;
@@ -1709,16 +1771,21 @@ class WP_Object_Cache {
    * @return void
    */
   private function actual_put_by_name( $name, $value, $expires ) {
+    #ifndef NOAPCU
     if ( $this->apcu_supported ) {
       $this->set_flag();
     }
+    #endif
+    #ifndef SQLITE324
     if ( $this->upsertone_stmt ) {
+      #endif
       $stmt = $this->upsertone_stmt;
       $stmt->bindValue( ':name', $name, SQLITE3_TEXT );
       $stmt->bindValue( ':value', $value, SQLITE3_BLOB );
       $stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
       $result = $stmt->execute();
       $result->finalize();
+      #ifndef SQLITE324
     } else {
       /* Pre-upsert version (pre- 3.24) of SQLite,
        * Need to try update, then do insert if need be.
@@ -1747,6 +1814,7 @@ class WP_Object_Cache {
         $this->sqlite->exec( 'COMMIT' );
       }
     }
+    #endif
   }
 
   /**
@@ -1865,6 +1933,7 @@ class WP_Object_Cache {
     }
 
     /* Examine APCu cache for stashed items. */
+    #ifndef NOAPCU
     if ( $this->apcu_active && count( $keys_not_found ) > 0 ) {
       $keys_not_found_apcu = array();
       foreach ( $keys_not_found as $key => $name ) {
@@ -1887,6 +1956,7 @@ class WP_Object_Cache {
       }
       $keys_not_found = $keys_not_found_apcu;
     }
+    #endif
 
     if ( count( $keys_not_found ) <= 1 ) {
       /* Degenerate case after fulfilment from RAM: handle as simple get */
@@ -1941,12 +2011,13 @@ class WP_Object_Cache {
           $expires = $expires - time();
           $expires = $expires > 0 ? $expires : DAY_IN_SECONDS;
 
+          #ifndef NOAPCU
           if ( $this->apcu_active ) {
             $astart = TIMENOW();
             apcu_store( $this->apcusalt . $name, $this->cache[ $name ], $expires );
             STASHSTAT( $this->apcu_store_times[], TIMENOW() - $astart );
-
           }
+          #endif
           unset( $this->not_in_persistent_cache[ $name ] );
         }
         $resultset->finalize();
@@ -2201,6 +2272,7 @@ class WP_Object_Cache {
     return true;
   }
 
+  #ifndef NOAPCU
   /**
    *  Clear the APCu cache.
    * @return void
@@ -2217,6 +2289,7 @@ class WP_Object_Cache {
       $this->set_flag();
     }
   }
+  #endif
 
   /**
    * Delete the oldest elements until the size falls below the target size.
@@ -2265,8 +2338,10 @@ class WP_Object_Cache {
 
         while ( $hit >= $limit ) {
           if ( ! $cleared ) {
+            #ifndef NOAPCU
             /* Clear the APCu cache when we bulk-delete entries from SQLite. */
             $this->apcu_clear_cache();
+            #endif
             $cleared = true;
           }
           $sql = "DELETE FROM $object_cache WHERE name IN (SELECT name FROM $object_cache WHERE expires >= $offset AND expires <= $horizon LIMIT $limit)";
@@ -2274,8 +2349,10 @@ class WP_Object_Cache {
           $hit = $this->sqlite->changes();
         }
         if ( $cleared ) {
+          #ifndef NOAPCU
           /* Clear the APCu cache again after bulk delete to avoid a race condition. */
           $this->apcu_clear_cache();
+          #endif
         }
         $this->sqlite->exec( 'PRAGMA optimize;' );
       }
@@ -2298,9 +2375,11 @@ class WP_Object_Cache {
     $stmt                                   = $this->deleteone_stmt;
     $this->not_in_persistent_cache[ $name ] = true;
     $start                                  = TIMENOW();
+    #ifndef NOAPCU
     if ( $this->apcu_active ) {
       apcu_delete( $this->apcusalt . $name );
     }
+    #endif
     while ( $retries -- > 0 ) {
       try {
         $stmt->bindValue( ':name', $name, SQLITE3_TEXT );
@@ -2400,7 +2479,9 @@ class WP_Object_Cache {
    */
   public function flush( $vacuum = false ) {
     try {
+      #ifndef NOAPCU
       $this->apcu_clear_cache();
+      #endif
       $this->cache                   = array();
       $this->not_in_persistent_cache = array();
 
@@ -2461,7 +2542,9 @@ class WP_Object_Cache {
    * @since 6.1.0
    */
   public function flush_group( $group ) {
+    #ifndef NOAPCU
     $this->apcu_clear_cache();
+    #endif
 
     try {
       $names_to_flush = array();
@@ -2673,6 +2756,7 @@ class WP_Object_Cache {
     STASHSTAT( $this->checkpoint_times[], 0.000001 * ( TIMENOW() - $start ) );
   }
 
+  #ifndef NOAPCU
   /**
    * Set a named flag.
    *
@@ -2714,6 +2798,7 @@ class WP_Object_Cache {
     $result->finalize();
     return $already;
   }
+  #endif
 }
 
 /**
