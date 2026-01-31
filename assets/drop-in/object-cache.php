@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache (Drop-in)
- * Version: 1.6.1
+ * Version: 1.7.0
  * Note: This Version number must match the one in SQLite_Object_Cache::_construct.f
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -11,7 +11,7 @@
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Requires PHP: 5.6
  * Tested up to: 6.9
- * Stable tag: 1.6.1
+ * Stable tag: 1.7.0
  *
  * NOTE: This uses the file .../wp-content/.ht.object_cache.sqlite
  * and the associated files .../wp-content/.ht.object_cache.sqlite-shm
@@ -43,6 +43,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 if ( defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) && WP_SQLITE_OBJECT_CACHE_DISABLED ) {
   return;
+}
+/**
+ * hrtime polyfill if needed, pre php 7.3.
+ */
+if ( ! function_exists( 'hrtime' ) ) {
+  function hrtime( $as_float = false ) {
+    if ( $as_float ) {
+      return microtime( true ) * 1000;
+    }
+    $result = microtime( false );
+    $result[1] = 1000 * $result [1];
+    return $result;
+  }
 }
 /**
  * Object Cache API: WP_Object_Cache class, reworked for SQLite3 drop-in.
@@ -79,7 +92,11 @@ class WP_Object_Cache {
   const SQLITE_FILENAME = '.ht.object-cache.sqlite';
   const JOURNAL_MODE = 'WAL'; /* or 'MEMORY' */
   const TRANSACTION_SIZE_LIMIT = 64;
-  private $dropin_version = '1.6.1';
+  /**
+   * @var array One-level associative array $name=>$value
+   */
+  private $cache = array();
+  private $dropin_version = '1.7.0';
   /** @var bool True if a transaction is active. */
   private $transaction_active = false;
   /** Path to SQLite file.  @var string */
@@ -133,6 +150,23 @@ class WP_Object_Cache {
    */
   public $persistent_misses = 0;
   /**
+   *  The APCu cache is active in this request
+   * @var bool
+   */
+  private $apcu_active = false;
+  /**
+   *  The APCu cache is active in this site, but not in this request.
+   *
+   *  This happens for wp-cli programs.
+   * @var bool
+   */
+  private $apcu_supported = false;
+  private $salt;
+  /**
+   * @var string
+   */
+  public $apcusalt;
+  /**
    * Amount of times the apcu cache had the item.
    *
    * @since 2.0.0
@@ -146,6 +180,24 @@ class WP_Object_Cache {
    * @var int
    */
   public $apcu_misses = 0;
+  /**
+   * Prepared statement to clear a flagt.
+   *
+   * @var SQLite3Stmt
+   */
+  private $clearflag_stmt;
+  /**
+   * Prepared statement to set a flagt.
+   *
+   * @var SQLite3Stmt
+   */
+  private $setflag_stmt;
+  /**
+   * Flags table name.
+   *
+   * @var string  Usually 'object_flags'.
+   */
+  private $flags_table_name;
   /**
    * The blog prefix to prepend to keys in non-global groups.
    *
@@ -206,10 +258,6 @@ class WP_Object_Cache {
     'userslugs',
   );
   /**
-   * @var array One-level associative array $name=>$value
-   */
-  private $cache = array();
-  /**
    * Holds the value of is_multisite().
    *
    * @since 3.5.0
@@ -259,18 +307,6 @@ class WP_Object_Cache {
    */
   private $updateone_stmt;
   /**
-   * Prepared statement to clear a flagt.
-   *
-   * @var SQLite3Stmt
-   */
-  private $clearflag_stmt;
-  /**
-   * Prepared statement to set a flagt.
-   *
-   * @var SQLite3Stmt
-   */
-  private $setflag_stmt;
-  /**
    * Associative array of items we know ARE NOT in SQLite.
    *
    * When a name is not in this array it means we don't know if it is in SQLite or not.
@@ -284,12 +320,6 @@ class WP_Object_Cache {
    * @var string  Usually 'object_cache'.
    */
   private $cache_table_name;
-  /**
-   * Flags table name.
-   *
-   * @var string  Usually 'object_flags'.
-   */
-  private $flags_table_name;
   /**
    * Flag for availability of igbinary serialization extension.
    * This will be false if igbinary is not available or if WP_SQLITE_OBJECT_CACHE_SERIALIZE is true.
@@ -424,23 +454,6 @@ class WP_Object_Cache {
    */
   private $mmap_size = 0;
   /**
-   *  The APCu cache is active in this request
-   * @var bool
-   */
-  private $apcu_active = false;
-  /**
-   *  The APCu cache is active in this site, but not in this request.
-   *
-   *  This happens for wp-cli programs.
-   * @var bool
-   */
-  private $apcu_supported = false;
-  private $salt;
-  /**
-   * @var string
-   */
-  public $apcusalt;
-  /**
    * Constructor for SQLite Object Cache.
    *
    * @since 2.0.8
@@ -450,8 +463,8 @@ class WP_Object_Cache {
     global $table_prefix;
     $this->cache_group_types();
     /* The environment. */
-    $apc = defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU;
     $cli = defined( 'WP_CLI' ) && WP_CLI;
+    $apc = defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU;
     $this->apcu_active = $apc && function_exists( 'apcu_enabled' ) && apcu_enabled() && ! $cli;
     $this->apcu_supported = $apc && $cli;
     $force_serialize = defined( 'WP_SQLITE_OBJECT_CACHE_SERIALIZE' ) && WP_SQLITE_OBJECT_CACHE_SERIALIZE;
@@ -487,8 +500,8 @@ class WP_Object_Cache {
     $this->multisite = is_multisite();
     $this->blog_prefix = $this->multisite ? get_current_blog_id() . ':' : '';
     $this->cache_table_name = self::OBJECT_CACHE_TABLE;
-    $this->flags_table_name = self::OBJECT_FLAGS_TABLE;
     $this->noexpire_timestamp_offset = self::NOEXPIRE_TIMESTAMP_OFFSET;
+    $this->flags_table_name = self::OBJECT_FLAGS_TABLE;
     $this->open_connection();
     /* If wp-cli code cached something into SQLite, clear the APCu cache because it's stale. */
     if ( $this->apcu_active && $this->clear_flag() ) {
@@ -757,7 +770,7 @@ class WP_Object_Cache {
     $this->sqlite->exec( 'COMMIT' );
   }
   /**
-   * Do the necessary Data Definition Language work.
+   * Do the necessary Data Definition Language work to create the stats table.
    *
    * @param string $tbl The name of the table.
    *
@@ -800,10 +813,8 @@ class WP_Object_Cache {
     $this->deleteone_stmt = $this->sqlite->prepare( "DELETE FROM $tbl WHERE name = :name;" );
     $this->deletegroup_stmt = $this->sqlite->prepare( "DELETE FROM $tbl WHERE name LIKE :group || '%';" );
     /*
-     * Some versions of SQLite3 built into php predate the 3.38 advent of unixepoch() (2022-02-22).
-     * And, others predate the 3.24 advent of UPSERT (that is, ON CONFLICT) syntax.
-     * In that case we have to do attempt-update then insert to get updates to work. Sigh.
-     */
+     * Some versions of SQLite3 predate the 3.24 advent of UPSERT (that is, ON CONFLICT) syntax.
+     * In that case we have to do attempt-update then insert to get updates to work. Sigh.    */
     $has_upsert = version_compare( $this->sqlite_get_version(), '3.24', 'ge' );
     if ( $has_upsert ) {
       $this->upsertone_stmt =
@@ -1332,7 +1343,7 @@ class WP_Object_Cache {
   /**
    * Determine whether a key exists in the cache.
    *
-   * As a side-effect and optimization, copy the value from the SQLite store
+   * As a side effect and optimization, copy the value from the SQLite store
    * to RAM if it exists in the SQLite store.
    *
    * @param int|string $name Cache key to check for existence.

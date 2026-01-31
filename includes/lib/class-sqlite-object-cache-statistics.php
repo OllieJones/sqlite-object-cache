@@ -575,7 +575,7 @@ class SQLite_Object_Cache_Statistics {
         $filesize  = $sizes['total_pages'];
         $freesize  = $sizes['free_pages'];
         $usedsize  = $filesize - $freesize;
-        $statssize = $sizes['stats_size'];
+        $statssize = isset( $sizes['stats_size'] ) ? $sizes['stats_size'] : 0;
         $mmapsize  = $sizes['mmap_size'];
 
         $has_apcu = defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU

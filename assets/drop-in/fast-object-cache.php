@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache (Drop-in)
- * Version: 1.6.1
+ * Version: 1.7.0
  * Note: This Version number must match the one in SQLite_Object_Cache::_construct.f
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -11,7 +11,7 @@
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Requires PHP: 5.6
  * Tested up to: 6.9
- * Stable tag: 1.6.1
+ * Stable tag: 1.7.0
  *
  * NOTE: This uses the file .../wp-content/.ht.object_cache.sqlite
  * and the associated files .../wp-content/.ht.object_cache.sqlite-shm
@@ -38,9 +38,24 @@
  * @package SQLiteCache
  */
 /**  @noinspection SqlDialectInspection */
-if ( ! defined( 'ABSPATH' ) ) exit;
+if ( ! defined( 'ABSPATH' ) ) {
+  exit;
+}
 if ( defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) && WP_SQLITE_OBJECT_CACHE_DISABLED ) {
   return;
+}
+/**
+ * hrtime polyfill if needed, pre php 7.3.
+ */
+if ( ! function_exists( 'hrtime' ) ) {
+  function hrtime( $as_float = false ) {
+    if ( $as_float ) {
+      return microtime( true ) * 1000;
+    }
+    $result = microtime( false );
+    $result[1] = 1000 * $result [1];
+    return $result;
+  }
 }
 /**
  * Object Cache API: WP_Object_Cache class, reworked for SQLite3 drop-in.
@@ -77,7 +92,11 @@ class WP_Object_Cache {
   const SQLITE_FILENAME = '.ht.object-cache.sqlite';
   const JOURNAL_MODE = 'WAL'; /* or 'MEMORY' */
   const TRANSACTION_SIZE_LIMIT = 64;
-  private $dropin_version = '1.6.1';
+  /**
+   * @var array One-level associative array $name=>$value
+   */
+  private $cache = array();
+  private $dropin_version = '1.7.0';
   /** @var bool True if a transaction is active. */
   private $transaction_active = false;
   /** Path to SQLite file.  @var string */
@@ -131,6 +150,23 @@ class WP_Object_Cache {
    */
   public $persistent_misses = 0;
   /**
+   *  The APCu cache is active in this request
+   * @var bool
+   */
+  private $apcu_active = false;
+  /**
+   *  The APCu cache is active in this site, but not in this request.
+   *
+   *  This happens for wp-cli programs.
+   * @var bool
+   */
+  private $apcu_supported = false;
+  private $salt;
+  /**
+   * @var string
+   */
+  public $apcusalt;
+  /**
    * Amount of times the apcu cache had the item.
    *
    * @since 2.0.0
@@ -144,6 +180,24 @@ class WP_Object_Cache {
    * @var int
    */
   public $apcu_misses = 0;
+  /**
+   * Prepared statement to clear a flagt.
+   *
+   * @var SQLite3Stmt
+   */
+  private $clearflag_stmt;
+  /**
+   * Prepared statement to set a flagt.
+   *
+   * @var SQLite3Stmt
+   */
+  private $setflag_stmt;
+  /**
+   * Flags table name.
+   *
+   * @var string  Usually 'object_flags'.
+   */
+  private $flags_table_name;
   /**
    * The blog prefix to prepend to keys in non-global groups.
    *
@@ -204,10 +258,6 @@ class WP_Object_Cache {
     'userslugs',
   );
   /**
-   * @var array One-level associative array $name=>$value
-   */
-  private $cache = array();
-  /**
    * Holds the value of is_multisite().
    *
    * @since 3.5.0
@@ -257,18 +307,6 @@ class WP_Object_Cache {
    */
   private $updateone_stmt;
   /**
-   * Prepared statement to clear a flagt.
-   *
-   * @var SQLite3Stmt
-   */
-  private $clearflag_stmt;
-  /**
-   * Prepared statement to set a flagt.
-   *
-   * @var SQLite3Stmt
-   */
-  private $setflag_stmt;
-  /**
    * Associative array of items we know ARE NOT in SQLite.
    *
    * When a name is not in this array it means we don't know if it is in SQLite or not.
@@ -283,12 +321,6 @@ class WP_Object_Cache {
    */
   private $cache_table_name;
   /**
-   * Flags table name.
-   *
-   * @var string  Usually 'object_flags'.
-   */
-  private $flags_table_name;
-  /**
    * The expiration time of non-expiring cache entries has this added to the timestamp.
    *
    * This is a sentinel value, marking a non-expiring cache entry AND
@@ -302,6 +334,11 @@ class WP_Object_Cache {
    * @var int a large number of seconds, much larger than 2**32
    */
   private $noexpire_timestamp_offset;
+  /**
+   *  The starting time of the request.
+   * @var
+   */
+  private $start_time;
   /**
    * Monitoring options for the SQLite cache.
    *
@@ -349,23 +386,6 @@ class WP_Object_Cache {
    */
   private $mmap_size = 0;
   /**
-   *  The APCu cache is active in this request
-   * @var bool
-   */
-  private $apcu_active = false;
-  /**
-   *  The APCu cache is active in this site, but not in this request.
-   *
-   *  This happens for wp-cli programs.
-   * @var bool
-   */
-  private $apcu_supported = false;
-  private $salt;
-  /**
-   * @var string
-   */
-  public $apcusalt;
-  /**
    * Constructor for SQLite Object Cache.
    *
    * @since 2.0.8
@@ -375,8 +395,8 @@ class WP_Object_Cache {
     global $table_prefix;
     $this->cache_group_types();
     /* The environment. */
-    $apc = defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU;
     $cli = defined( 'WP_CLI' ) && WP_CLI;
+    $apc = defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU;
     $this->apcu_active = $apc && function_exists( 'apcu_enabled' ) && apcu_enabled() && ! $cli;
     $this->apcu_supported = $apc && $cli;
     $force_serialize = defined( 'WP_SQLITE_OBJECT_CACHE_SERIALIZE' ) && WP_SQLITE_OBJECT_CACHE_SERIALIZE;
@@ -411,8 +431,8 @@ class WP_Object_Cache {
     $this->multisite = is_multisite();
     $this->blog_prefix = $this->multisite ? get_current_blog_id() . ':' : '';
     $this->cache_table_name = self::OBJECT_CACHE_TABLE;
-    $this->flags_table_name = self::OBJECT_FLAGS_TABLE;
     $this->noexpire_timestamp_offset = self::NOEXPIRE_TIMESTAMP_OFFSET;
+    $this->flags_table_name = self::OBJECT_FLAGS_TABLE;
     $this->open_connection();
     /* If wp-cli code cached something into SQLite, clear the APCu cache because it's stale. */
     if ( $this->apcu_active && $this->clear_flag() ) {
@@ -511,7 +531,7 @@ class WP_Object_Cache {
     $log_exception = ! ! $exception;
     $server_software = 'unk';
     // phpcs:disable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash
-    if (isset( $_SERVER['SERVER_SOFTWARE'] ) && is_string( $_SERVER['SERVER_SOFTWARE'] ) ) {
+    if ( isset( $_SERVER['SERVER_SOFTWARE'] ) && is_string( $_SERVER['SERVER_SOFTWARE'] ) ) {
       $server_software = $_SERVER['SERVER_SOFTWARE'];
     }
     // phpcs:enable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash
@@ -525,7 +545,7 @@ class WP_Object_Cache {
     $msgs [] = 'php:';
     $msgs [] = PHP_VERSION;
     $msgs [] = 'server:';
-    $msgs [] = esc_html ( $server_software );
+    $msgs [] = esc_html( $server_software );
     $msgs [] = $msg;
     if ( $this->sqlite ) {
       if ( $this->sqlite->lastErrorMsg() ) {
@@ -632,9 +652,6 @@ class WP_Object_Cache {
     $q = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND tbl_name = '$this->cache_table_name';";
     $r = $this->sqlite->querySingle( $q );
     if ( 0 === $r ) {
-      /* later versions of SQLite3 have clustered primary keys, "WITHOUT ROWID" */
-      $uses_rowid = version_compare( $this->sqlite_get_version(), '3.8.2' ) < 0;
-      if ( $uses_rowid ) {
         /* @noinspection SqlIdentifier */
         $t = "
       CREATE TABLE IF NOT EXISTS $this->cache_table_name (
@@ -644,31 +661,13 @@ class WP_Object_Cache {
       );
       CREATE UNIQUE INDEX IF NOT EXISTS cache_name ON $this->cache_table_name (name);
       CREATE INDEX IF NOT EXISTS expires ON $this->cache_table_name (expires);";
-      } else {
-        /* @noinspection SqlIdentifier */
-        $t = "
-      CREATE TABLE IF NOT EXISTS $this->cache_table_name (
-         name TEXT NOT NULL PRIMARY KEY COLLATE BINARY,
-         expires INT,
-         value BLOB
-      ) WITHOUT ROWID;
-      CREATE INDEX IF NOT EXISTS expires ON $this->cache_table_name (expires);";
-      }
       $this->sqlite->exec( $t );
-      if ( $uses_rowid ) {
         /* @noinspection SqlIdentifier */
         $t = "
       CREATE TABLE IF NOT EXISTS $this->flags_table_name (
          name TEXT NOT NULL COLLATE BINARY
       );
       CREATE UNIQUE INDEX IF NOT EXISTS flags_name ON $this->flags_table_name (name);";
-      } else {
-        /* @noinspection SqlIdentifier */
-        $t = "
-      CREATE TABLE IF NOT EXISTS $this->flags_table_name (
-         name TEXT NOT NULL PRIMARY KEY COLLATE BINARY
-      ) WITHOUT ROWID;";
-      }
       $this->sqlite->exec( $t );
       /* Put the drop-in's version number in the SQLite file, for troubleshooting. */
       $version = str_replace( '.', '0', $this->dropin_version );
@@ -677,32 +676,6 @@ class WP_Object_Cache {
       }
       /* Creating SQLite tables; clear APCu at the same time. */
       $this->apcu_clear_cache();
-    }
-    $this->sqlite->exec( 'COMMIT' );
-  }
-  /**
-   * Do the necessary Data Definition Language work.
-   *
-   * @param string $tbl The name of the table.
-   *
-   * @return void
-   * @throws Exception If something fails.
-   * @noinspection SqlResolve
-   */
-  private function maybe_create_stats_table( $tbl ) {
-    $this->sqlite->exec( 'BEGIN' );
-    /* Does our table exist?  */
-    $q = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND tbl_name = '$tbl';";
-    $r = $this->sqlite->querySingle( $q );
-    if ( 0 === $r ) {
-      /* @noinspection SqlIdentifier */
-      $t = "
-      CREATE TABLE IF NOT EXISTS $tbl (
-         value BLOB,
-         timestamp INT
-      );
-      CREATE INDEX IF NOT EXISTS expires ON $tbl (timestamp);";
-      $this->sqlite->exec( $t );
     }
     $this->sqlite->exec( 'COMMIT' );
   }
@@ -724,20 +697,10 @@ class WP_Object_Cache {
     $this->deleteone_stmt = $this->sqlite->prepare( "DELETE FROM $tbl WHERE name = :name;" );
     $this->deletegroup_stmt = $this->sqlite->prepare( "DELETE FROM $tbl WHERE name LIKE :group || '%';" );
     /*
-     * Some versions of SQLite3 built into php predate the 3.38 advent of unixepoch() (2022-02-22).
-     * And, others predate the 3.24 advent of UPSERT (that is, ON CONFLICT) syntax.
-     * In that case we have to do attempt-update then insert to get updates to work. Sigh.
-     */
-    $has_upsert = version_compare( $this->sqlite_get_version(), '3.24', 'ge' );
-    if ( $has_upsert ) {
+     * Some versions of SQLite3 predate the 3.24 advent of UPSERT (that is, ON CONFLICT) syntax.
+     * In that case we have to do attempt-update then insert to get updates to work. Sigh.    */
       $this->upsertone_stmt =
         $this->sqlite->prepare( "INSERT INTO $tbl (name, value, expires) VALUES (:name, :value, $now + :expires) ON CONFLICT(name) DO UPDATE SET value=excluded.value, expires=excluded.expires;" );
-    } else {
-      $this->insertone_stmt =
-        $this->sqlite->prepare( "INSERT INTO $tbl (name, value, expires) VALUES (:name, :value, $now + :expires);" );
-      $this->updateone_stmt =
-        $this->sqlite->prepare( "UPDATE $tbl SET value = :value, expires = $now + :expires WHERE name = :name;" );
-    }
   }
   /**
    * Serialize data for persistence if need be. Use igbinary if available.
@@ -769,7 +732,7 @@ class WP_Object_Cache {
    * @return mixed|string The data, cloned if an object.
    */
   private function reconstitute( $data ) {
-    $ret = igbinary_unserialize($data);
+    $ret = igbinary_unserialize( $data );
     return is_object( $ret ) ? clone $ret : $ret;
   }
   /**
@@ -801,48 +764,12 @@ class WP_Object_Cache {
     $this->monitoring_options = $options;
   }
   /**
-   * Is recording this performance sample appropriate.
-   *
-   * We decide to take a performance sample based upon:
-   *  -- the sqlite_object_cache_settings option existing.
-   *  -- $option.capture having the 'on' value.
-   *  -- $option.samplerate >= 100 or samplerate greater than a random number.
-   *
-   * @return bool True if this sample should be recorded.
-   */
-  private function is_sample() {
-    $options = get_option( 'sqlite_object_cache_settings', 'missing_option' );
-    if ( 'missing_option' === $options ) {
-      /* set an absent option to the empty array, so we don't repeatedly hammer the cache looking for a missing option */
-      update_option( 'sqlite_object_cache_settings', array(), true );
-      return false;
-    }
-    if ( is_array( $options ) && array_key_exists( 'capture', $options ) && 'on' === $options['capture'] ) {
-      if ( array_key_exists( 'samplerate', $options ) && is_numeric( $options['samplerate'] ) ) {
-        /* samplerate is a percentage likelihood in the option setting */
-        $samplerate = $options['samplerate'];
-        if ( $samplerate > 0 ) {
-          /* a random sample at $samplerate */
-          if ( $samplerate >= 100 ) {
-            return true;
-          }
-          // phpcs:ignore 	WordPress.WP.AlternativeFunctions.rand_rand
-          return ( $samplerate * 10000 ) > rand( 1, 1000000 );
-        }
-      }
-    }
-    return false;
-  }
-  /**
    * Capture statistics if need be. Leave the connection open for late-arriving cache operations.
    *
    * @return bool
    */
   public function close() {
     if ( $this->sqlite ) {
-      if ( $this->is_sample() ) {
-        $this->capture( $this->monitoring_options );
-      }
       /* Once in a while checkpoint the whole WAL log, so it doesn't grow without bound on a busy site. */
       // phpcs:ignore WordPress.WP.AlternativeFunctions.rand_rand
       if ( 1 === rand( 1, 5000 ) ) {
@@ -850,36 +777,6 @@ class WP_Object_Cache {
       }
     }
     return true;
-  }
-  /**
-   * Remove statistics entries from the cache
-   *
-   * @param int|null $age Number of seconds' worth to retain. Default: retain none.
-   *
-   * @return void
-   */
-  public function sqlite_reset_statistics( $age = null ) {
-    try {
-      $object_stats = self::OBJECT_STATS_TABLE;
-      $this->maybe_create_stats_table( $object_stats );
-      if ( ! is_numeric( $age ) ) {
-        /* @noinspection SqlWithoutWhere */
-        $sql = "DELETE FROM $object_stats;";
-        $this->sqlite->exec( $sql );
-      } else {
-        $expires = (int) ( time() - $age );
-        $limit = self::TRANSACTION_SIZE_LIMIT;
-        $hits = $limit;
-        while ( $hits >= $limit ) {
-          /* @noinspection SqlResolve */
-          $sql = "DELETE FROM $object_stats WHERE timestamp IN (SELECT timestamp FROM $object_stats WHERE timestamp < $expires LIMIT $limit);";
-          $this->sqlite->exec( $sql );
-          $hits = $this->sqlite->changes();
-        }
-      }
-    } catch ( Exception $ex ) {
-      $this->error_log( 'SQLite Object Cache exception resetting statistics. ', $ex );
-    }
   }
   /**
    * Remove old entries.
@@ -956,14 +853,10 @@ class WP_Object_Cache {
     }
   }
   public function sqlite_sizes() {
-    $object_stats = self::OBJECT_STATS_TABLE;
-    $this->maybe_create_stats_table( $object_stats );
     $items = array(
       'page_size' => 'PRAGMA page_size;',
       'free_pages' => 'PRAGMA freelist_count;',
       'total_pages' => 'PRAGMA page_count;',
-      'stats_items' => "SELECT COUNT(value) FROM $object_stats;",
-      'stats_size' => "SELECT SUM(LENGTH(value)+ 4) FROM $object_stats;",
       'mmap_size' => "PRAGMA mmap_size;",
     );
     $result = array();
@@ -993,83 +886,6 @@ class WP_Object_Cache {
       "SELECT SUM(LENGTH(value) + LENGTH(name) + 6) length, ((expires+15)/16)*16 expires FROM $object_cache WHERE expires >= $offset GROUP BY ((expires+15)/16)*16 ORDER BY ((expires+15)/16)*16";
     $stmt = $this->sqlite->prepare( $sql );
     return $stmt->execute();
-  }
-  /**
-   * Read rows from the stored statistics.
-   *
-   * @return Generator
-   * @throws Exception Announce SQLite failure.
-   * @noinspection SqlResolve
-   */
-  public function sqlite_load_statistics() {
-    $object_stats = self::OBJECT_STATS_TABLE;
-    $this->maybe_create_stats_table( $object_stats );
-    $sql = "SELECT value FROM $object_stats;";
-    $stmt = $this->sqlite->prepare( $sql );
-    try {
-      $resultset = $stmt->execute();
-      while ( true ) {
-        $row = $resultset->fetchArray( SQLITE3_NUM );
-        if ( ! $row ) {
-          break;
-        }
-        $value = igbinary_unserialize($row[0]);
-        yield (object) $value;
-      }
-    } finally {
-      $resultset->finalize();
-    }
-  }
-  /**
-   * Do the performance-capture operation.
-   *
-   * Put a row named sqlite_object_cache.mon.123456 into sqlite containing the raw data.
-   *
-   * @param array $options Contents of $this->monitoring_options.
-   *
-   * @return void
-   * @noinspection SqlResolve
-   */
-  private function capture( $options ) {
-    $now = microtime( true );
-    global $wpdb;
-    $record = array(
-      'time' => $now,
-      'elapsed' => hrtime( true ) - $this->start_time,
-      'RAMhits' => $this->cache_hits,
-      'RAMmisses' => $this->cache_misses,
-      'DISKhits' => $this->persistent_hits,
-      'DISKmisses' => $this->persistent_misses,
-      'open' => $this->open_time,
-      'selects' => $this->select_times,
-      'gets' => $this->get_times,
-      'get_multiples' => $this->get_multiple_times,
-      'get_multiple_keys' => $this->get_multiple_keys,
-      'inserts' => $this->insert_times,
-      'deletes' => $this->delete_times,
-      'checkpoints' => $this->checkpoint_times,
-      'DBMSqueries' => $wpdb->num_queries,
-      'RAM' => memory_get_peak_usage( true ),
-      'APCuhits' => $this->apcu_hits,
-      'APCumisses' => $this->apcu_misses,
-      'APCufetchhit' => $this->apcu_fetch_hit_times,
-      'APCufetchmiss' => $this->apcu_fetch_miss_times,
-      'APCustore' => $this->apcu_store_times,
-    );
-    $object_stats = self::OBJECT_STATS_TABLE;
-    try {
-      $this->maybe_create_stats_table( $object_stats );
-      $sql =
-        "INSERT INTO $object_stats (value, timestamp) VALUES (:value, :timestamp);";
-      $stmt = $this->sqlite->prepare( $sql );
-      $stmt->bindValue( ':value', igbinary_serialize($record), SQLITE3_BLOB );
-      $stmt->bindValue( ':timestamp', time(), SQLITE3_INTEGER );
-      $result = $stmt->execute();
-      $result->finalize();
-    } catch ( Exception $ex ) {
-      $this->error_log( 'error capturing performance stats, skipping.', $ex );
-    }
-    unset( $record, $stmt );
   }
   /** Get the version of the drop-in.
    *
@@ -1256,7 +1072,7 @@ class WP_Object_Cache {
   /**
    * Determine whether a key exists in the cache.
    *
-   * As a side-effect and optimization, copy the value from the SQLite store
+   * As a side effect and optimization, copy the value from the SQLite store
    * to RAM if it exists in the SQLite store.
    *
    * @param int|string $name Cache key to check for existence.
@@ -1418,7 +1234,7 @@ class WP_Object_Cache {
     $retries = 3;
     while ( $retries -- > 0 ) {
       try {
-        $this->actual_put_by_name( $name, igbinary_serialize($data), $expires );
+        $this->actual_put_by_name( $name, igbinary_serialize( $data ), $expires );
         unset( $this->not_in_persistent_cache[ $name ] );
         if ( $this->apcu_active ) {
           $astart = 0.0;
@@ -1453,40 +1269,12 @@ class WP_Object_Cache {
     if ( $this->apcu_supported ) {
       $this->set_flag();
     }
-    if ( $this->upsertone_stmt ) {
       $stmt = $this->upsertone_stmt;
       $stmt->bindValue( ':name', $name, SQLITE3_TEXT );
       $stmt->bindValue( ':value', $value, SQLITE3_BLOB );
       $stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
       $result = $stmt->execute();
       $result->finalize();
-    } else {
-      /* Pre-upsert version (pre- 3.24) of SQLite,
-       * Need to try update, then do insert if need be.
-       * Race conditions are possible, hence BEGIN / COMMIT
-       */
-      if ( ! $this->transaction_active ) {
-        $this->sqlite->exec( 'BEGIN' );
-      }
-      $stmt = $this->updateone_stmt;
-      $stmt->bindValue( ':name', $name, SQLITE3_TEXT );
-      $stmt->bindValue( ':value', $value, SQLITE3_BLOB );
-      $stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
-      $result = $stmt->execute();
-      $result->finalize();
-      if ( 0 === $this->sqlite->changes() ) {
-        /* Updated zero rows, so we need an insert. */
-        $stmt = $this->insertone_stmt;
-        $stmt->bindValue( ':name', $name, SQLITE3_TEXT );
-        $stmt->bindValue( ':value', $value, SQLITE3_BLOB );
-        $stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
-        $result = $stmt->execute();
-        $result->finalize();
-      }
-      if ( ! $this->transaction_active ) {
-        $this->sqlite->exec( 'COMMIT' );
-      }
-    }
   }
   /**
    * Replaces the contents in the cache, if contents already exist.

@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache (Drop-in)
- * Version: 1.6.1
+ * Version: 1.7.0
  * Note: This Version number must match the one in SQLite_Object_Cache::_construct.f
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -11,7 +11,7 @@
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Requires PHP: 5.6
  * Tested up to: 6.9
- * Stable tag: 1.6.1
+ * Stable tag: 1.7.0
  *
  * NOTE: This uses the file .../wp-content/.ht.object_cache.sqlite
  * and the associated files .../wp-content/.ht.object_cache.sqlite-shm
@@ -108,7 +108,7 @@ class WP_Object_Cache {
    */
   private $cache = array();
 
-  private $dropin_version = '1.6.2';
+  private $dropin_version = '1.7.0';
   /** @var bool True if a transaction is active. */
   private $transaction_active = false;
   /** Path to SQLite file.  @var string */
@@ -376,12 +376,12 @@ class WP_Object_Cache {
    * @var int a large number of seconds, much larger than 2**32
    */
   private $noexpire_timestamp_offset;
-  #ifndef NOSTATS
   /**
    *  The starting time of the request.
    * @var
    */
   private $start_time;
+  #ifndef NOSTATS
   /**
    * An array of overall get times, excluding RAM cache.
    * @var array

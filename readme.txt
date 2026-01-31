@@ -5,8 +5,8 @@ Tags: cache, object cache, sqlite, performance, apcu
 Requires at least: 5.5
 Requires PHP: 5.6
 Tested up to: 6.9
-Version: 1.6.0
-Stable tag: 1.6.0
+Version: 1.7.0
+Stable tag: 1.7.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache
