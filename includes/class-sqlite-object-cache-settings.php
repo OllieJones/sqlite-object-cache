@@ -276,10 +276,6 @@ class SQLite_Object_Cache_Settings {
         'render_section_header' => array( $this, 'stats_section_header' ),
         'form_post_callback'    => array( $this, 'validate_reset_stats' ),
       );
-    global $wp_object_cache;
-    if ( method_exists( $wp_object_cache, 'sqlite_reset_statistics' ) ) {
-    }
-
 
     return apply_filters( $this->parent->_token . '_settings_fields', $settings );
   }
@@ -785,7 +781,7 @@ class SQLite_Object_Cache_Settings {
     do_settings_sections( $this->parent->_token . '_settings' );
 
     global $wp_object_cache;
-    if ( method_exists( $wp_object_cache, 'sqlite_reset_statistics' ) ) {
+    if ( 'stats' !== $tab ||  method_exists( $wp_object_cache, 'sqlite_reset_statistics' ) ) {
       echo '<p class="submit">' . PHP_EOL;
       echo '<input type="hidden" name="tab" value="' . esc_attr( $tab ) . '" />' . PHP_EOL;
       echo '<input name="Submit" type="submit" class="button-primary" value="' . esc_attr( $submit_caption ) . '" />' . PHP_EOL;
