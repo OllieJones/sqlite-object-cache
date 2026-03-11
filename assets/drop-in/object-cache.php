@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache (Drop-in)
- * Version: 1.6.1
+ * Version: 1.6.2
  * Note: This Version number must match the one in SQLite_Object_Cache::_construct.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -10,8 +10,8 @@
  * License: GPLv2+
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Requires PHP: 5.6
- * Tested up to: 6.9
- * Stable tag: 1.6.1
+ * Tested up to: 7.0
+ * Stable tag: 1.6.2
  *
  * NOTE: This uses the file .../wp-content/.ht.object_cache.sqlite
  * and the associated files .../wp-content/.ht.object_cache.sqlite-shm
@@ -32,6 +32,7 @@
  * WP_SQLITE_OBJECT_CACHE_INTKEY_LENGTH is the number of digits for optimizing consecutive integer cache keys, default 6.
  * WP_SQLITE_OBJECT_CACHE_INTKEY_ERODE_GAPS allows fewer SQL statements but can retrieve extra items, default 2.
  * WP_SQLITE_OBJECT_CACHE_MMAP_SIZE sets SQLite's mmap_size in MiB. Default 0: disabled.
+ * WP_SQLITE_OBJECT_CACHE_CHECKPOINT_FREQ. How often, probabilistically, to force checkpointing SQLite3. Make this number smaller on busy sites if your WAL file gets too long. Default 5000.
  *
  * Credit: Till Krüss's https://wordpress.org/plugins/redis-cache/ plugin. Thanks, Till!
  *
@@ -96,8 +97,9 @@ class WP_Object_Cache {
   const SQLITE_FILENAME = '.ht.object-cache.sqlite';
   const JOURNAL_MODE = 'WAL';  /* or 'MEMORY' */
   const TRANSACTION_SIZE_LIMIT = 64;
+  const CHECKPOINT_FREQ = 5000;
 
-  private $dropin_version = '1.6.1';
+  private $dropin_version = '1.6.2';
   /** @var bool True if a transaction is active. */
   private $transaction_active = false;
   /** Path to SQLite file.  @var string */
@@ -107,6 +109,11 @@ class WP_Object_Cache {
    * @var string|null Version of SQLite3 software in use.
    */
   private $sqlite_version;
+
+  /**
+   * @var int Checkpoint frequency. Probabilistic.
+   */
+  private $checkpoint_freq;
 
   /**
    * SQLite's journal mode.
@@ -507,6 +514,10 @@ class WP_Object_Cache {
 
     }
     $this->sqlite_path = $this->create_database_path();
+
+    $this->checkpoint_freq = defined( 'WP_SQLITE_OBJECT_CACHE_CHECKPOINT_FREQ' )
+      ? (int) WP_SQLITE_OBJECT_CACHE_CHECKPOINT_FREQ
+      : self::CHECKPOINT_FREQ;
 
     $this->sqlite_timeout = defined( 'WP_SQLITE_OBJECT_CACHE_TIMEOUT' )
       ? WP_SQLITE_OBJECT_CACHE_TIMEOUT
@@ -1006,8 +1017,9 @@ class WP_Object_Cache {
       }
       /* Once in a while checkpoint the whole WAL log, so it doesn't grow without bound on a busy site. */
       // phpcs:ignore WordPress.WP.AlternativeFunctions.rand_rand
-      if ( 1 === rand( 1, 5000 ) ) {
-        $this->checkpoint();
+      if ( 1 === rand( 1, $this->checkpoint_freq ) ) {
+        $arg = ( 1 === rand( 1, 5)) ? 'TRUNCATE' : 'RESTART';
+        $this->checkpoint( $arg );
       }
     }
 
@@ -1055,7 +1067,6 @@ class WP_Object_Cache {
   public function sqlite_remove_expired() {
     $items_removed = 0;
     try {
-      $this->checkpoint();
       $limit = self::TRANSACTION_SIZE_LIMIT;
       $hit   = $limit;
 
@@ -1070,6 +1081,7 @@ class WP_Object_Cache {
     } catch ( Exception $ex ) {
       $this->error_log( 'sqlite_remove_expired', $ex );
     }
+    $this->checkpoint( 'TRUNCATE' );
 
     return $items_removed > 0;
   }
@@ -2241,7 +2253,7 @@ class WP_Object_Cache {
         }
         $this->sqlite->exec( 'PRAGMA optimize;' );
       }
-      $this->checkpoint();
+      $this->checkpoint( 'TRUNCATE' );
     } catch ( Exception $ex ) {
       /* Empty, intentionally. */
     }
@@ -2347,7 +2359,7 @@ class WP_Object_Cache {
    * @return void
    */
   public function vacuum() {
-    $this->checkpoint();
+    $this->checkpoint( 'TRUNCATE' );
     $this->sqlite->exec( 'VACUUM;' );
 
   }
@@ -2389,6 +2401,8 @@ class WP_Object_Cache {
         $sql = 'DELETE FROM ' . $this->cache_table_name . ';';
         $this->sqlite->exec( $sql );
       }
+      $this->checkpoint( 'TRUNCATE' );
+      $this->sqlite->exec( 'PRAGMA optimize' );
 
       if ( $vacuum ) {
         $this->vacuum();
@@ -2627,11 +2641,13 @@ class WP_Object_Cache {
    * This should be done infrequently, but frequently enough so that the log doesn't just keep getting
    * bigger in busy sites with lots of concurrency.
    *
+   * @param string $arg 'TRUNCATE' to remove WAL file or, the default, 'RESTART' to re-use it.
+   *
    * @return void
    */
-  private function checkpoint() {
+  private function checkpoint( $arg = 'RESTART' ) {
     $start = hrtime( true );
-    $this->sqlite->exec( 'PRAGMA wal_checkpoint(RESTART)' );
+    $this->sqlite->exec( "PRAGMA wal_checkpoint($arg)" );
     $this->checkpoint_times[] = 0.000001 * ( hrtime( true ) - $start );
   }
 

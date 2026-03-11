@@ -5,9 +5,9 @@ Author: Oliver Jones
 **Tags:** cache, object cache, sqlite, performance, apcu \
 **Requires at least:** 5.5 \
 **Requires PHP:** 5.6 \
-**Tested up to:** 6.9 \
-Version: 1.6.1 \
-**Stable tag:** 1.6.1 \
+**Tested up to:** 7.0 \
+Version: 1.6.2 \
+**Stable tag:** 1.6.2 \
 **License:** GPLv2 or later \
 **License URI:** http://www.gnu.org/licenses/gpl-2.0.html \
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache \
@@ -91,6 +91,7 @@ The plugin offers a few optional settings for your `wp-config.php` file. Do not 
 * WP_SQLITE_OBJECT_CACHE_TIMEOUT. This is the SQLite timeout in *milliseconds*. Default: 5000. (Notice that the times shown in the Statistics tab are in *microseconds* if you compare them to this timeout setting.)
 * WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE. This is the [SQLite journal mode](https://www.sqlite.org/pragma.html#pragma_journal_mode). Default: ‘WAL’. Possible values DELETE | TRUNCATE | PERSIST | MEMORY | WAL | WAL2 | NONE. (Not all SQLite3 implementations handle WAL2.)
 * WP_SQLITE_OBJECT_CACHE_APCU. If true enables cache acceleration with APCu RAM. This setting can be updated from the plugin's Settings page.
+* WP_SQLITE_OBJECT_CACHE_CHECKPOINT_FREQ. How often, probabilistically, to force checkpointing SQLite3. Make this number smaller on busy sites if your WAL file gets too long. Default 5000.
 * WP_CACHE_KEY_SALT. Set this to a hard-to-guess random value to make your cache keys harder to guess. This setting works for other cache plugins as well. 
 
 <h4>Configuring the cache key salt</h4>
@@ -312,6 +313,12 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 ## Changelog
 
+### 1.6.2
+
+* Use PRAGMA wal_checkpoint(TRUNCATE) sometimes to avoid excessively large re-used WAL files.
+* Checkpoint more frequently.
+* Health check for OPcache (not APCu) RAM exhaustion.
+
 ### 1.6.1
 
 * Add an optional Flush Object Cache button to the admin bar. Props to Nick Chomey.
@@ -359,4 +366,4 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 ## Upgrade Notice
 
-Shorten drop-in file, get rid of plugin-checker flags, add optional Flush button to admin bar, fix writability check bug.
+Improve SQLite3 checkpointing to reduce the probability of huge WAL files. Add a health check for OPcache (not APCu) exhaustion.

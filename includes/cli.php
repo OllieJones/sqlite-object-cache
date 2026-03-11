@@ -47,7 +47,7 @@ class SQLite_Object_Cache_CLI extends WP_CLI_Command {
       /* translators: 1: version for sqlite  2: version for plugin  3: igbinary  --- for WP-CLI */
         __( 'Versions: Plugin: %2$s  SQLite: %1$s  igbinary: %3$s.', 'sqlite-object-cache' ),
         $wp_object_cache->sqlite_get_version(),
-        '1.6.1',
+        '1.6.2',
         $igbinary );
     }
 

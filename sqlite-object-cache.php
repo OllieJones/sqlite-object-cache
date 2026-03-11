@@ -1,14 +1,14 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache
- * Version: 1.6.1
+ * Version: 1.6.2
  * Plugin URI: https://github.com/OllieJones/sqlite-object-cache
  * Description: A persistent object cache backend powered by SQLite3.
  * Author: Oliver Jones
  * Author URI: https://github.com/OllieJones/
  * Requires at least: 5.5
  * Requires PHP: 5.6
- * Tested up to: 6.9
+ * Tested up to: 7.0
  * Text Domain: sqlite-object-cache
  * Domain Path: /languages/
  * License: GPLv2 or later
@@ -42,7 +42,7 @@ if ( is_admin()  || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
  * @since  1.0.0
  */
 function sqlite_object_cache() {
-  $instance = new SQLite_Object_Cache( __FILE__, '1.6.1' );
+  $instance = new SQLite_Object_Cache( __FILE__, '1.6.2' );
 
   if ( is_admin() ) {
     $instance->settings = new SQLite_Object_Cache_Settings( $instance, plugin_basename( __FILE__ ));
