@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-03-11T21:29:54+00:00\n"
+"POT-Creation-Date: 2026-03-17T23:54:55+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.9.0\n"
 "X-Domain: sqlite-object-cache\n"
@@ -467,43 +467,53 @@ msgid "Something is wrong with your PHP opcode cache state"
 msgstr ""
 
 #. Translators: 1: number of megabytes. 2: percent full
-#: includes/lib/class-sqlite-object-cache-opcache.php:158
+#: includes/lib/class-sqlite-object-cache-opcache.php:159
 msgid "%d megabytes are allocated to PHP's opcode cache. It is %d%% full."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-opcache.php:162
-#: includes/lib/class-sqlite-object-cache-opcache.php:179
+#. Translators: 1: number of megabytes
+#: includes/lib/class-sqlite-object-cache-opcache.php:163
+msgid "%d megabytes are allocated to PHP's opcode cache. It is full."
+msgstr ""
+
+#: includes/lib/class-sqlite-object-cache-opcache.php:168
+#: includes/lib/class-sqlite-object-cache-opcache.php:192
 msgid "Learn how to configure it."
 msgstr ""
 
 #. translators: 1: a number of megabytes. Notice that this should not have any suffix, like MB, appended to it.
-#: includes/lib/class-sqlite-object-cache-opcache.php:170
+#: includes/lib/class-sqlite-object-cache-opcache.php:176
 msgid "Ask your hosting provider to increase the opcache.memory_consumption directive in php.ini, setting it to at least %d."
 msgstr ""
 
 #. Translators: 1: number of megabytes. 2: percent full
-#: includes/lib/class-sqlite-object-cache-opcache.php:175
+#: includes/lib/class-sqlite-object-cache-opcache.php:182
 msgid "%d megabytes are allocated to the opcode cache's strings buffer. It is %d%% full."
 msgstr ""
 
+#. Translators: 1: number of megabytes
+#: includes/lib/class-sqlite-object-cache-opcache.php:186
+msgid "%d megabytes are allocated to the opcode cache's strings buffer. It is full."
+msgstr ""
+
 #. translators: 1: a number of megabytes. Notice that this should not have any suffix, like MB, appended to it.
-#: includes/lib/class-sqlite-object-cache-opcache.php:187
+#: includes/lib/class-sqlite-object-cache-opcache.php:200
 msgid "Ask your hosting provider to increase the opcache.interned_strings_buffer directive in php.ini, setting it to at least %d."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-opcache.php:197
+#: includes/lib/class-sqlite-object-cache-opcache.php:210
 msgid "Opcode cache has enough RAM"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-opcache.php:211
+#: includes/lib/class-sqlite-object-cache-opcache.php:224
 msgid "Your PHP opcode cache and its interned strings cache need more RAM allocated to them."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-opcache.php:226
+#: includes/lib/class-sqlite-object-cache-opcache.php:239
 msgid "Your PHP opcode cache's interned strings cache needs more RAM allocated to it."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-opcache.php:240
+#: includes/lib/class-sqlite-object-cache-opcache.php:253
 msgid "Your PHP opcode cache needs more RAM allocated to it."
 msgstr ""
 

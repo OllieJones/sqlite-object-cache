@@ -97,7 +97,7 @@ class WP_Object_Cache {
   const SQLITE_FILENAME = '.ht.object-cache.sqlite';
   const JOURNAL_MODE = 'WAL';  /* or 'MEMORY' */
   const TRANSACTION_SIZE_LIMIT = 64;
-  const CHECKPOINT_FREQ = 5000;
+  const CHECKPOINT_FREQ = 2000;
 
   private $dropin_version = '1.6.2';
   /** @var bool True if a transaction is active. */
@@ -515,9 +515,9 @@ class WP_Object_Cache {
     }
     $this->sqlite_path = $this->create_database_path();
 
-    $this->checkpoint_freq = defined( 'WP_SQLITE_OBJECT_CACHE_CHECKPOINT_FREQ' )
+    $this->checkpoint_freq = 4 * ( defined( 'WP_SQLITE_OBJECT_CACHE_CHECKPOINT_FREQ' )
       ? (int) WP_SQLITE_OBJECT_CACHE_CHECKPOINT_FREQ
-      : self::CHECKPOINT_FREQ;
+      : self::CHECKPOINT_FREQ );
 
     $this->sqlite_timeout = defined( 'WP_SQLITE_OBJECT_CACHE_TIMEOUT' )
       ? WP_SQLITE_OBJECT_CACHE_TIMEOUT
@@ -1015,14 +1015,17 @@ class WP_Object_Cache {
       if ( $this->is_sample() ) {
         $this->capture( $this->monitoring_options );
       }
-      /* Once in a while checkpoint the whole WAL log, so it doesn't grow without bound on a busy site. */
+      /*
+       * Once in a while checkpoint the whole WAL log, so it doesn't grow without bound on a busy site.
+       * One in four times we do this, truncate (zero the length of) the WAL log file  */
       // phpcs:ignore WordPress.WP.AlternativeFunctions.rand_rand
-      if ( 1 === rand( 1, $this->checkpoint_freq ) ) {
-        $arg = ( 1 === rand( 1, 5)) ? 'TRUNCATE' : 'RESTART';
-        $this->checkpoint( $arg );
+      $r = rand( 1, $this->checkpoint_freq );
+      if ( 1 === $r ) {
+        $this->checkpoint( 'TRUNCATE' );
+      } else if ( $r <= 4 ) {
+        $this->checkpoint();
       }
     }
-
     return true;
   }
 

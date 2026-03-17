@@ -120,14 +120,14 @@ class SQLite_Object_Cache_Opcache {
     }
 
     try {
-      $mem_total         = (float) $status['memory_usage']['used_memory'] + (float) $status['memory_usage']['free_memory'] + (float) $status['memory_usage']['wasted_memory'];
-      $frac_mem_used     = 1.0 - ( (float) $status['memory_usage']['free_memory'] / $mem_total );
-      $mem_total         = (int) $mem_total / ( 1024 * 1024 );
-      $mem_needed        = floor( (int) ( $mem_total * 1.5 ) );
-      $mem_needed        = $mem_needed < $this->cache_min ? $this->cache_min : $mem_needed;
-      $pct_mem_used      = number_format( 100 * $frac_mem_used, 0 );
-      $mem_full          = $pct_mem_used >= 95;;
-      $mem_url           = 'https://php.net/manual/en/opcache.configuration.php#ini.opcache.memory-consumption';
+      $mem_total     = (float) $status['memory_usage']['used_memory'] + (float) $status['memory_usage']['free_memory'] + (float) $status['memory_usage']['wasted_memory'];
+      $frac_mem_used = 1.0 - ( (float) $status['memory_usage']['free_memory'] / $mem_total );
+      $mem_total     = (int) $mem_total / ( 1024 * 1024 );
+      $mem_needed    = floor( (int) ( $mem_total * 1.5 ) );
+      $mem_needed    = $mem_needed < $this->cache_min ? $this->cache_min : $mem_needed;
+      $pct_mem_used  = number_format( 100 * $frac_mem_used, 0 );
+      $mem_full      = $pct_mem_used >= 95;;
+      $mem_url = 'https://php.net/manual/en/opcache.configuration.php#ini.opcache.memory-consumption';
 
       $strings_total     = (float) $status['interned_strings_usage']['buffer_size'];
       $frac_strings_used = (float) $status['interned_strings_usage']['used_memory'] / $strings_total;
@@ -153,10 +153,16 @@ class SQLite_Object_Cache_Opcache {
 
     $description   = array();
     $action        = array();
-    $description[] = sprintf(
-                     /* Translators: 1: number of megabytes. 2: percent full */
-                       __( '%d megabytes are allocated to PHP\'s opcode cache. It is %d%% full.', 'sqlite-object-cache' ),
-                       $mem_total, $pct_mem_used ) . ' ' .
+    $message       = ( $frac_mem_used < 0.995 )
+      ? sprintf(
+      /* Translators: 1: number of megabytes. 2: percent full */
+        __( '%d megabytes are allocated to PHP\'s opcode cache. It is %d%% full.', 'sqlite-object-cache' ),
+        $mem_total, $pct_mem_used )
+      : sprintf(
+      /* Translators: 1: number of megabytes */
+        __( '%d megabytes are allocated to PHP\'s opcode cache. It is full.', 'sqlite-object-cache' ),
+        $mem_total );
+    $description[] = $message . ' ' .
                      sprintf( '<a href="%s" target="_blank">%s<span class="screen-reader-text">%s</span><span aria-hidden="true" class="dashicons dashicons-external"></span></a>',
                        esc_url( $mem_url ),
                        __( 'Learn how to configure it.', 'sqlite-object-cache' ),
@@ -170,10 +176,17 @@ class SQLite_Object_Cache_Opcache {
         __( 'Ask your hosting provider to increase the opcache.memory_consumption directive in php.ini, setting it to at least %d.', 'sqlite-object-cache' ),
         $mem_needed );
     }
-    $description[] = sprintf(
-                     /* Translators: 1: number of megabytes. 2: percent full */
-                       __( '%d megabytes are allocated to the opcode cache\'s strings buffer. It is %d%% full.', 'sqlite-object-cache' ),
-                       $strings_total, $pct_strings_used ) . ' ' .
+    $message = ( $frac_strings_used < 0.995 )
+      ? sprintf(
+      /* Translators: 1: number of megabytes. 2: percent full */
+        __( '%d megabytes are allocated to the opcode cache\'s strings buffer. It is %d%% full.', 'sqlite-object-cache' ),
+        $strings_total, $pct_strings_used )
+      : sprintf(
+      /* Translators: 1: number of megabytes */
+        __( '%d megabytes are allocated to the opcode cache\'s strings buffer. It is full.', 'sqlite-object-cache' ),
+        $strings_total );
+
+    $description[] = $message . ' ' .
                      sprintf( '<a href="%s" target="_blank">%s<span class="screen-reader-text">%s</span><span aria-hidden="true" class="dashicons dashicons-external"></span></a>',
                        esc_url( $strings_url ),
                        __( 'Learn how to configure it.', 'sqlite-object-cache' ),

@@ -91,7 +91,7 @@ The plugin offers a few optional settings for your `wp-config.php` file. Do not 
 * WP_SQLITE_OBJECT_CACHE_TIMEOUT. This is the SQLite timeout in *milliseconds*. Default: 5000. (Notice that the times shown in the Statistics tab are in *microseconds* if you compare them to this timeout setting.)
 * WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE. This is the [SQLite journal mode](https://www.sqlite.org/pragma.html#pragma_journal_mode). Default: ‘WAL’. Possible values DELETE | TRUNCATE | PERSIST | MEMORY | WAL | WAL2 | NONE. (Not all SQLite3 implementations handle WAL2.)
 * WP_SQLITE_OBJECT_CACHE_APCU. If true enables cache acceleration with APCu RAM. This setting can be updated from the plugin's Settings page.
-* WP_SQLITE_OBJECT_CACHE_CHECKPOINT_FREQ. How often, probabilistically, to force checkpointing SQLite3. Make this number smaller on busy sites if your WAL file gets too long. Default 5000.
+* WP_SQLITE_OBJECT_CACHE_CHECKPOINT_FREQ. How often, probabilistically, to force checkpointing SQLite3. Make this number smaller on busy sites if your WAL file gets too long. Default 2000.
 * WP_CACHE_KEY_SALT. Set this to a hard-to-guess random value to make your cache keys harder to guess. This setting works for other cache plugins as well. 
 
 <h4>Configuring the cache key salt</h4>
