@@ -96,53 +96,88 @@ class SQLite_Object_Cache_Opcache {
   }
 
   /**
+   * Get the cleaned-up opcache status.
+   *
+   * This returns an array:
+   * list( $mem_total, $frac_mem_used, $pct_mem_used, $mem_full, $mem_needed,
+   *       $strings_total, $frac_strings_used,$pct_strings_used, $strings_full, $strings_needed ) = $this->get_status()
+   *
+   * @return array|false
+   */
+  public function get_status() {
+    if ( function_exists( 'opcache_get_status' ) ) {
+      $status = @opcache_get_status( false ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- Warning emitted in failure case.
+    } else {
+      return false;
+    }
+
+    try {
+      $mem_total     = (float) $status['memory_usage']['used_memory'] + (float) $status['memory_usage']['free_memory'] + (float) $status['memory_usage']['wasted_memory'];
+      $frac_mem_used = 1.0 - ( (float) $status['memory_usage']['free_memory'] / $mem_total );
+      $mem_total     = (int) $mem_total / ( MB_IN_BYTES );
+      $mem_needed    = floor( (int) ( $mem_total * 1.5 ) );
+      $mem_needed    = $mem_needed < $this->cache_min ? $this->cache_min : $mem_needed;
+      $pct_mem_used  = number_format( 100 * $frac_mem_used, 0 );
+      $mem_full      = $pct_mem_used >= 95;;
+
+      $strings_total     = (float) $status['interned_strings_usage']['buffer_size'];
+      $frac_strings_used = (float) $status['interned_strings_usage']['used_memory'] / $strings_total;
+      $strings_total     = (int) $strings_total / ( MB_IN_BYTES );
+      $strings_needed    = floor( (int) ( $strings_total * 1.5 ) );
+      $strings_needed    = $strings_needed < $this->strings_min ? $this->strings_min : $strings_needed;
+      $pct_strings_used  = number_format( 100 * $frac_strings_used, 0 );
+      $strings_full      = $pct_strings_used >= 95;
+
+    } catch ( Exception $ex ) {
+      return false;
+    }
+
+    return array(
+      $mem_total,
+      $frac_mem_used,
+      $pct_mem_used,
+      $mem_full,
+      $mem_needed,
+      $strings_total,
+      $frac_strings_used,
+      $pct_strings_used,
+      $strings_full,
+      $strings_needed,
+    );
+
+  }
+
+  /**
    * Check whether the Opcode Cache has enough RAM.
    * @return array
    * @throws Exception
    *
    */
-
   public function test_opcache_full() {
-    if ( function_exists( 'opcache_get_status' ) ) {
-      $status = @opcache_get_status( false ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- Warning emitted in failure case.
-    } else {
+    if ( ! function_exists( 'opcache_get_status' ) ) {
       return array(
+        //phpcs:ignore WordPress.WP.I18n.MissingArgDomain
         'label'       => __( 'Opcode cache is not enabled' ),
         'status'      => 'recommended',
         'badge'       => array(
+          //phpcs:ignore WordPress.WP.I18n.MissingArgDomain
           'label' => __( 'Performance' ),
           'color' => 'blue',
         ),
+        //phpcs:ignore WordPress.WP.I18n.MissingArgDomain
         'description' => '<p>' . __( 'Enabling this cache can significantly improve the performance of your site.' ) . '</p>',
         'test'        => 'opcode_cache_full',
 
       );
     }
 
-    try {
-      $mem_total     = (float) $status['memory_usage']['used_memory'] + (float) $status['memory_usage']['free_memory'] + (float) $status['memory_usage']['wasted_memory'];
-      $frac_mem_used = 1.0 - ( (float) $status['memory_usage']['free_memory'] / $mem_total );
-      $mem_total     = (int) $mem_total / ( 1024 * 1024 );
-      $mem_needed    = floor( (int) ( $mem_total * 1.5 ) );
-      $mem_needed    = $mem_needed < $this->cache_min ? $this->cache_min : $mem_needed;
-      $pct_mem_used  = number_format( 100 * $frac_mem_used, 0 );
-      $mem_full      = $pct_mem_used >= 95;;
-      $mem_url = 'https://php.net/manual/en/opcache.configuration.php#ini.opcache.memory-consumption';
-
-      $strings_total     = (float) $status['interned_strings_usage']['buffer_size'];
-      $frac_strings_used = (float) $status['interned_strings_usage']['used_memory'] / $strings_total;
-      $strings_total     = (int) $strings_total / ( 1024 * 1024 );
-      $strings_needed    = floor( (int) ( $strings_total * 1.5 ) );
-      $strings_needed    = $strings_needed < $this->strings_min ? $this->strings_min : $strings_needed;
-      $pct_strings_used  = number_format( 100 * $frac_strings_used, 0 );
-      $strings_full      = $pct_strings_used >= 95;
-      $strings_url       = 'https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.interned-strings-buffer';
-
-    } catch ( Exception $ex ) {
+    $result = $this->get_status();
+    if ( false === $result ) {
       return array(
         'label'       => __( 'Your PHP opcode cache state seems to be corrupt', 'sqlite-object-cache' ),
         'status'      => 'recommended',
         'badge'       => array(
+          //phpcs:ignore WordPress.WP.I18n.MissingArgDomain
           'label' => __( 'Performance' ),
           'color' => 'blue',
         ),
@@ -150,54 +185,68 @@ class SQLite_Object_Cache_Opcache {
         'test'        => 'opcode_cache_full',
       );
     }
+    list( $mem_total,
+      $frac_mem_used,
+      $pct_mem_used,
+      $mem_full,
+      $mem_needed,
+      $strings_total,
+      $frac_strings_used,
+      $pct_strings_used,
+      $strings_full,
+      $strings_needed ) = $result;
+
+    $mem_url     = 'https://php.net/manual/en/opcache.configuration.php#ini.opcache.memory-consumption';
+    $strings_url = 'https://www.php.net/manual/en/opcache.configuration.php#ini.opcache.interned-strings-buffer';
+
 
     $description   = array();
     $action        = array();
     $message       = ( $frac_mem_used < 0.995 )
       ? sprintf(
       /* Translators: 1: number of megabytes. 2: percent full */
-        __( '%d megabytes are allocated to PHP\'s opcode cache. It is %d%% full.', 'sqlite-object-cache' ),
+        __( '%1$d megabytes are allocated to PHP\'s opcode cache. It is %2$d%% full.', 'sqlite-object-cache' ),
         $mem_total, $pct_mem_used )
       : sprintf(
       /* Translators: 1: number of megabytes */
-        __( '%d megabytes are allocated to PHP\'s opcode cache. It is full.', 'sqlite-object-cache' ),
+        __( '%1$d megabytes are allocated to PHP\'s opcode cache. It is full.', 'sqlite-object-cache' ),
         $mem_total );
     $description[] = $message . ' ' .
-                     sprintf( '<a href="%s" target="_blank">%s<span class="screen-reader-text">%s</span><span aria-hidden="true" class="dashicons dashicons-external"></span></a>',
+                     sprintf( '<a href="%1$s" target="_blank">%2$s<span class="screen-reader-text">%3$s</span><span aria-hidden="true" class="dashicons dashicons-external"></span></a>',
                        esc_url( $mem_url ),
                        __( 'Learn how to configure it.', 'sqlite-object-cache' ),
-                       /* translators: Hidden accessibility text. */
+                       //phpcs:ignore WordPress.WP.I18n.MissingArgDomain
                        __( '(opens in a new tab)' )
                      );
     if ( $mem_full ) {
 
       $action[] = sprintf(
       /* translators: 1: a number of megabytes. Notice that this should not have any suffix, like MB, appended to it. */
-        __( 'Ask your hosting provider to increase the opcache.memory_consumption directive in php.ini, setting it to at least %d.', 'sqlite-object-cache' ),
+        __( 'Ask your hosting provider to increase the opcache.memory_consumption directive in php.ini, setting it to at least %1$d.', 'sqlite-object-cache' ),
         $mem_needed );
     }
     $message = ( $frac_strings_used < 0.995 )
       ? sprintf(
       /* Translators: 1: number of megabytes. 2: percent full */
-        __( '%d megabytes are allocated to the opcode cache\'s strings buffer. It is %d%% full.', 'sqlite-object-cache' ),
+        __( '%1$d megabytes are allocated to the opcode cache\'s strings buffer. It is %2$d%% full.', 'sqlite-object-cache' ),
         $strings_total, $pct_strings_used )
       : sprintf(
       /* Translators: 1: number of megabytes */
-        __( '%d megabytes are allocated to the opcode cache\'s strings buffer. It is full.', 'sqlite-object-cache' ),
+        __( '%1$d megabytes are allocated to the opcode cache\'s strings buffer. It is full.', 'sqlite-object-cache' ),
         $strings_total );
 
     $description[] = $message . ' ' .
-                     sprintf( '<a href="%s" target="_blank">%s<span class="screen-reader-text">%s</span><span aria-hidden="true" class="dashicons dashicons-external"></span></a>',
+                     sprintf( '<a href="%1$s" target="_blank">%2$s<span class="screen-reader-text">%3$s</span><span aria-hidden="true" class="dashicons dashicons-external"></span></a>',
                        esc_url( $strings_url ),
                        __( 'Learn how to configure it.', 'sqlite-object-cache' ),
-                       /* translators: Hidden accessibility text. */
+                       //phpcs:ignore WordPress.WP.I18n.MissingArgDomain
                        __( '(opens in a new tab)' )
                      );
     if ( $strings_full ) {
 
       $action[] = sprintf(
       /* translators: 1: a number of megabytes. Notice that this should not have any suffix, like MB, appended to it. */
-        __( 'Ask your hosting provider to increase the opcache.interned_strings_buffer directive in php.ini, setting it to at least %d.', 'sqlite-object-cache' ),
+        __( 'Ask your hosting provider to increase the opcache.interned_strings_buffer directive in php.ini, setting it to at least %1$d.', 'sqlite-object-cache' ),
         $strings_needed );
     }
 
@@ -210,6 +259,7 @@ class SQLite_Object_Cache_Opcache {
         'label'       => __( "Opcode cache has enough RAM", 'sqlite-object-cache' ),
         'status'      => 'good',
         'badge'       => array(
+          //phpcs:ignore WordPress.WP.I18n.MissingArgDomain
           'label' => __( 'Performance' ),
           'color' => 'blue',
         ),
@@ -224,6 +274,7 @@ class SQLite_Object_Cache_Opcache {
         'label'       => __( "Your PHP opcode cache and its interned strings cache need more RAM allocated to them.", 'sqlite-object-cache' ),
         'status'      => 'recommended',
         'badge'       => array(
+          //phpcs:ignore WordPress.WP.I18n.MissingArgDomain
           'label' => __( 'Performance' ),
           'color' => 'blue',
         ),
@@ -239,6 +290,7 @@ class SQLite_Object_Cache_Opcache {
         'label'       => __( "Your PHP opcode cache's interned strings cache needs more RAM allocated to it.", 'sqlite-object-cache' ),
         'status'      => 'recommended',
         'badge'       => array(
+          //phpcs:ignore WordPress.WP.I18n.MissingArgDomain
           'label' => __( 'Performance' ),
           'color' => 'blue',
         ),
@@ -253,6 +305,7 @@ class SQLite_Object_Cache_Opcache {
       'label'       => __( "Your PHP opcode cache needs more RAM allocated to it.", 'sqlite-object-cache' ),
       'status'      => 'recommended',
       'badge'       => array(
+        //phpcs:ignore WordPress.WP.I18n.MissingArgDomain
         'label' => __( 'Performance' ),
         'color' => 'blue',
       ),
@@ -263,5 +316,3 @@ class SQLite_Object_Cache_Opcache {
   }
 
 }
-
-new SQLite_Object_Cache_Opcache();

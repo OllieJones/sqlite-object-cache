@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-03-17T23:54:55+00:00\n"
+"POT-Creation-Date: 2026-03-18T13:27:01+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.9.0\n"
 "X-Domain: sqlite-object-cache\n"
@@ -165,7 +165,7 @@ msgstr ""
 
 #. translators: 1 actual SQLite version. 2 required SQLite version)
 #: includes/class-sqlite-object-cache-settings.php:496
-#: includes/class-sqlite-object-cache.php:263
+#: includes/class-sqlite-object-cache.php:264
 msgid "You cannot use the SQLite Object Cache plugin. Your server only offers SQLite3 version %1$s, but at least %2$s is required."
 msgstr ""
 
@@ -287,63 +287,63 @@ msgstr ""
 msgid "SQLite utilization"
 msgstr ""
 
-#: includes/class-sqlite-object-cache.php:144
+#: includes/class-sqlite-object-cache.php:145
 msgid "Flushed the SQLite Object Cache successfully after a software installation or upgrade."
 msgstr ""
 
-#: includes/class-sqlite-object-cache.php:256
+#: includes/class-sqlite-object-cache.php:257
 msgid "You cannot use the SQLite Object Cache plugin. Your server does not have php's SQLite3 extension installed."
 msgstr ""
 
-#: includes/class-sqlite-object-cache.php:297
+#: includes/class-sqlite-object-cache.php:298
 msgid "Could not initialize filesystem."
 msgstr ""
 
-#: includes/class-sqlite-object-cache.php:303
+#: includes/class-sqlite-object-cache.php:304
 msgid "Object cache drop-in file doesn’t exist."
 msgstr ""
 
-#: includes/class-sqlite-object-cache.php:307
+#: includes/class-sqlite-object-cache.php:308
 msgid "Test file exists, but couldn’t be deleted."
 msgstr ""
 
-#: includes/class-sqlite-object-cache.php:311
+#: includes/class-sqlite-object-cache.php:312
 msgid "Content directory is not writable."
 msgstr ""
 
-#: includes/class-sqlite-object-cache.php:315
+#: includes/class-sqlite-object-cache.php:316
 msgid "Failed to copy test file."
 msgstr ""
 
-#: includes/class-sqlite-object-cache.php:319
+#: includes/class-sqlite-object-cache.php:320
 msgid "Copied test file doesn’t exist."
 msgstr ""
 
-#: includes/class-sqlite-object-cache.php:325
+#: includes/class-sqlite-object-cache.php:326
 msgid "Couldn’t verify test file contents."
 msgstr ""
 
-#: includes/class-sqlite-object-cache.php:329
+#: includes/class-sqlite-object-cache.php:330
 msgid "Copied test file couldn’t be deleted."
 msgstr ""
 
-#: includes/class-sqlite-object-cache.php:643
+#: includes/class-sqlite-object-cache.php:644
 msgid "Flush Object Cache"
 msgstr ""
 
-#: includes/class-sqlite-object-cache.php:646
+#: includes/class-sqlite-object-cache.php:647
 msgid "Delete all object cache entries now, including all transients."
 msgstr ""
 
-#: includes/class-sqlite-object-cache.php:669
+#: includes/class-sqlite-object-cache.php:670
 msgid "You do not have permission to flush the object cache."
 msgstr ""
 
-#: includes/class-sqlite-object-cache.php:674
+#: includes/class-sqlite-object-cache.php:675
 msgid "Cache flush is only available on the main site."
 msgstr ""
 
-#: includes/class-sqlite-object-cache.php:719
+#: includes/class-sqlite-object-cache.php:720
 msgid "SQLite Object Cache flushed successfully."
 msgstr ""
 
@@ -458,62 +458,62 @@ msgstr ""
 msgid "Your PHP opcode cache has sufficient RAM"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-opcache.php:143
+#: includes/lib/class-sqlite-object-cache-opcache.php:177
 msgid "Your PHP opcode cache state seems to be corrupt"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-opcache.php:149
+#: includes/lib/class-sqlite-object-cache-opcache.php:184
 msgid "Something is wrong with your PHP opcode cache state"
 msgstr ""
 
 #. Translators: 1: number of megabytes. 2: percent full
-#: includes/lib/class-sqlite-object-cache-opcache.php:159
-msgid "%d megabytes are allocated to PHP's opcode cache. It is %d%% full."
+#: includes/lib/class-sqlite-object-cache-opcache.php:208
+msgid "%1$d megabytes are allocated to PHP's opcode cache. It is %2$d%% full."
 msgstr ""
 
 #. Translators: 1: number of megabytes
-#: includes/lib/class-sqlite-object-cache-opcache.php:163
-msgid "%d megabytes are allocated to PHP's opcode cache. It is full."
+#: includes/lib/class-sqlite-object-cache-opcache.php:212
+msgid "%1$d megabytes are allocated to PHP's opcode cache. It is full."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-opcache.php:168
-#: includes/lib/class-sqlite-object-cache-opcache.php:192
+#: includes/lib/class-sqlite-object-cache-opcache.php:217
+#: includes/lib/class-sqlite-object-cache-opcache.php:241
 msgid "Learn how to configure it."
 msgstr ""
 
 #. translators: 1: a number of megabytes. Notice that this should not have any suffix, like MB, appended to it.
-#: includes/lib/class-sqlite-object-cache-opcache.php:176
-msgid "Ask your hosting provider to increase the opcache.memory_consumption directive in php.ini, setting it to at least %d."
+#: includes/lib/class-sqlite-object-cache-opcache.php:225
+msgid "Ask your hosting provider to increase the opcache.memory_consumption directive in php.ini, setting it to at least %1$d."
 msgstr ""
 
 #. Translators: 1: number of megabytes. 2: percent full
-#: includes/lib/class-sqlite-object-cache-opcache.php:182
-msgid "%d megabytes are allocated to the opcode cache's strings buffer. It is %d%% full."
+#: includes/lib/class-sqlite-object-cache-opcache.php:231
+msgid "%1$d megabytes are allocated to the opcode cache's strings buffer. It is %2$d%% full."
 msgstr ""
 
 #. Translators: 1: number of megabytes
-#: includes/lib/class-sqlite-object-cache-opcache.php:186
-msgid "%d megabytes are allocated to the opcode cache's strings buffer. It is full."
+#: includes/lib/class-sqlite-object-cache-opcache.php:235
+msgid "%1$d megabytes are allocated to the opcode cache's strings buffer. It is full."
 msgstr ""
 
 #. translators: 1: a number of megabytes. Notice that this should not have any suffix, like MB, appended to it.
-#: includes/lib/class-sqlite-object-cache-opcache.php:200
-msgid "Ask your hosting provider to increase the opcache.interned_strings_buffer directive in php.ini, setting it to at least %d."
+#: includes/lib/class-sqlite-object-cache-opcache.php:249
+msgid "Ask your hosting provider to increase the opcache.interned_strings_buffer directive in php.ini, setting it to at least %1$d."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-opcache.php:210
+#: includes/lib/class-sqlite-object-cache-opcache.php:259
 msgid "Opcode cache has enough RAM"
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-opcache.php:224
+#: includes/lib/class-sqlite-object-cache-opcache.php:274
 msgid "Your PHP opcode cache and its interned strings cache need more RAM allocated to them."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-opcache.php:239
+#: includes/lib/class-sqlite-object-cache-opcache.php:290
 msgid "Your PHP opcode cache's interned strings cache needs more RAM allocated to it."
 msgstr ""
 
-#: includes/lib/class-sqlite-object-cache-opcache.php:253
+#: includes/lib/class-sqlite-object-cache-opcache.php:305
 msgid "Your PHP opcode cache needs more RAM allocated to it."
 msgstr ""
 

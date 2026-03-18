@@ -128,14 +128,15 @@ class SQLite_Object_Cache {
 
         $this->assets_url = esc_url( trailingslashit( plugins_url( '/assets/', $this->file ) ) );
 
-        $this->script_suffix = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
-
         register_activation_hook( $this->file, array( $this, 'on_activation' ) );
         register_deactivation_hook( $this->file, array( $this, 'on_deactivation' ) );
 
         if ( is_admin() ) {
-            // Suppress backups
+            /* Suppress backups of .sqlite files if possible. */
             new SQLite_Backup_Exclusion();
+
+            /* Health check */
+            new SQLite_Object_Cache_Opcache();
 
             add_action( 'admin_notices', function () {
                 $flushed = get_site_transient( 'sqlite-object-cache-flush-on-update' );
@@ -163,7 +164,7 @@ class SQLite_Object_Cache {
         }, 0 );
 
 
-        /* handle cron cache cleanup */
+        /* Handle cron cache cleanup */
         add_action( self::CLEAN_EVENT_HOOK, array( $this, 'clean_job' ), 10, 0 );
         if ( ! wp_next_scheduled( self::CLEAN_EVENT_HOOK ) ) {
             wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', self::CLEAN_EVENT_HOOK );
