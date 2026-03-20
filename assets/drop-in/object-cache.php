@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache (Drop-in)
- * Version: 1.6.2
+ * Version: 1.6.3
  * Note: This Version number must match the one in SQLite_Object_Cache::_construct.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -11,7 +11,7 @@
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Requires PHP: 5.6
  * Tested up to: 7.0
- * Stable tag: 1.6.2
+ * Stable tag: 1.6.3
  *
  * NOTE: This uses the file .../wp-content/.ht.object_cache.sqlite
  * and the associated files .../wp-content/.ht.object_cache.sqlite-shm
@@ -41,7 +41,9 @@
 
 /**  @noinspection SqlDialectInspection */
 
-if ( ! defined( 'ABSPATH' ) ) exit;
+if ( ! defined( 'ABSPATH' ) ) {
+  exit;
+}
 
 if ( defined( 'WP_SQLITE_OBJECT_CACHE_DISABLED' ) && WP_SQLITE_OBJECT_CACHE_DISABLED ) {
   return;
@@ -99,7 +101,7 @@ class WP_Object_Cache {
   const TRANSACTION_SIZE_LIMIT = 64;
   const CHECKPOINT_FREQ = 2000;
 
-  private $dropin_version = '1.6.2';
+  private $dropin_version = '1.6.3';
   /** @var bool True if a transaction is active. */
   private $transaction_active = false;
   /** Path to SQLite file.  @var string */
@@ -516,8 +518,8 @@ class WP_Object_Cache {
     $this->sqlite_path = $this->create_database_path();
 
     $this->checkpoint_freq = 4 * ( defined( 'WP_SQLITE_OBJECT_CACHE_CHECKPOINT_FREQ' )
-      ? (int) WP_SQLITE_OBJECT_CACHE_CHECKPOINT_FREQ
-      : self::CHECKPOINT_FREQ );
+        ? (int) WP_SQLITE_OBJECT_CACHE_CHECKPOINT_FREQ
+        : self::CHECKPOINT_FREQ );
 
     $this->sqlite_timeout = defined( 'WP_SQLITE_OBJECT_CACHE_TIMEOUT' )
       ? WP_SQLITE_OBJECT_CACHE_TIMEOUT
@@ -630,8 +632,8 @@ class WP_Object_Cache {
 
     $directory = dirname( $result );
     if ( ! wp_is_writable( $directory ) ) {
-        $message = sprintf( 'The SQLite Object Cache cannot be activated because the %s directory is not writable.', $directory );
-        WP_Object_Cache::drop_dead( $message );
+      $message = sprintf( 'The SQLite Object Cache cannot be activated because the %s directory is not writable.', $directory );
+      WP_Object_Cache::drop_dead( $message );
     }
 
     return $result;
@@ -655,25 +657,25 @@ class WP_Object_Cache {
    * @return void
    */
   private function error_log( $msg, $exception = null ) {
-    $log_exception = ! ! $exception;
+    $log_exception   = ! ! $exception;
     $server_software = 'unk';
     // phpcs:disable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash
-    if  (isset( $_SERVER['SERVER_SOFTWARE'] ) && is_string( $_SERVER['SERVER_SOFTWARE'] ) ) {
+    if ( isset( $_SERVER['SERVER_SOFTWARE'] ) && is_string( $_SERVER['SERVER_SOFTWARE'] ) ) {
       $server_software = $_SERVER['SERVER_SOFTWARE'];
     }
     // phpcs:enable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized,WordPress.Security.ValidatedSanitizedInput.MissingUnslash
-    $msgs          = array();
-    $msgs []       = 'SQLite Object Cache:';
-    $msgs []       = $this->dropin_version;
-    $msgs []       = 'SQLite:';
-    $msgs []       = $this->sqlite_get_version();
-    $msgs []       = $this->has_igbinary ? 'igbinary' : 'no igbinary';
-    $msgs []       = $this->apcu_active ? 'APCu active' : 'APCu inactive';
-    $msgs []       = 'php:';
-    $msgs []       = PHP_VERSION;
-    $msgs []       = 'server:';
-    $msgs []       = esc_html ( $server_software );
-    $msgs []       = $msg;
+    $msgs    = array();
+    $msgs [] = 'SQLite Object Cache:';
+    $msgs [] = $this->dropin_version;
+    $msgs [] = 'SQLite:';
+    $msgs [] = $this->sqlite_get_version();
+    $msgs [] = $this->has_igbinary ? 'igbinary' : 'no igbinary';
+    $msgs [] = $this->apcu_active ? 'APCu active' : 'APCu inactive';
+    $msgs [] = 'php:';
+    $msgs [] = PHP_VERSION;
+    $msgs [] = 'server:';
+    $msgs [] = esc_html( $server_software );
+    $msgs [] = $msg;
     if ( $this->sqlite ) {
       if ( $this->sqlite->lastErrorMsg() ) {
         $msgs []       = $this->sqlite->lastErrorMsg();
@@ -1558,13 +1560,24 @@ class WP_Object_Cache {
       $stmt->bindValue( ':name', $name, SQLITE3_TEXT );
       $result = $stmt->execute();
       $row    = $result->fetchArray( SQLITE3_NUM );
+      $result->finalize();
       if ( false !== $row ) {
         $fetchsuccess = true;
         $expires      = $row[1];
-        $expires      = ( $expires < self::NOEXPIRE_TIMESTAMP_OFFSET ) ? $expires : $expires - self::NOEXPIRE_TIMESTAMP_OFFSET;
-        $expires      = $expires - time();
-        $expires      = $expires > 0 ? $expires : DAY_IN_SECONDS;
-        $data         = $this->reconstitute( $row[0] );
+        if ( $expires < self::NOEXPIRE_TIMESTAMP_OFFSET ) {
+          /* Item has explicit expiration time. */
+          $expires -= time();
+          if ( $expires <= 0 ) {
+            /* Item has expired */
+            unset ( $this->cache[ $name ] );
+            $this->not_in_persistent_cache [ $name ] = true;
+            $success = false;
+            return null;
+          }
+        } else {
+          $expires = DAY_IN_SECONDS;
+        }
+        $data = $this->reconstitute( $row[0] );
       }
       if ( $fetchsuccess ) {
         /* Pull item into APCu */
@@ -1578,7 +1591,6 @@ class WP_Object_Cache {
       } else {
         $this->not_in_persistent_cache [ $name ] = true;
       }
-      $result->finalize();
     } catch ( Exception $ex ) {
       unset( $this->not_in_persistent_cache [ $name ] );
       $this->error_log( 'get_by_name', $ex );
@@ -1914,17 +1926,26 @@ class WP_Object_Cache {
           $this->cache[ $name ] = $this->reconstitute( $row[1] );
 
           $expires = $row[2];
-          $expires = ( $expires < self::NOEXPIRE_TIMESTAMP_OFFSET ) ? $expires : $expires - self::NOEXPIRE_TIMESTAMP_OFFSET;
-          $expires = $expires - time();
-          $expires = $expires > 0 ? $expires : DAY_IN_SECONDS;
-
-          if ( $this->apcu_active ) {
-            $astart = hrtime( true );
-            apcu_store( $this->apcusalt . $name, $this->cache[ $name ], $expires );
-            $this->apcu_store_times[] = hrtime( true ) - $astart;
-
+          if ( $expires < self::NOEXPIRE_TIMESTAMP_OFFSET ) {
+            $expires -= time();
+          } else {
+            $expires = DAY_IN_SECONDS;
           }
-          unset( $this->not_in_persistent_cache[ $name ] );
+          if ( $expires > 0 ) {
+            /* Item has not expired */
+            ++ $this->persistent_hits;
+            $name                 = $row[0];
+            $name                 = $row[0];
+            $this->cache[ $name ] = $this->reconstitute( $row[1] );
+            unset( $this->not_in_persistent_cache[ $name ] );
+
+            if ( $this->apcu_active ) {
+              $astart = hrtime( true );
+              apcu_store( $this->apcusalt . $name, $this->cache[ $name ], $expires );
+              $this->apcu_store_times[] = hrtime( true ) - $astart;
+
+            }
+          }
         }
         $resultset->finalize();
         /* limit the size of the transaction, hopefully preventing timeouts in other clients */

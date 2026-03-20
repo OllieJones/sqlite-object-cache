@@ -5,8 +5,8 @@ Tags: cache, object cache, sqlite, performance, apcu
 Requires at least: 5.5
 Requires PHP: 5.6
 Tested up to: 7.0
-Version: 1.6.2
-Stable tag: 1.6.2
+Version: 1.6.3
+Stable tag: 1.6.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache
@@ -73,8 +73,8 @@ If you have the [igbinary](https://www.php.net/manual/en/intro.igbinary.php) and
 Installing "SQLite Object Cache" can be done either by searching for "SQLite Object Cache" via the "Plugins > Add New" screen in your WordPress dashboard, or by using the following steps:
 
 1. Download the plugin via WordPress.org
-1. Upload the ZIP file through the 'Plugins > Add New > Upload' screen in your WordPress dashboard
-1. Activate the plugin through the 'Plugins' menu in WordPress
+2. Upload the ZIP file through the 'Plugins > Add New > Upload' screen in your WordPress dashboard
+3. Activate the plugin through the 'Plugins' menu in WordPress
 
 Or, use these WP-CLI commands to install the plugin, secure it, activate it, and set the cache size to 32MiB.
 
@@ -306,6 +306,9 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 == Changelog ==
 
+= 1.6.3 =
+A race condition caused expired cache entries to be copied to APCu incorrectly sometimes. This is corrected. Props to @pobrehablador for finding this defect.
+
 = 1.6.2 =
 
 * Use PRAGMA wal_checkpoint(TRUNCATE) sometimes to avoid excessively large re-used WAL files.
@@ -359,4 +362,4 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 == Upgrade Notice ==
 
-Improve SQLite3 checkpointing to reduce the probability of huge WAL files. Add a health check for OPcache (not APCu) exhaustion.
+Correct a race condition upon cache item expiration. Improve SQLite3 checkpointing to reduce the probability of huge WAL files. Add a health check for OPcache (not APCu) exhaustion.
