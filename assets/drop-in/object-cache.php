@@ -2025,7 +2025,7 @@ class WP_Object_Cache {
       $key = self::INTKEY_SENTINEL . str_pad( $key, 1 + $this->intkey_length, '0', STR_PAD_LEFT );
     }
 
-    if ( $this->multisite && ! isset( $this->global_groups[ $group ] ) ) {
+    if ( $this->multisite && ! in_array( $group, $this->global_groups, true ) ) {
       $key = $this->blog_prefix . $key;
     }
     if ( empty( $group ) ) {
@@ -2524,8 +2524,7 @@ class WP_Object_Cache {
   public function add_global_groups( $groups ) {
     $groups = (array) $groups;
 
-    $groups              = array_fill_keys( $groups, true );
-    $this->global_groups = array_merge( $this->global_groups, $groups );
+    $this->global_groups = array_unique(array_merge( $this->global_groups, $groups ));
 
     $this->cache_group_types();
   }
@@ -2562,7 +2561,7 @@ class WP_Object_Cache {
       $splits = explode( '|', $name, 2 );
       if ( 2 === count( $splits ) ) {
         $group = $splits[0];
-        if ( ! isset( $this->global_groups[ $group ] ) ) {
+        if ( ! in_array( $group, $this->global_groups, true ) ) {
           $names_to_flush[] = $name;
         }
       }
