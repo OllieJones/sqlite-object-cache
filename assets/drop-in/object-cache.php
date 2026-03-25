@@ -525,6 +525,10 @@ class WP_Object_Cache {
       $this->ignored_groups = array_unique( array_merge( $this->ignored_groups, WP_SQLITE_OBJECT_CACHE_IGNORED_GROUPS ) );
     }
 
+    if ( defined( 'WP_SQLITE_OBJECT_CACHE_UNFLUSHABLE_GROUPS' ) && is_array( WP_SQLITE_OBJECT_CACHE_UNFLUSHABLE_GROUPS ) ) {
+      $this->unflushable_groups = array_unique( array_merge( $this->unflushable_groups, WP_SQLITE_OBJECT_CACHE_UNFLUSHABLE_GROUPS ) );
+    }
+
     $this->multisite                 = is_multisite();
     $this->blog_prefix               = $this->multisite ? get_current_blog_id() . ':' : '';
     $this->cache_table_name          = self::OBJECT_CACHE_TABLE;
@@ -1260,24 +1264,6 @@ class WP_Object_Cache {
     $this->sqlite_version = $v['versionString'];
 
     return $this->sqlite_version;
-  }
-
-  /**
-   * Sets the list of groups not to be cached by Redis.
-   *
-   * @param array $groups List of groups that are to be ignored.
-   */
-  public function add_non_persistent_groups( $groups ) {
-    /**
-     * Filters list of groups to be added to {@see self::$ignored_groups}
-     *
-     * @param string[] $groups List of groups to be ignored.
-     *
-     * @since 2.1.7
-     */
-    $groups = apply_filters( 'sqlite_object_cache_add_non_persistent_groups', (array) $groups );
-
-    $this->ignored_groups = array_unique( array_merge( $this->ignored_groups, $groups ) );
   }
 
   /**
@@ -2480,6 +2466,24 @@ class WP_Object_Cache {
     $groups = (array) $groups;
 
     $this->global_groups = array_unique(array_merge( $this->global_groups, $groups ));
+  }
+
+  /**
+   * Sets the list of groups not to be cached by Redis.
+   *
+   * @param array $groups List of groups that are to be ignored.
+   */
+  public function add_non_persistent_groups( $groups ) {
+    /**
+     * Filters list of groups to be added to {@see self::$ignored_groups}
+     *
+     * @param string[] $groups List of groups to be ignored.
+     *
+     * @since 2.1.7
+     */
+    $groups = apply_filters( 'sqlite_object_cache_add_non_persistent_groups', (array) $groups );
+
+    $this->ignored_groups = array_unique( array_merge( $this->ignored_groups, $groups ) );
   }
 
   /**
