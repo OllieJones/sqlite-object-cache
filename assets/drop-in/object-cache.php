@@ -195,12 +195,6 @@ class WP_Object_Cache {
    */
   public $ignored_groups = array();
   /**
-   * List of groups and their types.
-   *
-   * @var array
-   */
-  public $group_type = array();
-  /**
    * Prefix used for global groups.
    *
    * @var string
@@ -478,7 +472,6 @@ class WP_Object_Cache {
     $this->start_hrtime = hrtime( true );
     $this->start_time   = time();
     global $table_prefix;
-    $this->cache_group_types();
 
     /* The environment. */
     $apc                  = defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU;
@@ -738,24 +731,6 @@ class WP_Object_Cache {
     $this->open_time = hrtime( true ) - $start;
   }
 
-  /**
-   * Set group type array
-   *
-   * @return void
-   */
-  protected function cache_group_types() {
-    foreach ( $this->global_groups as $group ) {
-      $this->group_type[ $group ] = 'global';
-    }
-
-    foreach ( $this->unflushable_groups as $group ) {
-      $this->group_type[ $group ] = 'unflushable';
-    }
-
-    foreach ( $this->ignored_groups as $group ) {
-      $this->group_type[ $group ] = 'ignored';
-    }
-  }
 
   /**
    * Do the necessary Data Definition Language work, for the cache table and flags table
@@ -1299,7 +1274,6 @@ class WP_Object_Cache {
     $groups = apply_filters( 'sqlite_object_cache_add_non_persistent_groups', (array) $groups );
 
     $this->ignored_groups = array_unique( array_merge( $this->ignored_groups, $groups ) );
-    $this->cache_group_types();
   }
 
   /**
@@ -1630,7 +1604,7 @@ class WP_Object_Cache {
 
     $this->cache[ $name ] = $data;
 
-    if ( $this->is_ignored_group( $group ) ) {
+    if ( in_array( $group, $this->ignored_groups, true ) ) {
       return true;
     }
 
@@ -2489,7 +2463,6 @@ class WP_Object_Cache {
     $groups = (array) $groups;
 
     $this->unflushable_groups = array_unique( array_merge( $this->unflushable_groups, $groups ) );
-    $this->cache_group_types();
   }
 
   /**
@@ -2503,8 +2476,6 @@ class WP_Object_Cache {
     $groups = (array) $groups;
 
     $this->global_groups = array_unique(array_merge( $this->global_groups, $groups ));
-
-    $this->cache_group_types();
   }
 
   /**
@@ -2574,39 +2545,6 @@ class WP_Object_Cache {
     return $this->apcu_active ? 'APCu|SQLite' : 'SQLite';
   }
 
-  /**
-   * Checks if the given group is part the ignored group array
-   *
-   * @param string $group Name of the group to check, pre-sanitized.
-   *
-   * @return bool
-   */
-  protected function is_ignored_group( $group ) {
-    return $this->is_group_of_type( $group, 'ignored' );
-  }
-
-  /**
-   * Checks the type of the given group
-   *
-   * @param string $group Name of the group to check, pre-sanitized.
-   * @param string $type Type of the group to check.
-   *
-   * @return bool
-   */
-  private function is_group_of_type( $group, $type ) {
-    return isset( $this->group_type[ $group ] ) && $this->group_type[ $group ] === $type;
-  }
-
-  /**
-   * Checks if the given group is part the global group array
-   *
-   * @param string $group Name of the group to check, pre-sanitized.
-   *
-   * @return bool
-   */
-  protected function is_global_group( $group ) {
-    return $this->is_group_of_type( $group, 'global' );
-  }
 
   /**
    * Get the names of the SQLite files.
