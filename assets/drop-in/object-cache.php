@@ -727,11 +727,14 @@ class WP_Object_Cache {
    * @throws Exception Announce SQLite failure.
    */
   private function actual_open_connection() {
-    $start        = hrtime( true );
+    $start = hrtime( true );
 
-    // Create file manually to set correct file permission, that might be influenced by umask, and possibly make the DB group writable
-    if ( ! file_exists( $this->sqlite_path )) {
+
+    $file_exists = file_exists( $this->sqlite_path );
+    /* Create file manually to set correct file permissions and make the DB group writable, for WP-CLI's sake */
+    if ( ! $file_exists ) {
       touch( $this->sqlite_path );
+      chmod( $this->sqlite_path, 0664 );
     }
 
     $this->sqlite = new SQLite3( $this->sqlite_path, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE, '' );
@@ -751,7 +754,7 @@ class WP_Object_Cache {
     $this->sqlite->exec( "PRAGMA journal_mode = $this->sqlite_journal_mode" );
     $this->sqlite->exec( "PRAGMA encoding = 'UTF-8'" );
     $this->sqlite->exec( 'PRAGMA case_sensitive_like = true' );
-    $this->create_object_cache_tables();
+    $this->create_object_cache_tables( $file_exists );
     $this->prepare_statements( $this->cache_table_name );
 
     $this->open_time = hrtime( true ) - $start;
@@ -791,17 +794,20 @@ class WP_Object_Cache {
    *
    * Now, range scanning( BETWEEN ) is a hassle in get_multiple, especially when using
    * get_multiple to retrieve a range of keys from a group .
-   *
+   * @param bool $file_already_existed False if we just created the .sqlite file.
    * @return void
    * @throws Exception If something fails .
    * @noinspection SqlResolve
    */
-  private function create_object_cache_tables() {
+  private function create_object_cache_tables( $file_already_existed ) {
     $this->sqlite->exec( 'BEGIN' );
     /* does our table exist?  */
-    $q = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND tbl_name = '$this->cache_table_name';";
-    $r = $this->sqlite->querySingle( $q );
-    if ( 0 === $r ) {
+    $cache_table_count = 0;
+    if ( $file_already_existed ) {
+      $query             = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND tbl_name = '$this->cache_table_name';";
+      $cache_table_count = $this->sqlite->querySingle( $query );
+    }
+    if ( 0 === $cache_table_count ) {
       /* later versions of SQLite3 have clustered primary keys, "WITHOUT ROWID" */
       $uses_rowid = version_compare( $this->sqlite_get_version(), '3.8.2' ) < 0;
       if ( $uses_rowid ) {
