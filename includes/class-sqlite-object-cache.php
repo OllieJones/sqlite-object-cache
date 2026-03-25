@@ -197,7 +197,10 @@ class SQLite_Object_Cache {
      * @return string Capability string.
      */
     public static function get_manager_capability() {
-        if ( defined( 'WP_SQLITE_OBJECT_CACHE_MANAGER_CAPABILITY' ) && WP_SQLITE_OBJECT_CACHE_MANAGER_CAPABILITY ) {
+        if ( defined( 'WP_SQLITE_OBJECT_CACHE_MANAGER_CAPABILITY' )
+            && is_string( WP_SQLITE_OBJECT_CACHE_MANAGER_CAPABILITY )
+            && '' !== WP_SQLITE_OBJECT_CACHE_MANAGER_CAPABILITY
+        ) {
             return WP_SQLITE_OBJECT_CACHE_MANAGER_CAPABILITY;
         }
         return 'manage_options';

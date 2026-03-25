@@ -9,7 +9,7 @@
  * Author URI: https://plumislandmedia.net
  * License: GPLv2+
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
- * Requires PHP: 5.6
+ * Requires PHP: 7.0
  * Tested up to: 7.0
  * Stable tag: 1.6.4
  *

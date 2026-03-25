@@ -3,7 +3,7 @@ Author: Oliver Jones
 Contributors: OllieJones
 Tags: cache, object cache, sqlite, performance, apcu
 Requires at least: 5.5
-Requires PHP: 5.6
+Requires PHP: 7.0
 Tested up to: 7.0
 Version: 1.6.4
 Stable tag: 1.6.4
@@ -94,11 +94,11 @@ The plugin offers a few optional settings for your `wp-config.php` file. Do not 
 * WP_SQLITE_OBJECT_CACHE_IGNORED_GROUPS. An array of cache group names that should not be persisted to SQLite (memory-only cache). These are merged with any groups already marked as non-persistent. Example: `define( 'WP_SQLITE_OBJECT_CACHE_IGNORED_GROUPS', ['my-group', 'another-group'] );`
 * WP_SQLITE_OBJECT_CACHE_UNFLUSHABLE_GROUPS. An array of cache group names that will be persisted to SQLite but survive `wp_cache_flush()`. These are merged with any groups already marked as unflushable. Example: `define( 'WP_SQLITE_OBJECT_CACHE_UNFLUSHABLE_GROUPS', ['my-group', 'another-group'] );`
 * WP_SQLITE_OBJECT_CACHE_MANAGER_CAPABILITY. The WordPress capability required to access the plugin's settings page and flush controls. Default: `manage_options`. Example: `define( 'WP_SQLITE_OBJECT_CACHE_MANAGER_CAPABILITY', 'manage_network_options' );`
-* WP_CACHE_KEY_SALT. Set this to a hard-to-guess random value to make your cache keys harder to guess. This setting works for other cache plugins as well. 
+* WP_CACHE_KEY_SALT. Set this to a hard-to-guess random value to make your cache keys harder to guess. This setting works for other cache plugins as well.
 
 <h4>Configuring the cache key salt</h4>
 
-When multiple sites share the same server hardware and software, they can sometimes share the same cache data. Setting `WP_CACHE_KEY_SALT` to a hard-to-guess random value for each site makes it much harder for one site to get another site's data. This works for other cache plugins too. Notice that this `WP_CACHE_KEY_SALT` value must be set, in your site's `wp-config.php` file, before activating any cache plugin, including page caches and persistent object caches. 
+When multiple sites share the same server hardware and software, they can sometimes share the same cache data. Setting `WP_CACHE_KEY_SALT` to a hard-to-guess random value for each site makes it much harder for one site to get another site's data. This works for other cache plugins too. Notice that this `WP_CACHE_KEY_SALT` value must be set, in your site's `wp-config.php` file, before activating any cache plugin, including page caches and persistent object caches.
 
 To set the value put a line like this in `wp-config.php`.
 
@@ -146,11 +146,11 @@ Notice that this setting controls the size of the data in the cache. That is the
 
 = What is APCu? =
 
-[APCu](https://www.php.net/manual/en/book.apcu.php) is php extension offering an in-memory storage medium. You can configure this plugin to use it to speed up cache lookups. 
+[APCu](https://www.php.net/manual/en/book.apcu.php) is php extension offering an in-memory storage medium. You can configure this plugin to use it to speed up cache lookups.
 
 = On my server the APCu shared memory cache is too small. How can I make it bigger? =
 
-On most operating systems the size of the APCu cache is, as installed, 32MiB. If you need to increase this size you can add a line to your `php.ini` file mentioning the [apc.shm_size](https://www.php.net/manual/en/apcu.configuration.php#ini.apcu.shm-size) configuration option. For example, the line `apc.shm_size = 64M` sets the size to 64MiB. Please consult your operating system or hosting provider documetation for information on how to do this. 
+On most operating systems the size of the APCu cache is, as installed, 32MiB. If you need to increase this size you can add a line to your `php.ini` file mentioning the [apc.shm_size](https://www.php.net/manual/en/apcu.configuration.php#ini.apcu.shm-size) configuration option. For example, the line `apc.shm_size = 64M` sets the size to 64MiB. Please consult your operating system or hosting provider documetation for information on how to do this.
 
 Notice that sometimes multiple WordPress installations that run on the same server share the same APCu cache, so provide enough space for them all. And keep in mind that this plugin only uses APCu to accelerate its operations, so the consequences of setting its size too small are not great.
 
@@ -256,7 +256,7 @@ causes your object cache data to go into the `/tmp` folder in a file named `mysi
 
 = Can this plugin use SQLite memory-mapped I/O?
 
-**Yes**. You can use your OS's memory map feature to access and share cache data with [SQLite Memory-Mapped I/O](https://www.sqlite.org/mmap.html). On some server configurations this allows multiple php processes to share cached data more quickly. In the plugin this is disabled by default. You can enable it by telling the plugin how many MiB to use for memory mapping. For example, this wp-config setting tells the plugin to use 32MiB. 
+**Yes**. You can use your OS's memory map feature to access and share cache data with [SQLite Memory-Mapped I/O](https://www.sqlite.org/mmap.html). On some server configurations this allows multiple php processes to share cached data more quickly. In the plugin this is disabled by default. You can enable it by telling the plugin how many MiB to use for memory mapping. For example, this wp-config setting tells the plugin to use 32MiB.
 
 `define( 'WP_SQLITE_OBJECT_CACHE_MMAP_SIZE', 32 );`
 
