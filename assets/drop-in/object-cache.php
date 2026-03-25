@@ -193,11 +193,7 @@ class WP_Object_Cache {
    *
    * @var array
    */
-  public $ignored_groups = array(
-    'counts',
-    'plugins',
-    'themes',
-  );
+  public $ignored_groups = array();
   /**
    * List of groups and their types.
    *
@@ -215,25 +211,7 @@ class WP_Object_Cache {
    *
    * @var array
    */
-  protected $global_groups = array(
-    'blog-details',
-    'blog-id-cache',
-    'blog-lookup',
-    'global-posts',
-    'networks',
-    'rss',
-    'sites',
-    'site-details',
-    'site-lookup',
-    'site-options',
-    'site-transient',
-    'users',
-    'useremail',
-    'userlogins',
-    'usermeta',
-    'user_meta',
-    'userslugs',
-  );
+  protected $global_groups = array();
 
   /**
    * @var array One-level associative array $name=>$value
