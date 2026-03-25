@@ -545,10 +545,10 @@ class SQLite_Object_Cache {
             // Multisite stores site transients in the sitemeta table.
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
             $wpdb->query(
-                    $wpdb->prepare(
-                    "DELETE FROM {$wpdb->sitemeta} WHERE a.meta_key LIKE %s",
-                            $wpdb->esc_like( '_site_transient_' ) . '%'
-                    )
+                $wpdb->prepare(
+                    "DELETE FROM {$wpdb->sitemeta} WHERE meta_key LIKE %s",
+                    $wpdb->esc_like( '_site_transient_' ) . '%'
+                )
             );
 
         }
@@ -601,7 +601,7 @@ class SQLite_Object_Cache {
         $updated_flag = array_key_exists( 'use_apcu_updated', $option );
         $use_apcu     = array_key_exists( 'use_apcu', $option ) && 'on' === $option['use_apcu'] ? 'on' : 'off';
         if ( $updated_flag ) {
-            unset ( $option['use_apcu_updated'] );
+            unset( $option['use_apcu_updated'] );
             $option_dirty = true;
         }
         $target_use_apcu = $this->apcu_is_activated() ? 'on' : 'off';
@@ -613,7 +613,7 @@ class SQLite_Object_Cache {
             $option_dirty       = true;
         }
         if ( $option_dirty ) {
-            if ( method_exists( $wp_object_cache, 'apcu-clear_cache' ) ) {
+            if ( method_exists( $wp_object_cache, 'apcu_clear_cache' ) ) {
                 $wp_object_cache->apcu_clear_cache();
             }
             update_option( $this->_token . '_settings', $option, true );

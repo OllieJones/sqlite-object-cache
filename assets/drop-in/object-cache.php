@@ -522,11 +522,11 @@ class WP_Object_Cache {
     $this->mmap_size = (int) $this->mmap_size * 1024 * 1024;
 
     if ( defined( 'WP_SQLITE_OBJECT_CACHE_IGNORED_GROUPS' ) && is_array( WP_SQLITE_OBJECT_CACHE_IGNORED_GROUPS ) ) {
-      $this->ignored_groups = array_unique( array_merge( $this->ignored_groups, WP_SQLITE_OBJECT_CACHE_IGNORED_GROUPS ) );
+      $this->add_non_persistent_groups( WP_SQLITE_OBJECT_CACHE_IGNORED_GROUPS );
     }
 
     if ( defined( 'WP_SQLITE_OBJECT_CACHE_UNFLUSHABLE_GROUPS' ) && is_array( WP_SQLITE_OBJECT_CACHE_UNFLUSHABLE_GROUPS ) ) {
-      $this->unflushable_groups = array_unique( array_merge( $this->unflushable_groups, WP_SQLITE_OBJECT_CACHE_UNFLUSHABLE_GROUPS ) );
+      $this->add_unflushable_groups( WP_SQLITE_OBJECT_CACHE_UNFLUSHABLE_GROUPS );
     }
 
     $this->multisite                 = is_multisite();
@@ -1594,7 +1594,7 @@ class WP_Object_Cache {
 
     $this->cache[ $name ] = $data;
 
-    if ( in_array( $group, $this->ignored_groups, true ) ) {
+    if ( isset( $this->ignored_groups[ $group ?: 'default' ] ) ) {
       return true;
     }
 
@@ -1967,7 +1967,7 @@ class WP_Object_Cache {
       $key = self::INTKEY_SENTINEL . str_pad( $key, 1 + $this->intkey_length, '0', STR_PAD_LEFT );
     }
 
-    if ( $this->multisite && ! in_array( $group, $this->global_groups, true ) ) {
+    if ( $this->multisite && ! isset( $this->global_groups[ $group ] ) ) {
       $key = $this->blog_prefix . $key;
     }
     if ( empty( $group ) ) {
@@ -2360,7 +2360,7 @@ class WP_Object_Cache {
 
       if ( $selective && is_array( $this->unflushable_groups ) && count( $this->unflushable_groups ) > 0 ) {
         $clauses = array();
-        foreach ( $this->unflushable_groups as $unflushable_group ) {
+        foreach ( array_keys( $this->unflushable_groups ) as $unflushable_group ) {
           $unflushable_group = sanitize_key( $unflushable_group );
           $clauses []        = "(name NOT LIKE '$unflushable_group|%')";
         }
@@ -2452,7 +2452,7 @@ class WP_Object_Cache {
   public function add_unflushable_groups( $groups ) {
     $groups = (array) $groups;
 
-    $this->unflushable_groups = array_unique( array_merge( $this->unflushable_groups, $groups ) );
+    $this->unflushable_groups = array_merge( $this->unflushable_groups, array_fill_keys( $groups, true ) );
   }
 
   /**
@@ -2465,11 +2465,11 @@ class WP_Object_Cache {
   public function add_global_groups( $groups ) {
     $groups = (array) $groups;
 
-    $this->global_groups = array_unique(array_merge( $this->global_groups, $groups ));
+    $this->global_groups = array_merge( $this->global_groups, array_fill_keys( $groups, true ) );
   }
 
   /**
-   * Sets the list of groups not to be cached by Redis.
+   * Sets the list of groups not to be cached by SQLite
    *
    * @param array $groups List of groups that are to be ignored.
    */
@@ -2483,7 +2483,7 @@ class WP_Object_Cache {
      */
     $groups = apply_filters( 'sqlite_object_cache_add_non_persistent_groups', (array) $groups );
 
-    $this->ignored_groups = array_unique( array_merge( $this->ignored_groups, $groups ) );
+    $this->ignored_groups = array_merge( $this->ignored_groups, array_fill_keys( $groups, true ) );
   }
 
   /**
@@ -2518,7 +2518,7 @@ class WP_Object_Cache {
       $splits = explode( '|', $name, 2 );
       if ( 2 === count( $splits ) ) {
         $group = $splits[0];
-        if ( ! in_array( $group, $this->global_groups, true ) ) {
+        if ( ! isset( $this->global_groups[ $group ] ) ) {
           $names_to_flush[] = $name;
         }
       }
