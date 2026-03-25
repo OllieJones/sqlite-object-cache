@@ -728,6 +728,12 @@ class WP_Object_Cache {
    */
   private function actual_open_connection() {
     $start        = hrtime( true );
+
+    // Create file manually to set correct file permission, that might be influenced by umask, and possibly make the DB group writable
+    if ( ! file_exists( $this->sqlite_path )) {
+      touch( $this->sqlite_path );
+    }
+
     $this->sqlite = new SQLite3( $this->sqlite_path, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE, '' );
     $this->sqlite->enableExceptions( true );
     $this->sqlite->busyTimeout( $this->sqlite_timeout );
