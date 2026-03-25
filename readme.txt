@@ -91,6 +91,8 @@ The plugin offers a few optional settings for your `wp-config.php` file. Do not 
 * WP_SQLITE_OBJECT_CACHE_JOURNAL_MODE. This is the [SQLite journal mode](https://www.sqlite.org/pragma.html#pragma_journal_mode). Default: ‘WAL’. Possible values DELETE | TRUNCATE | PERSIST | MEMORY | WAL | WAL2 | NONE. (Not all SQLite3 implementations handle WAL2.)
 * WP_SQLITE_OBJECT_CACHE_APCU. If true enables cache acceleration with APCu RAM. This setting can be updated from the plugin's Settings page.
 * WP_SQLITE_OBJECT_CACHE_CHECKPOINT_FREQ. How often, probabilistically, to force checkpointing SQLite3. Make this number smaller on busy sites if your WAL file gets too long. Default 2000.
+* WP_SQLITE_OBJECT_CACHE_IGNORED_GROUPS. An array of cache group names that should not be persisted to SQLite (memory-only cache). These are merged with any groups already marked as non-persistent. Example: `define( 'WP_SQLITE_OBJECT_CACHE_IGNORED_GROUPS', ['my-group', 'another-group'] );`
+* WP_SQLITE_OBJECT_CACHE_MANAGER_CAPABILITY. The WordPress capability required to access the plugin's settings page and flush controls. Default: `manage_options`. Example: `define( 'WP_SQLITE_OBJECT_CACHE_MANAGER_CAPABILITY', 'manage_network_options' );`
 * WP_CACHE_KEY_SALT. Set this to a hard-to-guess random value to make your cache keys harder to guess. This setting works for other cache plugins as well. 
 
 <h4>Configuring the cache key salt</h4>

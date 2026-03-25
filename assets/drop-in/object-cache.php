@@ -521,6 +521,10 @@ class WP_Object_Cache {
       : self::MMAP_SIZE;
     $this->mmap_size = (int) $this->mmap_size * 1024 * 1024;
 
+    if ( defined( 'WP_SQLITE_OBJECT_CACHE_IGNORED_GROUPS' ) && is_array( WP_SQLITE_OBJECT_CACHE_IGNORED_GROUPS ) ) {
+      $this->ignored_groups = array_unique( array_merge( $this->ignored_groups, WP_SQLITE_OBJECT_CACHE_IGNORED_GROUPS ) );
+    }
+
     $this->multisite                 = is_multisite();
     $this->blog_prefix               = $this->multisite ? get_current_blog_id() . ':' : '';
     $this->cache_table_name          = self::OBJECT_CACHE_TABLE;

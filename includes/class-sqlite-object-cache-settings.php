@@ -457,7 +457,7 @@ class SQLite_Object_Cache_Settings {
         'parent_slug' => 'options-general.php',
         'page_title'  => __( 'SQLite Persistent Object Cache', 'sqlite-object-cache' ),
         'menu_title'  => __( 'Object Cache', 'sqlite-object-cache' ),
-        'capability'  => 'manage_options',
+        'capability'  => SQLite_Object_Cache::get_manager_capability(),
         'menu_slug'   => $this->parent->_token . '_settings',
         'function'    => array( $this, 'settings_page' ),
         'icon_url'    => '',
