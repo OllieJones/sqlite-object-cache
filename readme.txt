@@ -5,8 +5,8 @@ Tags: cache, object cache, sqlite, performance, apcu
 Requires at least: 5.5
 Requires PHP: 5.6
 Tested up to: 7.0
-Version: 1.6.3
-Stable tag: 1.6.3
+Version: 1.6.4
+Stable tag: 1.6.4
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache
@@ -306,6 +306,9 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 == Changelog ==
 
+= 1.6.4 =
+Set the permissions of SQLite's files (including the -wal and -shm files) to group-writeable to make WL-CLI more convenient.
+
 = 1.6.3 =
 A race condition caused expired cache entries to be copied to APCu incorrectly sometimes. This is corrected. Props to @pobrehablador for finding this defect.
 
@@ -362,4 +365,4 @@ A race condition caused expired cache entries to be copied to APCu incorrectly s
 
 == Upgrade Notice ==
 
-Correct a race condition upon cache item expiration. Improve SQLite3 checkpointing to reduce the probability of huge WAL files. Add a health check for OPcache (not APCu) exhaustion.
+Correct a race condition upon cache item expiration. Improve SQLite3 checkpointing to reduce the probability of huge WAL files. Add a health check for OPcache (not APCu) exhaustion. Make db files group writeable.

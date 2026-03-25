@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache (Drop-in)
- * Version: 1.6.3
+ * Version: 1.6.4
  * Note: This Version number must match the one in SQLite_Object_Cache::_construct.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -11,7 +11,7 @@
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Requires PHP: 5.6
  * Tested up to: 7.0
- * Stable tag: 1.6.3
+ * Stable tag: 1.6.4
  *
  * NOTE: This uses the file .../wp-content/.ht.object_cache.sqlite
  * and the associated files .../wp-content/.ht.object_cache.sqlite-shm
@@ -101,7 +101,7 @@ class WP_Object_Cache {
   const TRANSACTION_SIZE_LIMIT = 64;
   const CHECKPOINT_FREQ = 2000;
 
-  private $dropin_version = '1.6.3';
+  private $dropin_version = '1.6.4';
   /** @var bool True if a transaction is active. */
   private $transaction_active = false;
   /** Path to SQLite file.  @var string */
@@ -729,12 +729,12 @@ class WP_Object_Cache {
   private function actual_open_connection() {
     $start = hrtime( true );
 
-
-    $file_exists = file_exists( $this->sqlite_path );
-    /* Create file manually to set correct file permissions and make the DB group writable, for WP-CLI's sake */
-    if ( ! $file_exists ) {
-      touch( $this->sqlite_path );
-      chmod( $this->sqlite_path, 0664 );
+    if ( defined ( 'PHP_OS') || 0 !== stripos(PHP_OS, 'WIN')) {
+      /* Not Windows: Create file manually to set correct file permissions and make the DB group writable, for WP-CLI's sake */
+      if ( ! file_exists( $this->sqlite_path ) ) {
+        touch( $this->sqlite_path );
+        chmod( $this->sqlite_path, 0664 );
+      }
     }
 
     $this->sqlite = new SQLite3( $this->sqlite_path, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE, '' );
@@ -754,7 +754,7 @@ class WP_Object_Cache {
     $this->sqlite->exec( "PRAGMA journal_mode = $this->sqlite_journal_mode" );
     $this->sqlite->exec( "PRAGMA encoding = 'UTF-8'" );
     $this->sqlite->exec( 'PRAGMA case_sensitive_like = true' );
-    $this->create_object_cache_tables( $file_exists );
+    $this->create_object_cache_tables(  );
     $this->prepare_statements( $this->cache_table_name );
 
     $this->open_time = hrtime( true ) - $start;
@@ -793,21 +793,16 @@ class WP_Object_Cache {
    * in the name column of the database .
    *
    * Now, range scanning( BETWEEN ) is a hassle in get_multiple, especially when using
-   * get_multiple to retrieve a range of keys from a group .
-   * @param bool $file_already_existed False if we just created the .sqlite file.
+   * get_multiple to retrieve a range of keys from a group.
    * @return void
    * @throws Exception If something fails .
    * @noinspection SqlResolve
    */
-  private function create_object_cache_tables( $file_already_existed ) {
+  private function create_object_cache_tables() {
     $this->sqlite->exec( 'BEGIN' );
     /* does our table exist?  */
-    $cache_table_count = 0;
-    if ( $file_already_existed ) {
-      $query             = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND tbl_name = '$this->cache_table_name';";
-      $cache_table_count = $this->sqlite->querySingle( $query );
-    }
-    if ( 0 === $cache_table_count ) {
+    $query = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND tbl_name = '$this->cache_table_name';";
+    if ( 0 === $this->sqlite->querySingle( $query ) ) {
       /* later versions of SQLite3 have clustered primary keys, "WITHOUT ROWID" */
       $uses_rowid = version_compare( $this->sqlite_get_version(), '3.8.2' ) < 0;
       if ( $uses_rowid ) {
