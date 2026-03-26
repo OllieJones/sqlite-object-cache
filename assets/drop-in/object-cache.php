@@ -1594,7 +1594,7 @@ class WP_Object_Cache {
 
     $this->cache[ $name ] = $data;
 
-    if ( isset( $this->ignored_groups[ $group ?: 'default' ] ) ) {
+    if ( $this->is_ignored_group( $group ) ) {
       return true;
     }
 
@@ -1781,8 +1781,9 @@ class WP_Object_Cache {
    */
   public function get_multiple( $input_keys, $group = 'default', $force = false ) {
     $values = array();
-    if ( count( $input_keys ) <= 1 || $force ) {
-      /* Send the degenerate get_multiple calls, and forced calls, to plain old get. That logic is simpler. */
+    if ( count( $input_keys ) <= 1 || $force || $this->is_ignored_group( $group ) ) {
+      /* Send the degenerate get_multiple calls, and forced calls, to plain old get. That logic is simpler.
+       * Also use the simple path for ignored groups, since they are never stored in SQLite. */
       foreach ( $input_keys as $key ) {
         $values[ $key ] = $this->get( $key, $group, $force );
       }
@@ -2023,6 +2024,14 @@ class WP_Object_Cache {
 
         return is_object( $this->cache[ $name ] ) ? clone( $this->cache[ $name ] ) : $this->cache[ $name ];
       }
+      if ( $this->is_ignored_group( $group ) ) {
+        /* Ignored groups are never stored in SQLite; skip the persistent cache lookup. */
+        $found = false;
+        ++ $this->cache_misses;
+        ++ $this->get_depth;
+
+        return false;
+      }
       if ( $this->cache_item_exists( $name ) ) {
         $found = true;
         ++ $this->cache_hits;
@@ -2147,7 +2156,10 @@ class WP_Object_Cache {
 
     $name = $this->normalize_name( $key, $group );
     unset ( $this->cache[ $name ] );
-    $this->delete_by_name( $name );
+
+    if ( ! $this->is_ignored_group( $group ) ) {
+      $this->delete_by_name( $name );
+    }
 
     return true;
   }
@@ -2308,7 +2320,9 @@ class WP_Object_Cache {
     if ( $this->cache[ $name ] < 0 ) {
       $this->cache[ $name ] = 0;
     }
-    $this->put_by_name( $name, $this->cache[ $name ], 0 );
+    if ( ! $this->is_ignored_group( $group ) ) {
+      $this->put_by_name( $name, $this->cache[ $name ], 0 );
+    }
 
     return $this->cache[ $name ];
   }
@@ -2484,6 +2498,17 @@ class WP_Object_Cache {
     $groups = apply_filters( 'sqlite_object_cache_add_non_persistent_groups', (array) $groups );
 
     $this->ignored_groups = array_merge( $this->ignored_groups, array_fill_keys( $groups, true ) );
+  }
+
+  /**
+   * Checks if the given group is in the ignored (non-persistent) groups list.
+   *
+   * @param string $group Name of the group to check.
+   *
+   * @return bool
+   */
+  protected function is_ignored_group( $group ) {
+    return isset( $this->ignored_groups[ $group ?: 'default' ] );
   }
 
   /**
