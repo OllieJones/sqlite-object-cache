@@ -2489,10 +2489,10 @@ class WP_Object_Cache {
     $this->apcu_clear_cache( $prefix );
 
     try {
+      $names_to_flush = array();
       foreach ( $this->cache as $name => $data ) {
         if ( str_starts_with( $name, $prefix ) ) {
-          unset( $this->cache[ $name ] );
-          $this->not_in_persistent_cache[ $name ] = true;
+          $names_to_flush[] = $name;
         }
       }
 
@@ -2500,6 +2500,11 @@ class WP_Object_Cache {
       $stmt->bindValue( ':group', $prefix, SQLITE3_TEXT );
       $result = $stmt->execute();
       $result->finalize();
+
+      foreach ( $names_to_flush as $name ) {
+        unset( $this->cache[ $name ] );
+        $this->not_in_persistent_cache[ $name ] = true;
+      }
     } catch ( Exception $ex ) {
       $this->error_log( 'flush_group', $ex );
       $this->delete_offending_files();
