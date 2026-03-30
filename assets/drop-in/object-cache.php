@@ -2212,12 +2212,20 @@ class WP_Object_Cache {
 
   /**
    *  Clear the APCu cache.
+   *
+   * @param string|null $group_prefix Optional group prefix including trailing delimiter.
+   *                                  Pass null to clear all drop-in APCu entries.
    * @return void
    */
-  public function apcu_clear_cache() {
+  public function apcu_clear_cache( $group_prefix = null ) {
     /* Immediate cache clear. */
     if ( $this->apcu_active ) {
-      foreach ( new APCUIterator( '/^' . $this->apcusalt . '/', APC_ITER_KEY ) as $item ) {
+      $prefix = $this->apcusalt;
+      if ( null !== $group_prefix && '' !== $group_prefix ) {
+        $prefix .= $group_prefix;
+      }
+      $prefix = preg_quote( $prefix, '/' );
+      foreach ( new APCUIterator( '/^' . $prefix . '/', APC_ITER_KEY ) as $item ) {
         apcu_delete( $item['key'] );
       }
     }
@@ -2472,21 +2480,21 @@ class WP_Object_Cache {
    * @since 6.1.0
    */
   public function flush_group( $group ) {
-    $this->apcu_clear_cache();
+    if ( empty( $group ) ) {
+      $group = 'default';
+    }
+
+    $prefix = $group . '|';
+
+    $this->apcu_clear_cache( $prefix );
 
     try {
-      $names_to_flush = array();
-      $prefix         = $group . '|';
       foreach ( $this->cache as $name => $data ) {
         if ( str_starts_with( $name, $prefix ) ) {
-          $names_to_flush [] = $name;
+          unset( $this->cache[ $name ] );
+          $this->not_in_persistent_cache[ $name ] = true;
         }
       }
-      foreach ( $names_to_flush as $name ) {
-        unset ( $this->cache[ $name ] );
-        $this->not_in_persistent_cache[ $name ] = true;
-      }
-      unset ( $names_to_flush );
 
       $stmt = $this->deletegroup_stmt;
       $stmt->bindValue( ':group', $prefix, SQLITE3_TEXT );
@@ -2496,8 +2504,6 @@ class WP_Object_Cache {
       $this->error_log( 'flush_group', $ex );
       $this->delete_offending_files();
     }
-    /* remove hints about what is in the persistent cache */
-    $this->not_in_persistent_cache = array();
 
     return true;
   }
