@@ -532,7 +532,7 @@ class SQLite_Object_Cache_Statistics {
         $splits   = explode( '|', $item->name, 2 );
         $group    = $splits[0];
         $group    = preg_replace( '/^([^_]+)_.+_(relationships)$/', '\1-*-\2', $group );
-        $group    = preg_replace( '/_[ 0-9._]+$/', '_*', $group );
+        $group    = preg_replace( '/_[ 0-9a-f._]+$/', '_*', $group );
         if ( ! array_key_exists( $group, $grouplength ) ) {
           $grouplength[ $group ] = 0;
           $groupcount[ $group ]  = 0;
