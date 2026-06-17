@@ -9,7 +9,7 @@
  * Author URI: https://plumislandmedia.net
  * License: GPLv2+
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
- * Requires PHP: 5.6
+ * Requires PHP: 7.0
  * Tested up to: 7.0
  * Stable tag: 1.6.4
  *
@@ -193,17 +193,7 @@ class WP_Object_Cache {
    *
    * @var array
    */
-  public $ignored_groups = array(
-    'counts',
-    'plugins',
-    'themes',
-  );
-  /**
-   * List of groups and their types.
-   *
-   * @var array
-   */
-  public $group_type = array();
+  public $ignored_groups = array();
   /**
    * Prefix used for global groups.
    *
@@ -215,25 +205,7 @@ class WP_Object_Cache {
    *
    * @var array
    */
-  protected $global_groups = array(
-    'blog-details',
-    'blog-id-cache',
-    'blog-lookup',
-    'global-posts',
-    'networks',
-    'rss',
-    'sites',
-    'site-details',
-    'site-lookup',
-    'site-options',
-    'site-transient',
-    'users',
-    'useremail',
-    'userlogins',
-    'usermeta',
-    'user_meta',
-    'userslugs',
-  );
+  protected $global_groups = array();
 
   /**
    * @var array One-level associative array $name=>$value
@@ -500,7 +472,6 @@ class WP_Object_Cache {
     $this->start_hrtime = hrtime( true );
     $this->start_time   = time();
     global $table_prefix;
-    $this->cache_group_types();
 
     /* The environment. */
     $apc                  = defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU;
@@ -549,6 +520,14 @@ class WP_Object_Cache {
       ? (int) WP_SQLITE_OBJECT_CACHE_MMAP_SIZE
       : self::MMAP_SIZE;
     $this->mmap_size = (int) $this->mmap_size * 1024 * 1024;
+
+    if ( defined( 'WP_SQLITE_OBJECT_CACHE_IGNORED_GROUPS' ) && is_array( WP_SQLITE_OBJECT_CACHE_IGNORED_GROUPS ) ) {
+      $this->add_non_persistent_groups( WP_SQLITE_OBJECT_CACHE_IGNORED_GROUPS );
+    }
+
+    if ( defined( 'WP_SQLITE_OBJECT_CACHE_UNFLUSHABLE_GROUPS' ) && is_array( WP_SQLITE_OBJECT_CACHE_UNFLUSHABLE_GROUPS ) ) {
+      $this->add_unflushable_groups( WP_SQLITE_OBJECT_CACHE_UNFLUSHABLE_GROUPS );
+    }
 
     $this->multisite                 = is_multisite();
     $this->blog_prefix               = $this->multisite ? get_current_blog_id() . ':' : '';
@@ -760,24 +739,6 @@ class WP_Object_Cache {
     $this->open_time = hrtime( true ) - $start;
   }
 
-  /**
-   * Set group type array
-   *
-   * @return void
-   */
-  protected function cache_group_types() {
-    foreach ( $this->global_groups as $group ) {
-      $this->group_type[ $group ] = 'global';
-    }
-
-    foreach ( $this->unflushable_groups as $group ) {
-      $this->group_type[ $group ] = 'unflushable';
-    }
-
-    foreach ( $this->ignored_groups as $group ) {
-      $this->group_type[ $group ] = 'ignored';
-    }
-  }
 
   /**
    * Do the necessary Data Definition Language work, for the cache table and flags table
@@ -1306,25 +1267,6 @@ class WP_Object_Cache {
   }
 
   /**
-   * Sets the list of groups not to be cached by Redis.
-   *
-   * @param array $groups List of groups that are to be ignored.
-   */
-  public function add_non_persistent_groups( $groups ) {
-    /**
-     * Filters list of groups to be added to {@see self::$ignored_groups}
-     *
-     * @param string[] $groups List of groups to be ignored.
-     *
-     * @since 2.1.7
-     */
-    $groups = apply_filters( 'sqlite_object_cache_add_non_persistent_groups', (array) $groups );
-
-    $this->ignored_groups = array_unique( array_merge( $this->ignored_groups, $groups ) );
-    $this->cache_group_types();
-  }
-
-  /**
    * Makes private properties readable for backward compatibility.
    *
    * @param string $name Property to get.
@@ -1839,8 +1781,9 @@ class WP_Object_Cache {
    */
   public function get_multiple( $input_keys, $group = 'default', $force = false ) {
     $values = array();
-    if ( count( $input_keys ) <= 1 || $force ) {
-      /* Send the degenerate get_multiple calls, and forced calls, to plain old get. That logic is simpler. */
+    if ( count( $input_keys ) <= 1 || $force || $this->is_ignored_group( $group ) ) {
+      /* Send the degenerate get_multiple calls, and forced calls, to plain old get. That logic is simpler.
+       * Also use the simple path for ignored groups, since they are never stored in SQLite. */
       foreach ( $input_keys as $key ) {
         $values[ $key ] = $this->get( $key, $group, $force );
       }
@@ -2081,6 +2024,14 @@ class WP_Object_Cache {
 
         return is_object( $this->cache[ $name ] ) ? clone( $this->cache[ $name ] ) : $this->cache[ $name ];
       }
+      if ( $this->is_ignored_group( $group ) ) {
+        /* Ignored groups are never stored in SQLite; skip the persistent cache lookup. */
+        $found = false;
+        ++ $this->cache_misses;
+        ++ $this->get_depth;
+
+        return false;
+      }
       if ( $this->cache_item_exists( $name ) ) {
         $found = true;
         ++ $this->cache_hits;
@@ -2205,7 +2156,10 @@ class WP_Object_Cache {
 
     $name = $this->normalize_name( $key, $group );
     unset ( $this->cache[ $name ] );
-    $this->delete_by_name( $name );
+
+    if ( ! $this->is_ignored_group( $group ) ) {
+      $this->delete_by_name( $name );
+    }
 
     return true;
   }
@@ -2366,7 +2320,9 @@ class WP_Object_Cache {
     if ( $this->cache[ $name ] < 0 ) {
       $this->cache[ $name ] = 0;
     }
-    $this->put_by_name( $name, $this->cache[ $name ], 0 );
+    if ( ! $this->is_ignored_group( $group ) ) {
+      $this->put_by_name( $name, $this->cache[ $name ], 0 );
+    }
 
     return $this->cache[ $name ];
   }
@@ -2418,7 +2374,7 @@ class WP_Object_Cache {
 
       if ( $selective && is_array( $this->unflushable_groups ) && count( $this->unflushable_groups ) > 0 ) {
         $clauses = array();
-        foreach ( $this->unflushable_groups as $unflushable_group ) {
+        foreach ( array_keys( $this->unflushable_groups ) as $unflushable_group ) {
           $unflushable_group = sanitize_key( $unflushable_group );
           $clauses []        = "(name NOT LIKE '$unflushable_group|%')";
         }
@@ -2510,8 +2466,7 @@ class WP_Object_Cache {
   public function add_unflushable_groups( $groups ) {
     $groups = (array) $groups;
 
-    $this->unflushable_groups = array_unique( array_merge( $this->unflushable_groups, $groups ) );
-    $this->cache_group_types();
+    $this->unflushable_groups = array_merge( $this->unflushable_groups, array_fill_keys( $groups, true ) );
   }
 
   /**
@@ -2524,10 +2479,36 @@ class WP_Object_Cache {
   public function add_global_groups( $groups ) {
     $groups = (array) $groups;
 
-    $groups              = array_fill_keys( $groups, true );
-    $this->global_groups = array_merge( $this->global_groups, $groups );
+    $this->global_groups = array_merge( $this->global_groups, array_fill_keys( $groups, true ) );
+  }
 
-    $this->cache_group_types();
+  /**
+   * Sets the list of groups not to be cached by SQLite
+   *
+   * @param array $groups List of groups that are to be ignored.
+   */
+  public function add_non_persistent_groups( $groups ) {
+    /**
+     * Filters list of groups to be added to {@see self::$ignored_groups}
+     *
+     * @param string[] $groups List of groups to be ignored.
+     *
+     * @since 2.1.7
+     */
+    $groups = apply_filters( 'sqlite_object_cache_add_non_persistent_groups', (array) $groups );
+
+    $this->ignored_groups = array_merge( $this->ignored_groups, array_fill_keys( $groups, true ) );
+  }
+
+  /**
+   * Checks if the given group is in the ignored (non-persistent) groups list.
+   *
+   * @param string $group Name of the group to check.
+   *
+   * @return bool
+   */
+  protected function is_ignored_group( $group ) {
+    return isset( $this->ignored_groups[ $group ?: 'default' ] );
   }
 
   /**
@@ -2597,39 +2578,6 @@ class WP_Object_Cache {
     return $this->apcu_active ? 'APCu|SQLite' : 'SQLite';
   }
 
-  /**
-   * Checks if the given group is part the ignored group array
-   *
-   * @param string $group Name of the group to check, pre-sanitized.
-   *
-   * @return bool
-   */
-  protected function is_ignored_group( $group ) {
-    return $this->is_group_of_type( $group, 'ignored' );
-  }
-
-  /**
-   * Checks the type of the given group
-   *
-   * @param string $group Name of the group to check, pre-sanitized.
-   * @param string $type Type of the group to check.
-   *
-   * @return bool
-   */
-  private function is_group_of_type( $group, $type ) {
-    return isset( $this->group_type[ $group ] ) && $this->group_type[ $group ] === $type;
-  }
-
-  /**
-   * Checks if the given group is part the global group array
-   *
-   * @param string $group Name of the group to check, pre-sanitized.
-   *
-   * @return bool
-   */
-  protected function is_global_group( $group ) {
-    return $this->is_group_of_type( $group, 'global' );
-  }
 
   /**
    * Get the names of the SQLite files.

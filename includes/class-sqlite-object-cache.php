@@ -183,12 +183,27 @@ class SQLite_Object_Cache {
         if ( array_key_exists ('adminbarflush', $option ) && 'on' === $option['adminbarflush'] ) {
             add_action( 'init', array( $this, 'handle_admin_bar_flush' ) );
             add_action ( 'init', function() {
-                if ( ! ( is_multisite() && ! is_main_site() ) &&  current_user_can( 'manage_options') ) {
+                if ( ! ( is_multisite() && ! is_main_site() ) &&  current_user_can( self::get_manager_capability() ) ) {
                     add_action( 'admin_bar_menu', array( $this, 'admin_bar_flush_button' ), 100 );
                     add_action( 'admin_notices', array( $this, 'maybe_show_flush_notice' ) );
                 }
             });
         }
+    }
+
+    /**
+     * Get the capability required to manage this plugin.
+     *
+     * @return string Capability string.
+     */
+    public static function get_manager_capability() {
+        if ( defined( 'WP_SQLITE_OBJECT_CACHE_MANAGER_CAPABILITY' )
+            && is_string( WP_SQLITE_OBJECT_CACHE_MANAGER_CAPABILITY )
+            && '' !== WP_SQLITE_OBJECT_CACHE_MANAGER_CAPABILITY
+        ) {
+            return WP_SQLITE_OBJECT_CACHE_MANAGER_CAPABILITY;
+        }
+        return 'manage_options';
     }
 
     /**
@@ -341,7 +356,6 @@ class SQLite_Object_Cache {
      *
      * @return bool
      * @author Till Krüss
-     *
      */
     public function initialize_filesystem( $url, $silent = false ) {
         require_once ABSPATH . 'wp-admin/includes/file.php';
@@ -534,10 +548,10 @@ class SQLite_Object_Cache {
             // Multisite stores site transients in the sitemeta table.
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
             $wpdb->query(
-                    $wpdb->prepare(
-                    "DELETE FROM {$wpdb->sitemeta} WHERE a.meta_key LIKE %s",
-                            $wpdb->esc_like( '_site_transient_' ) . '%'
-                    )
+                $wpdb->prepare(
+                    "DELETE FROM {$wpdb->sitemeta} WHERE meta_key LIKE %s",
+                    $wpdb->esc_like( '_site_transient_' ) . '%'
+                )
             );
 
         }
@@ -590,7 +604,7 @@ class SQLite_Object_Cache {
         $updated_flag = array_key_exists( 'use_apcu_updated', $option );
         $use_apcu     = array_key_exists( 'use_apcu', $option ) && 'on' === $option['use_apcu'] ? 'on' : 'off';
         if ( $updated_flag ) {
-            unset ( $option['use_apcu_updated'] );
+            unset( $option['use_apcu_updated'] );
             $option_dirty = true;
         }
         $target_use_apcu = $this->apcu_is_activated() ? 'on' : 'off';
@@ -602,7 +616,7 @@ class SQLite_Object_Cache {
             $option_dirty       = true;
         }
         if ( $option_dirty ) {
-            if ( method_exists( $wp_object_cache, 'apcu-clear_cache' ) ) {
+            if ( method_exists( $wp_object_cache, 'apcu_clear_cache' ) ) {
                 $wp_object_cache->apcu_clear_cache();
             }
             update_option( $this->_token . '_settings', $option, true );
@@ -623,7 +637,7 @@ class SQLite_Object_Cache {
             return;
         }
 
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( self::get_manager_capability() ) ) {
             return;
         }
 
@@ -666,7 +680,7 @@ class SQLite_Object_Cache {
             return;
         }
 
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! current_user_can( self::get_manager_capability() ) ) {
             wp_die( esc_html__( 'You do not have permission to flush the object cache.', 'sqlite-object-cache' ) );
         }
 
