@@ -1617,6 +1617,48 @@ class WP_Object_Cache {
   }
 
   /**
+   * Get the expiration time of an item
+   *
+   * @param string $name Cache key.
+   *
+   * @return boolean | integer  False if no such item, the expiration ttl (from now)), or zero if no expireation.
+   */
+  private function get_expiration_by_name( $name ) {
+    try {
+      $stmt = $this->getone_stmt;
+      $stmt->bindValue( ':name', $name, SQLITE3_TEXT );
+      $result = $stmt->execute();
+      $row    = $result->fetchArray( SQLITE3_NUM );
+      $result->finalize();
+      if ( false !== $row ) {
+        $expires      = $row[1];
+        if ( $expires < self::NOEXPIRE_TIMESTAMP_OFFSET ) {
+          /* Item has explicit expiration time. */
+          $expires -= $this->start_time;
+          if ( $expires <= 0 ) {
+            if ( $this->apcu_active ) {
+              apcu_delete( $this->apcusalt . $name );
+            }
+            return false;
+          } else {
+            return $expires;
+          }
+        } else {
+          return 0;
+        }
+      } else {
+        return false;
+      }
+    } catch ( Exception $ex ) {
+      unset( $this->not_in_persistent_cache [ $name ] );
+      $this->error_log( 'get_by_name', $ex );
+      $this->delete_offending_files();
+      self::drop_dead();
+    }
+    return false;
+  }
+
+  /**
    * Sets the data contents into the cache.
    *
    * The cache contents are grouped by the $group parameter followed by the
@@ -2366,7 +2408,12 @@ class WP_Object_Cache {
     if ( $this->cache[ $name ] < 0 ) {
       $this->cache[ $name ] = 0;
     }
-    $this->put_by_name( $name, $this->cache[ $name ], 0 );
+
+    /* Maintain the original TTL on these incremented items. */
+    $expires = $this->get_expiration_by_name( $name );
+    if ( $expires !== false ) {
+      $this->put_by_name( $name, $this->cache[ $name ], $expires );
+    }
 
     return $this->cache[ $name ];
   }
@@ -2454,12 +2501,27 @@ class WP_Object_Cache {
    * Clears the in-memory cache of all data leaving the external cache untouched.
    *
    * @return bool Always returns true.
+   * @throws Exception Announce SQLite failure.
    * @since 2.0.0
    */
   public function flush_runtime() {
     $this->cache                   = array();
     $this->not_in_persistent_cache = array();
-
+    /* Reset time horizon for subsequent fetches, for more precise expirations. */
+    $now = time();
+    if ( $now > $this->start_time ) {
+      /* The current time is later than the start time. possibly due to sleep or some slow operation. */
+      $this->start_time = $now;
+      $this->prepare_statements( $this->cache_table_name );
+      /* APCu expiration is bound to the pageview start time. So clean up expired items. */
+      if ( $this->apcu_active ) {
+        foreach ( new APCUIterator( '/^' . $this->apcusalt . '/', APC_ITER_KEY | APC_ITER_CTIME | APC_ITER_TTL ) as $item ) {
+          if ( $item['ttl'] !== 0 && is_numeric( $item['creation_time'] ) && $item['creation_time'] + $item['ttl'] <= $now) {
+            apcu_delete( $item['key'] );
+          }
+        }
+      }
+    }
     return true;
   }
 
