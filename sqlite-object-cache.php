@@ -34,8 +34,7 @@ if ( is_admin()  || ( defined( 'WP_CLI' ) && WP_CLI ) ) {
   require_once 'includes/lib/class-sqlite-object-cache-statistics.php';
   require_once 'includes/lib/class-sqlite-backup-exclusion.php';
   require_once 'includes/lib/class-file.php';
-  /* Skip the opcache size test. */
-  // require_once 'includes/lib/class-sqlite-object-cache-opcache.php';
+  require_once 'includes/lib/class-sqlite-object-cache-opcache.php';
 }
 /**
  * Returns the main instance of SQLite_Object_Cache to prevent the need to use globals.

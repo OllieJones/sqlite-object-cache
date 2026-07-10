@@ -136,7 +136,7 @@ class SQLite_Object_Cache {
             new SQLite_Backup_Exclusion();
 
             /* Health check */
-            //new SQLite_Object_Cache_Opcache();
+            new SQLite_Object_Cache_Opcache();
 
             add_action( 'admin_notices', function () {
                 $flushed = get_site_transient( 'sqlite-object-cache-flush-on-update' );
