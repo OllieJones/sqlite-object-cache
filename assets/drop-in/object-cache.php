@@ -794,6 +794,7 @@ class WP_Object_Cache {
    *
    * Now, range scanning( BETWEEN ) is a hassle in get_multiple, especially when using
    * get_multiple to retrieve a range of keys from a group.
+   *
    * @return void
    * @throws Exception If something fails .
    * @noinspection SqlResolve

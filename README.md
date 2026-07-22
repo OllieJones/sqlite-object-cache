@@ -180,7 +180,7 @@ Users of this plugin have found that it works well with WP Rocket, LiteSpeed Cac
 
 That's not how object caching works. It's different from page caching. It works at the level of individual database operations in the WordPress code, not at the level of whole pages.
 
-There is one way to selectively disable object cachinging. The object cache contents are organized by group. For example, it caches data from your `wp_postmeta` table in the cache group called `'post_meta'`.  You can disable caching for particular groups with [`wp_cache_add_non_persistent_groups()`](https://developer.wordpress.org/reference/functions/wp_cache_add_non_persistent_groups/). Some plugins need to use this feature.
+The object cache contents are organized by group. For example, it caches data from your `wp_postmeta` table in the cache group called `'post_meta'`.  You can disable caching for particular groups with [`wp_cache_add_non_persistent_groups()`](https://developer.wordpress.org/reference/functions/wp_cache_add_non_persistent_groups/). Some plugins need to use this feature.
 
 ### Is this plugin compatible with my version of MySQL or MariaDB?
 
@@ -317,7 +317,10 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 ### 1.6.4
 
-Set the permissions of SQLite's files (including the -wal and -shm files) to group-writeable to make WL-CLI more convenient.
+* Set the permissions of SQLite's files (including the -wal and -shm files) to group-writeable to make WL-CLI more convenient.
+* Handle incrementing and decrementing expiring cache entries correctly, and handle expiration around runtime flush correctly.
+* Selectively flush the APCu cache upon wp_flush_cache_group.
+* Improve the cache key display on the statistics tab.
 
 ### 1.6.3
 
@@ -327,7 +330,7 @@ A race condition caused expired cache entries to be copied to APCu incorrectly s
 
 * Use PRAGMA wal_checkpoint(TRUNCATE) sometimes to avoid excessively large re-used WAL files.
 * Checkpoint more frequently.
-* Health check for OPcache (not APCu) RAM exhaustion.
+* Health check for OPcache (not APCu) saturation.
 
 ### 1.6.1
 
@@ -376,4 +379,4 @@ A race condition caused expired cache entries to be copied to APCu incorrectly s
 
 ## Upgrade Notice
 
-Correct a race condition upon cache item expiration. Improve SQLite3 checkpointing to reduce the probability of huge WAL files. Add a health check for OPcache (not APCu) exhaustion. Make db files group writeable.
+Handle expirations better. Set file permissions like other WordPress files.

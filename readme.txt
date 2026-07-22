@@ -309,16 +309,21 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 == Changelog ==
 
 = 1.6.4 =
-Set the permissions of SQLite's files (including the -wal and -shm files) to group-writeable to make WL-CLI more convenient.
+
+* Set the permissions of SQLite's files (including the -wal and -shm files) to group-writeable to make WL-CLI more convenient.
+* Handle incrementing and decrementing expiring cache entries correctly, and handle expiration around runtime flush correctly.
+* Selectively flush the APCu cache upon wp_flush_cache_group.
+* Improve the cache key display on the statistics tab.
 
 = 1.6.3 =
+
 A race condition caused expired cache entries to be copied to APCu incorrectly sometimes. This is corrected. Props to @pobrehablador for finding this defect.
 
 = 1.6.2 =
 
 * Use PRAGMA wal_checkpoint(TRUNCATE) sometimes to avoid excessively large re-used WAL files.
 * Checkpoint more frequently.
-* Health check for OPcache (not APCu) RAM exhaustion.
+* Health check for OPcache (not APCu) saturation.
 
 = 1.6.1 =
 
@@ -367,4 +372,4 @@ A race condition caused expired cache entries to be copied to APCu incorrectly s
 
 == Upgrade Notice ==
 
-Correct a race condition upon cache item expiration. Improve SQLite3 checkpointing to reduce the probability of huge WAL files. Add a health check for OPcache (not APCu) exhaustion. Make db files group writeable.
+Handle expirations better. Set file permissions like other WordPress files.
