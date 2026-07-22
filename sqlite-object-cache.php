@@ -6,7 +6,7 @@
  * Description: A persistent object cache backend powered by SQLite3.
  * Author: Oliver Jones
  * Author URI: https://github.com/OllieJones/
- * Requires at least: 5.5
+ * Requires at least: 5.9
  * Requires PHP: 5.6
  * Tested up to: 7.0
  * Text Domain: sqlite-object-cache

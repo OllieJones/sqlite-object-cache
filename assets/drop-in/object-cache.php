@@ -518,7 +518,7 @@ class WP_Object_Cache {
       $this->apcusalt = ( ( '' !== $this->salt )
           ? $this->salt
           : substr( base64_encode( md5( $this->salt . $table_prefix . DB_HOST . DB_USER . DB_NAME . AUTH_KEY . AUTH_SALT ) ),
-            0, 12 ) ) ;
+            0, 12 ) ) . '|';
 
     }
     $this->sqlite_path = $this->create_database_path();
@@ -732,7 +732,9 @@ class WP_Object_Cache {
     if ( defined ( 'PHP_OS') || 0 !== stripos(PHP_OS, 'WIN')) {
       /* Not Windows: Create file manually to set correct file permissions and make the DB group writable, for WP-CLI's sake */
       if ( ! file_exists( $this->sqlite_path ) ) {
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_touch
         touch( $this->sqlite_path );
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_chmod
         chmod( $this->sqlite_path, 0664 );
       }
     }
@@ -1551,7 +1553,7 @@ class WP_Object_Cache {
   private function get_by_name( $name, &$success ) {
     if ( $this->apcu_active ) {
       $astart = hrtime( true );
-      $data   = apcu_fetch( $this->apcusalt . '|' . $name, $fetchsuccess );
+      $data   = apcu_fetch( $this->apcusalt . $name, $fetchsuccess );
       if ( $fetchsuccess ) {
         if ( is_object( $data ) ) {
           $data = clone $data;
@@ -1597,7 +1599,7 @@ class WP_Object_Cache {
         /* Pull item into APCu */
         if ( $this->apcu_active ) {
           $astart = hrtime( true );
-          apcu_store( $this->apcusalt . '|' . $name, $data, $expires );
+          apcu_store( $this->apcusalt . $name, $data, $expires );
           $this->apcu_store_times[] = hrtime( true ) - $astart;
         }
 
@@ -1638,7 +1640,7 @@ class WP_Object_Cache {
           $expires -= $this->start_time;
           if ( $expires <= 0 ) {
             if ( $this->apcu_active ) {
-              apcu_delete( $this->apcusalt . '|' . $name );
+              apcu_delete( $this->apcusalt . $name );
             }
             return false;
           } else {
@@ -1725,7 +1727,7 @@ class WP_Object_Cache {
         unset( $this->not_in_persistent_cache[ $name ] );
         if ( $this->apcu_active ) {
           $astart = hrtime( true );
-          apcu_store( $this->apcusalt . '|' . $name, $data, $expire ?: DAY_IN_SECONDS );
+          apcu_store( $this->apcusalt . $name, $data, $expire ?: DAY_IN_SECONDS );
           $this->apcu_store_times[] = hrtime( true ) - $astart;
         }
         return;
@@ -1915,7 +1917,7 @@ class WP_Object_Cache {
       foreach ( $keys_not_found as $key => $name ) {
         //TODO this can get an array form of the fetch operation.
         $astart = hrtime( true );
-        $val    = apcu_fetch( $this->apcusalt . '|' . $name, $success );
+        $val    = apcu_fetch( $this->apcusalt . $name, $success );
         if ( $success ) {
           if ( is_object( $val ) ) {
             $val = clone $val;
@@ -1995,7 +1997,7 @@ class WP_Object_Cache {
 
             if ( $this->apcu_active ) {
               $astart = hrtime( true );
-              apcu_store( $this->apcusalt . '|' . $name, $this->cache[ $name ], $expires );
+              apcu_store( $this->apcusalt . $name, $this->cache[ $name ], $expires );
               $this->apcu_store_times[] = hrtime( true ) - $astart;
 
             }
@@ -2263,7 +2265,8 @@ class WP_Object_Cache {
   public function apcu_clear_cache_group( $group ) {
     /* Immediate cache group purge. */
     if ( $this->apcu_active ) {
-      foreach ( new APCUIterator( '/^' . $this->apcusalt . '\|' . $group . '\|/', APC_ITER_KEY ) as $item ) {
+      $salt = rtrim( $this->apcusalt, '|' );
+      foreach ( new APCUIterator( '/^' . $salt . '\|' . $group . '\|/', APC_ITER_KEY ) as $item ) {
         apcu_delete( $item['key'] );
       }
     }
@@ -2280,7 +2283,8 @@ class WP_Object_Cache {
   public function apcu_clear_cache() {
     /* Immediate cache clear. */
     if ( $this->apcu_active ) {
-      foreach ( new APCUIterator( '/^' . $this->apcusalt . '\|/', APC_ITER_KEY ) as $item ) {
+      $salt = rtrim( $this->apcusalt, '|' );
+      foreach ( new APCUIterator( '/^' . $salt . '\|/', APC_ITER_KEY ) as $item ) {
         apcu_delete( $item['key'] );
       }
     }
@@ -2371,7 +2375,7 @@ class WP_Object_Cache {
     $this->not_in_persistent_cache[ $name ] = true;
     $start                                  = hrtime( true );
     if ( $this->apcu_active ) {
-      apcu_delete( $this->apcusalt . '|' . $name );
+      apcu_delete( $this->apcusalt . $name );
     }
     while ( $retries -- > 0 ) {
       try {
@@ -2542,7 +2546,8 @@ class WP_Object_Cache {
       $this->prepare_statements( $this->cache_table_name );
       /* APCu expiration is bound to the pageview start time. So clean up expired items. */
       if ( $this->apcu_active ) {
-        foreach ( new APCUIterator( '/^' . $this->apcusalt . '\|/', APC_ITER_KEY | APC_ITER_CTIME | APC_ITER_TTL ) as $item ) {
+        $salt = rtrim( $this->apcusalt, '|' );
+        foreach ( new APCUIterator( '/^' . $salt . '\|/', APC_ITER_KEY | APC_ITER_CTIME | APC_ITER_TTL ) as $item ) {
           if ( $item['ttl'] !== 0 && is_numeric( $item['creation_time'] ) && $item['creation_time'] + $item['ttl'] <= $now) {
             apcu_delete( $item['key'] );
           }

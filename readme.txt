@@ -2,7 +2,7 @@
 Author: Oliver Jones
 Contributors: OllieJones
 Tags: cache, object cache, sqlite, performance, apcu
-Requires at least: 5.5
+Requires at least: 5.9
 Requires PHP: 5.6
 Tested up to: 7.0
 Version: 1.6.4
