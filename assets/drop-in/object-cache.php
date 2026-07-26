@@ -487,7 +487,7 @@ class WP_Object_Cache {
   private $apcu_supported = false;
   private $salt;
   /**
-   * @var string
+   * @var string The APCu prefix, ending with '|'.
    */
   public $apcusalt;
 
@@ -2265,8 +2265,7 @@ class WP_Object_Cache {
   public function apcu_clear_cache_group( $group ) {
     /* Immediate cache group purge. */
     if ( $this->apcu_active ) {
-      $salt = rtrim( $this->apcusalt, '|' );
-      foreach ( new APCUIterator( '/^' . $salt . '\|' . $group . '\|/', APC_ITER_KEY ) as $item ) {
+      foreach ( new APCUIterator( '/^' . preg_quote( $this->apcusalt . $group . '|', '/' ) . '/', APC_ITER_KEY ) as $item ) {
         apcu_delete( $item['key'] );
       }
     }
@@ -2283,8 +2282,7 @@ class WP_Object_Cache {
   public function apcu_clear_cache() {
     /* Immediate cache clear. */
     if ( $this->apcu_active ) {
-      $salt = rtrim( $this->apcusalt, '|' );
-      foreach ( new APCUIterator( '/^' . $salt . '\|/', APC_ITER_KEY ) as $item ) {
+      foreach ( new APCUIterator( '/^' . preg_quote( $this->apcusalt, '/' ) . '/', APC_ITER_KEY ) as $item ) {
         apcu_delete( $item['key'] );
       }
     }
@@ -2546,8 +2544,7 @@ class WP_Object_Cache {
       $this->prepare_statements( $this->cache_table_name );
       /* APCu expiration is bound to the pageview start time. So clean up expired items. */
       if ( $this->apcu_active ) {
-        $salt = rtrim( $this->apcusalt, '|' );
-        foreach ( new APCUIterator( '/^' . $salt . '\|/', APC_ITER_KEY | APC_ITER_CTIME | APC_ITER_TTL ) as $item ) {
+        foreach ( new APCUIterator( '/^' . preg_quote( $this->apcusalt, '/' ) . '/', APC_ITER_KEY | APC_ITER_CTIME | APC_ITER_TTL ) as $item ) {
           if ( $item['ttl'] !== 0 && is_numeric( $item['creation_time'] ) && $item['creation_time'] + $item['ttl'] <= $now) {
             apcu_delete( $item['key'] );
           }
@@ -2581,12 +2578,6 @@ class WP_Object_Cache {
           $names_to_flush [] = $name;
         }
       }
-      foreach ( $names_to_flush as $name ) {
-        unset ( $this->cache[ $name ] );
-        $this->not_in_persistent_cache[ $name ] = true;
-      }
-      unset ( $names_to_flush );
-
       $stmt = $this->deletegroup_stmt;
       $stmt->bindValue( ':group', $prefix, SQLITE3_TEXT );
       $result = $stmt->execute();
@@ -2595,6 +2586,11 @@ class WP_Object_Cache {
       $this->error_log( 'flush_group', $ex );
       $this->delete_offending_files();
     }
+    foreach ( $names_to_flush as $name ) {
+      unset ( $this->cache[ $name ] );
+      $this->not_in_persistent_cache[ $name ] = true;
+    }
+    unset ( $names_to_flush );
 
     return true;
   }
