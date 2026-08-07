@@ -164,10 +164,13 @@ class SQLite_Object_Cache {
         }, 0 );
 
 
-        /* Handle cron cache cleanup */
+        /* Handle cron cache cleanup, but only on main site. */
         add_action( self::CLEAN_EVENT_HOOK, array( $this, 'clean_job' ), 10, 0 );
-        if ( ! wp_next_scheduled( self::CLEAN_EVENT_HOOK ) ) {
+        $next_event = wp_next_scheduled( self::CLEAN_EVENT_HOOK );
+        if ( false === $next_event && is_main_site() ) {
             wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', self::CLEAN_EVENT_HOOK );
+        } else if (false !== $next_event && is_multisite() && ! is_main_site() ) {
+            wp_unschedule_event ( $next_event, self::CLEAN_EVENT_HOOK);
         }
         /* Handle probabilistic non-cron cleanup, one request in 2500. */
         /* We don't need cryptographic-grade random numbering here. */
@@ -199,6 +202,11 @@ class SQLite_Object_Cache {
      * @return void
      */
     public function clean_job( $grace_factor = 1.0 ) {
+        $current_blogid = null;
+        if ( is_multisite() && ! is_main_site() ) {
+            $current_blogid = get_current_blog_id();
+            switch_to_blog( get_main_site_id() );
+        }
         $option         = get_option( $this->_token . '_settings', array() );
         $target_size    = empty ( $option['target_size'] ) ? 16 : $option['target_size'];
         $target_size    *= ( 1024 * 1024 );
@@ -231,6 +239,10 @@ class SQLite_Object_Cache {
 
         /* Delete the least-recently-updated items to get to the target size. */
         $wp_object_cache->sqlite_delete_old( $target_size, $current_size );
+
+        if ( null !== $current_blogid ) {
+            switch_to_blog ( $current_blogid );
+        }
     }
 
     /**
