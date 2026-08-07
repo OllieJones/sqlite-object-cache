@@ -210,13 +210,15 @@ If you use some other backup or cloning plugin, please let the author know by cr
 
 ### If I already have another persistent object cache plugin, can I use this one?
 
-**No.** You only need one persistent object cache plugin, and WordPress only supports one.
+**No.** You only need one persistent object cache plugin, and WordPress only supports one at a time.
 
 ### If I operate a scaled-up load-balanced installation, can I use this?
 
 **No.** If you have more than one web server this doesn't work correctly. If you operate at that scale, use redis or some other cache server. (If you aren't sure whether you have a load-balanced installation, you almost certainly do not.)
 
-Please notice that SQLite does not work correctly if you put its files on a shared network drive (via CIFS, SMB, NFS, or some other drive sharing protocol).
+### If my WordPress files are on a shared network drive, can I use this?
+
+**No, probably not.**  SQLite does not work correctly if you put its files on a shared network drive (via CIFS, SMB, NFS, or some other drive sharing protocol). [Please read this for a more complete explanation](https://sqlite.org/useovernet.html). If your host operating system provides a local directly-connected drive for a temporary file system, you can try to put your .sqlite files there. [Please read this](https://wordpress.org/plugins/sqlite-object-cache/#i%20want%20to%20store%20my%20cached%20data%20in%20a%20more%20secure%20place.%20how%20do%20i%20do%20that%3F).
 
 ### Can I use this with the Performance Lab plugin?
 
@@ -281,6 +283,10 @@ On Linux, you can run your WP-CLI shell commands like this:  `sudo -u www-data w
 ### Does this plugin work with sites hosted on Microsoft Windows OSs with the IIS web server?
 
 **Yes**. But please be aware that users have reported cache corruption when using APCu. And please be sure to use the so-called "non thread safe" versions of php executables and DLLs.
+
+### I'm having trouble deactivating the plugin.
+
+Try deleting the plugin directory `.../wp-content/plugins/sqlite-object-cache`, and then deleting the drop-in file from `.../wp-content/object-cache.php`. 
 
 ### The Statistics display seems complex. What does it all mean?
 
