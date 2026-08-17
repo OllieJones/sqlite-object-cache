@@ -564,13 +564,13 @@ class WP_Object_Cache {
   }
 
   /**
-   * Make sure connections are always closed at end of request
+   * Defer the closing of the SQLite connection to another destructor.
+   *
+   * This is needed because some plugins set transients in their object destructors.
    */
   public function __destruct() {
-    if ( $this->sqlite ) {
-      $this->sqlite->close();
-      unset( $this->sqlite );
-    }
+    global $sqlite_object_cache_reaper;
+    $sqlite_object_cache_reaper = new SQLite_Object_Cache_Reaper( $this->sqlite );
   }
 
   /**
@@ -3257,3 +3257,19 @@ function wp_cache_reset() {
   $wp_object_cache->reset();
 }
 // phpcs:enable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedFunctionFound
+
+/**
+ * Manage the deferring of destructing the SQLite3 connection.
+ *
+ * This is necessary because some plugins set transients in their object destructors.
+ */
+class SQLite_Object_Cache_Reaper {
+  private $db;
+  public function __construct( $db ) {
+    $this->db = $db;
+  }
+  public function __destruct() {
+    $this->db->close();
+    unset( $this->db );
+  }
+}
