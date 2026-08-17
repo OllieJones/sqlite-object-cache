@@ -53,30 +53,3 @@ function sqlite_object_cache() {
 }
 
 sqlite_object_cache();
-
-
-//HACK HACK
-// test dtor persistence nonsense
-class Destructive {
-  private $tag;
-  public function __construct( $tag = 'none' ) {
-    $this->tag = $tag;
-  }
-
-  public function __destruct() {
-    set_transient('Destructor-tag-' . $this->tag, $this->tag );
-  }
-}
-
-add_action('init', function() {
-  global $foo1;
-  $foo1 = new Destructive( 'init' );
-});
-add_action('init', function() {
-  $foolocal = new Destructive( 'local' );
-});
-add_action('shutdown', function() {
-  global $foo2;
-  $foo2 = new Destructive( 'shutdown' );
-});
-
