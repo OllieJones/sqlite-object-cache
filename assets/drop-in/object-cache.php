@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SQLite Object Cache (Drop-in)
- * Version: 1.6.4
+ * Version: 1.6.5
  * Note: This Version number must match the one in SQLite_Object_Cache::_construct.
  * Plugin URI: https://wordpress.org/plugins/sqlite-object-cache/
  * Description: A persistent object cache backend powered by SQLite3.
@@ -10,8 +10,8 @@
  * License: GPLv2+
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Requires PHP: 5.6
- * Tested up to: 7.0
- * Stable tag: 1.6.4
+ * Tested up to: 7.1
+ * Stable tag: 1.6.5
  *
  * NOTE: This uses the file .../wp-content/.ht.object_cache.sqlite
  * and the associated files .../wp-content/.ht.object_cache.sqlite-shm
@@ -101,7 +101,7 @@ class WP_Object_Cache {
   const TRANSACTION_SIZE_LIMIT = 64;
   const CHECKPOINT_FREQ = 2000;
 
-  private $dropin_version = '1.6.4';
+  private $dropin_version = '1.6.5';
   /** @var bool True if a transaction is active. */
   private $transaction_active = false;
   /** Path to SQLite file.  @var string */

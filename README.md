@@ -5,9 +5,9 @@ Author: Oliver Jones
 **Tags:** cache, object cache, sqlite, performance, apcu \
 **Requires at least:** 5.9 \
 **Requires PHP:** 5.6 \
-**Tested up to:** 7.0 \
-Version: 1.6.4 \
-**Stable tag:** 1.6.4 \
+**Tested up to:** 7.1 \
+Version: 1.6.5 \
+**Stable tag:** 1.6.5 \
 **License:** GPLv2 or later \
 **License URI:** http://www.gnu.org/licenses/gpl-2.0.html \
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache \
@@ -278,7 +278,7 @@ Timeout errors can also happen if your Cached Data Size, or your site, is very l
 
 Sometimes [WP-CLI](https://wp-cli.org/) commands issued from a shell run with a different user from the web server. This plugin creates one or more object-cache files. An object-cache file may not be readable or writeable by the web server if it was created by the wp-cli user. Or the other way around.
 
-On Linux, you can run your WP-CLI shell commands like this:  `sudo -u www-data wp config list`  This ensures they run with the same user as the web server.
+On Linux, you can run your WP-CLI shell commands like this:  `sudo -u www-data wp config list`  This ensures they run with the same user as the web server. Please notice that versions 1.6.4 and later of the plugin contains a fix to reduce the chance of this problem affecting you.
 
 ### Does this plugin work with sites hosted on Microsoft Windows OSs with the IIS web server?
 
@@ -321,6 +321,10 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 ## Changelog
 
+### 1.6.5
+
+* Support plugins that use set_transient or other cache operations in their destructors.
+
 ### 1.6.4
 
 * Set the permissions of SQLite's files (including the -wal and -shm files) to group-writeable to make WL-CLI more convenient.
@@ -348,41 +352,7 @@ A race condition caused expired cache entries to be copied to APCu incorrectly s
 
 * Multisite: put the settings and statistics panels on the main site only.
 
-### 1.5.7
-
-* Flush the cache immediately after any software installation or upgrade operation.
-* To eliminate state data delete all transients from the database on activation and deactivation.
-* Add a Help tab and hyperlink to the statistics display.
-
-### 1.5.6
-
-* Fix a warning while generating diagnostic info.
-* Update wp-config.php more robustly.
-
-### 1.5.5
-
-* Some diagnostic data now appears in Site Health - Info.
-* The drop-in no longer attempts to load translations early, to eliminate an unterminated recursion.
-* A problem with index creation on ancient SQLite versions is corrected.
-
-### 1.5.4
-
-* Handle non-persistent groups, get_multiple cache-misses, and MS-DOS line endings correctly.
-
-### 1.5.2
-
-* Correct a regression in object fetching (failure to clone when needed).
-* Correct wrong display of Use APCu checkbox immediately after setting change
-
-### 1.5.1
-
-* Provide APCu opt-in on the settings page.
-
-### 1.5.0
-
-* Use APCu to increase performance if it is available and if WP_SQLITE_OBJECT_CACHE_APCU is defined.
-
 
 ## Upgrade Notice
 
-Handle expirations better. Set file permissions like other WordPress files.
+Support plugins that use transients in their destructors.

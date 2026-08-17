@@ -114,7 +114,7 @@ class SQLite_Object_Cache {
      * @param string $file File constructor.
      * @param string $version Plugin version.
      */
-    public function __construct( $file = '', $version = '1.6.4' ) {
+    public function __construct( $file = '', $version = '1.6.5' ) {
         $this->_version = $version;
         $this->_token   = 'sqlite_object_cache';
 
@@ -174,7 +174,7 @@ class SQLite_Object_Cache {
         }
         /* Handle probabilistic non-cron cleanup, one request in 2500. */
         /* We don't need cryptographic-grade random numbering here. */
-        // phpcs:ignore 	WordPress.WP.AlternativeFunctions.rand_rand
+        // phpcs:ignore WordPress.WP.AlternativeFunctions.rand_rand
         if ( 1 === rand( 1, 2500 ) ) {
             add_action( 'shutdown', function () {
                 $this->clean_job( 1.25 );
