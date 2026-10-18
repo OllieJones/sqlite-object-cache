@@ -651,7 +651,14 @@ class WP_Object_Cache {
    * @return void
    */
   public static function drop_dead( $msg = null ) {
-    wp_die( esc_html( $msg ?: 'The SQLite Object Cache temporarily failed. Please try again now.' ) );
+    $apc = defined( 'WP_SQLITE_OBJECT_CACHE_APCU' ) && WP_SQLITE_OBJECT_CACHE_APCU;
+    $cli = defined( 'WP_CLI' ) && WP_CLI;
+    if ( $apc && function_exists( 'apcu_enabled' ) && apcu_enabled() && ! $cli ) {
+      /* We have a mess on our hands. Clear the whole APCu cache. */
+      apcu_clear_cache();
+    }
+    // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+    die( self::strip_special( $msg ?: 'The SQLite Object Cache temporarily failed. Please try again now.' ) );
   }
 
   /**
@@ -680,7 +687,8 @@ class WP_Object_Cache {
     $msgs [] = 'php:';
     $msgs [] = PHP_VERSION;
     $msgs [] = 'server:';
-    $msgs [] = esc_html( $server_software );
+    // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+    $msgs [] = self::strip_special( $server_software );
     $msgs [] = $msg;
     if ( $this->sqlite ) {
       if ( $this->sqlite->lastErrorMsg() ) {
@@ -1658,7 +1666,6 @@ class WP_Object_Cache {
       $this->delete_offending_files();
       self::drop_dead();
     }
-    return false;
   }
 
   /**
@@ -2675,10 +2682,12 @@ class WP_Object_Cache {
    * @since 2.0.0
    */
   public function stats() {
-    echo '<p><strong>Cache Hits:</strong> ' . esc_html( $this->cache_hits ) . '<br />';
-    echo '<p><strong>Cache Misses:</strong> ' . esc_html( $this->cache_misses ) . '<br />';
-    echo '<p><strong>APCu Hits:</strong> ' . esc_html( $this->apcu_hits ) . '<br />';
-    echo '<strong>APCu Misses:</strong> ' . esc_html( $this->apcu_misses ) . '<br /></p>' . PHP_EOL;
+    // phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped
+    echo '<p><strong>Cache Hits:</strong> ' . self::strip_special( $this->cache_hits ) . '<br />';
+    echo '<p><strong>Cache Misses:</strong> ' . self::strip_special( $this->cache_misses ) . '<br />';
+    echo '<p><strong>APCu Hits:</strong> ' . self::strip_special( $this->apcu_hits ) . '<br />';
+    echo '<strong>APCu Misses:</strong> ' . self::strip_special( $this->apcu_misses ) . '<br /></p>' . PHP_EOL;
+    // phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
   }
 
   /**
@@ -2711,6 +2720,10 @@ class WP_Object_Cache {
    */
   private function is_group_of_type( $group, $type ) {
     return isset( $this->group_type[ $group ] ) && $this->group_type[ $group ] === $type;
+  }
+
+  private static function strip_special( $message ) {
+    return preg_replace( '/[^-_.$@!&* 0-9A-Za-z]/', '_', $message ?: '' );
   }
 
   /**
@@ -2808,16 +2821,22 @@ class WP_Object_Cache {
    * @return bool true if the flag was set, false if it wasn't.
    */
   public function clear_flag( $name = 'insert' ) {
-    if ( ! $this->clearflag_stmt ) {
-      $tbl                  = $this->flags_table_name;
-      $this->clearflag_stmt =
-        $this->sqlite->prepare( "DELETE FROM $tbl WHERE name = :name;" );
+    try {
+      if ( ! $this->clearflag_stmt ) {
+        $tbl                  = $this->flags_table_name;
+        $this->clearflag_stmt =
+          $this->sqlite->prepare( "DELETE FROM $tbl WHERE name = :name;" );
+      }
+      $stmt = $this->clearflag_stmt;
+      $stmt->bindValue( ':name', $name, SQLITE3_TEXT );
+      $result  = $stmt->execute();
+      $already = 1 === $this->sqlite->changes();
+      $result->finalize();
+    } catch ( Exception $e ) {
+      $this->error_log( 'clear_flag', $ex );
+      $this->delete_offending_files();
+      self::drop_dead();
     }
-    $stmt = $this->clearflag_stmt;
-    $stmt->bindValue( ':name', $name, SQLITE3_TEXT );
-    $result  = $stmt->execute();
-    $already = 1 === $this->sqlite->changes();
-    $result->finalize();
     return $already;
   }
 }
