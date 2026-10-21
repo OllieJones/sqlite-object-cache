@@ -5,9 +5,9 @@ Author: Oliver Jones
 **Tags:** cache, object cache, sqlite, performance, apcu \
 **Requires at least:** 5.9 \
 **Requires PHP:** 5.6 \
-**Tested up to:** 7.1 \
-Version: 1.6.5 \
-**Stable tag:** 1.6.5 \
+**Tested up to:** 7.1.3 \
+Version: 1.6.6 \
+**Stable tag:** 1.6.6 \
 **License:** GPLv2 or later \
 **License URI:** http://www.gnu.org/licenses/gpl-2.0.html \
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache \
@@ -15,7 +15,6 @@ Primary Branch: trunk \
 Text Domain: sqlite-object-cache \
 Domain Path: /languages/ \
 **Donate link:** https://github.com/sponsors/OllieJones \
-
 
 A fast persistent object cache backend for the rest of us, powered by SQLite and accelerated by APCu
 
@@ -59,7 +58,7 @@ You can control this plugin via WP-CLI once you activate it. Please type this co
 
 Thanks to [Till Krüss](https://profiles.wordpress.org/tillkruess/). His [Redis Object Cache](https://wordpress.org/plugins/redis-cache/) plugin serves as a model for this one. And thanks to [Ari Stathopoulos](https://profiles.wordpress.org/aristath/) and [Jonny Harris](https://profiles.wordpress.org/spacedmonkey/) for reviewing this. Props to Matt Jones for finding and fixing a bug that appeared on a heavily loaded system. Thanks to [Massimo Villa](https://speedable.net/about-us/) for testing help, and to [nickchomey](https://github.com/nickchomey) for a comprehensive code review. All defects are, of course, entirely the author's responsibility.
 
-And thanks to Jetbrains for the use of their software development tools, especially [PhpStorm](https://www.jetbrains.com/phpstorm/). It's hard to imagine how a plugin like this one could be developed without PhpStorm's tools for exploring epic code bases like WordPress's.
+And thanks to JetBrains for the use of their software development tools, especially [PhpStorm](https://www.jetbrains.com/phpstorm/). It's hard to imagine how a plugin like this one could be developed without PhpStorm's tools for exploring epic code bases like WordPress's.
 
 <h4>How can I learn more about making my WordPress site more efficient?</h4>
 
@@ -154,7 +153,7 @@ Notice that sometimes multiple WordPress installations that run on the same serv
 
 ### Does this plugin replace MariaDB or MySQL with SQLite?
 
-**No.**  Your MariaDB or MySQL database sql server still holds all your content. All your site's imports, exports, backups and other database operations continue to function normally.  This plugin uses SQLite simply to hold named values. For example, a value named "post|3" will hold a temporary, easy-to-retrieve cached copy of post number 3. When it needs that post, WordPress can fetch it quickly from SQLite.
+**No.**  Your MariaDB or MySQL database SQL server still holds all your content. All your site's imports, exports, backups and other database operations continue to function normally.  This plugin uses SQLite simply to hold named values. For example, a value named "post|3" will hold a temporary, easy-to-retrieve cached copy of post number 3. When it needs that post, WordPress can fetch it quickly from SQLite.
 
 ### Wait, what? Do I really need two different kinds of SQL database?
 
@@ -321,6 +320,10 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 ## Changelog
 
+### 1.6.6
+
+Avoid functions requiring WordPress to be initialized when handling cache initialization errors. Props to [@etermed](https://wordpress.org/support/users/etermed/).
+
 ### 1.6.5
 
 * Support plugins that use set_transient or other cache operations in their destructors.
@@ -346,7 +349,6 @@ A race condition caused expired cache entries to be copied to APCu incorrectly s
 
 * Add an optional Flush Object Cache button to the admin bar. Props to Nick Chomey.
 * Fix a defect in testing for writability of the .sqlite files. Props to @powerkiki: Adrien Crivelli.
-
 
 ### 1.6.0
 
