@@ -2833,7 +2833,7 @@ class WP_Object_Cache {
       $already = 1 === $this->sqlite->changes();
       $result->finalize();
     } catch ( Exception $e ) {
-      $this->error_log( 'clear_flag', $ex );
+      $this->error_log( 'clear_flag', $e );
       $this->delete_offending_files();
       self::drop_dead();
     }
