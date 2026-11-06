@@ -1823,7 +1823,7 @@ class WP_Object_Cache {
       return false;
     }
 
-    $name = $this->normalize_name( $key, $data );
+    $name = $this->normalize_name( $key, $group );
 
     if ( $this->cache_item_not_exists( $name ) ) {
       return false;
