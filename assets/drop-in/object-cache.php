@@ -297,6 +297,13 @@ class WP_Object_Cache {
   private $updateone_stmt;
 
   /**
+   * Prepared statement to insert one cache element only if no live element has its name.
+   *
+   * @var SQLite3Stmt
+   */
+  private $addone_stmt;
+
+  /**
    * Prepared statement to clear a flagt.
    *
    * @var SQLite3Stmt
@@ -909,6 +916,9 @@ class WP_Object_Cache {
       $this->sqlite->prepare( "SELECT name, value, expires FROM $tbl WHERE name BETWEEN :first AND :last AND expires >= $now;" );
     $this->deleteone_stmt   = $this->sqlite->prepare( "DELETE FROM $tbl WHERE name = :name;" );
     $this->deletegroup_stmt = $this->sqlite->prepare( "DELETE FROM $tbl WHERE name LIKE :group || '%';" );
+    /* One statement, so no other request can write the name between the check and the insert. It replaces an expired element. */
+    $this->addone_stmt      =
+      $this->sqlite->prepare( "INSERT OR REPLACE INTO $tbl (name, value, expires) SELECT :name, :value, $now + :expires WHERE NOT EXISTS (SELECT 1 FROM $tbl WHERE name = :name AND expires > $now);" );
     /*
      * Some versions of SQLite3 built into php predate the 3.38 advent of unixepoch() (2022-02-22).
      * And, others predate the 3.24 advent of UPSERT (that is, ON CONFLICT) syntax.
@@ -1455,11 +1465,30 @@ class WP_Object_Cache {
 
     $name = $this->normalize_name( $key, $group );
 
-    if ( $this->cache_item_not_exists( $name ) ) {
+    if ( ! $this->cache_item_not_exists( $name ) ) {
+      return false;
+    }
+
+    if ( $this->is_ignored_group( $group ) ) {
       return $this->set( $key, $data, $group, (int) $expire );
     }
 
-    return false;
+    if ( is_object( $data ) ) {
+      $data = clone $data;
+    }
+
+    /* Another request may have stored the name since this one looked, so let SQLite decide. */
+    $start = hrtime( true );
+    $added = $this->put_by_name( $name, $data, (int) $expire, true );
+    $this->insert_times[] = hrtime( true ) - $start;
+    if ( ! $added ) {
+      unset( $this->not_in_persistent_cache[ $name ] );
+
+      return false;
+    }
+    $this->cache[ $name ] = $data;
+
+    return true;
   }
 
   /**
@@ -1721,23 +1750,29 @@ class WP_Object_Cache {
    * @param string $name What to call the contents in the cache.
    * @param mixed $data The contents to store in the cache.
    * @param int $expire Optional.
+   * @param bool $only_if_absent Optional. Write only if no live element has the name.
    *
-   * @return void
+   * @return bool True if written, false if $only_if_absent and the name exists.
    */
-  private function put_by_name( $name, $data, $expire ) {
+  private function put_by_name( $name, $data, $expire, $only_if_absent = false ) {
     $exception = null;
     $expires   = $expire ?: $this->noexpire_timestamp_offset;
     $retries   = 3;
     while ( $retries -- > 0 ) {
       try {
-        $this->actual_put_by_name( $name, $this->encode( $data ), $expires );
+        if ( ! $this->actual_put_by_name( $name, $this->encode( $data ), $expires, $only_if_absent ) ) {
+          return false;
+        }
         unset( $this->not_in_persistent_cache[ $name ] );
-        if ( $this->apcu_active ) {
+        if ( $this->apcu_active && $only_if_absent ) {
+          /* A set() in another request can land between our insert and here. The next read takes APCu from SQLite. */
+          apcu_delete( $this->apcusalt . $name );
+        } elseif ( $this->apcu_active ) {
           $astart = hrtime( true );
           apcu_store( $this->apcusalt . $name, $data, $expire ?: DAY_IN_SECONDS );
           $this->apcu_store_times[] = hrtime( true ) - $astart;
         }
-        return;
+        return true;
       } catch ( Exception $ex ) {
         $exception = $ex;
         if ( ! str_contains( $ex->getMessage(), 'database is locked' ) || 5 !== $this->sqlite->lastErrorCode() ) {
@@ -1751,6 +1786,7 @@ class WP_Object_Cache {
       $this->delete_offending_files();
       self::drop_dead();
     }
+    return false;
   }
 
   /**
@@ -1759,12 +1795,23 @@ class WP_Object_Cache {
    * @param string $name What to call the contents in the cache.
    * @param string $value The seriolized value.
    * @param int $expires Expiration time.
+   * @param bool $only_if_absent Write only if no live element has the name.
    *
-   * @return void
+   * @return bool True if written.
    */
-  private function actual_put_by_name( $name, $value, $expires ) {
+  private function actual_put_by_name( $name, $value, $expires, $only_if_absent ) {
     if ( $this->apcu_supported ) {
       $this->set_flag();
+    }
+    if ( $only_if_absent ) {
+      $stmt = $this->addone_stmt;
+      $stmt->bindValue( ':name', $name, SQLITE3_TEXT );
+      $stmt->bindValue( ':value', $value, SQLITE3_BLOB );
+      $stmt->bindValue( ':expires', $expires, SQLITE3_INTEGER );
+      $result = $stmt->execute();
+      $result->finalize();
+
+      return $this->sqlite->changes() > 0;
     }
     if ( $this->upsertone_stmt ) {
       $stmt = $this->upsertone_stmt;
@@ -1801,6 +1848,7 @@ class WP_Object_Cache {
         $this->sqlite->exec( 'COMMIT' );
       }
     }
+    return true;
   }
 
   /**
