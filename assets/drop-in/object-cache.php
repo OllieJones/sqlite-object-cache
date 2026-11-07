@@ -490,6 +490,10 @@ class WP_Object_Cache {
    * @var string The APCu prefix, ending with '|'.
    */
   public $apcusalt;
+  /**
+   * @var bool  The most recent BEGIN was IMMEDIATE.
+   */
+  private $begin_immmediate = false;
 
   /**
    * Constructor for SQLite Object Cache.
@@ -571,6 +575,63 @@ class WP_Object_Cache {
   public function __destruct() {
     global $sqlite_object_cache_reaper;
     $sqlite_object_cache_reaper = new SQLite_Object_Cache_Reaper( $this->sqlite );
+  }
+
+  /**
+   * Begin a transaction.
+   *
+   * Retries if a lock is present.
+   *
+   * @param boolean $immediate True for BEGIN IMMEDIATE.
+   *
+   * @return void
+   * @throws Exception
+   */
+  private function begin( $immediate = false ) {
+
+    $exception = null;
+    $loop      = 7;
+    $time      = 8; /* Microseconds */
+    $this->begin_immmediate = $immediate;
+
+    while ( $loop -- > 0 ) {
+      try {
+        $result = $this->sqlite->exec( $immediate ? 'BEGIN IMMEDIATE' : 'BEGIN' );
+        if ( $result ) {
+          return;
+        }
+      } catch ( Exception $ex ) {
+        $exception = $ex;
+        if ( ! str_contains( $ex->getMessage(), 'database is locked' ) || 5 !== $this->sqlite->lastErrorCode() ) {
+          break;
+        }
+        if ( $loop <= 0 ) {
+          break;
+        }
+        usleep( $time );
+        $time += $time;
+      }
+    }
+    $this->error_log( $immediate ? 'BEGIN IMMEDIATE' : 'BEGIN', $exception );
+    $this->delete_offending_files();
+    self::drop_dead();
+
+  }
+
+  /** COMMIT the present batch and BEGIN a new one.
+   * @return void
+   * @throws Exception
+   */
+  private function begin_new_batch() {
+    $this->commit();
+    $this->begin( $this->begin_immmediate );
+  }
+
+  /** COMMIT the present transaction.
+   * @return void
+   */
+  private function commit() {
+    $this->sqlite->exec( 'COMMIT' );
   }
 
   /**
@@ -810,7 +871,7 @@ class WP_Object_Cache {
    * @noinspection SqlResolve
    */
   private function create_object_cache_tables() {
-    $this->sqlite->exec( 'BEGIN' );
+    $this->begin();
     /* does our table exist?  */
     $query = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND tbl_name = '$this->cache_table_name';";
     if ( 0 === $this->sqlite->querySingle( $query ) ) {
@@ -862,7 +923,7 @@ class WP_Object_Cache {
       /* Creating SQLite tables; clear APCu at the same time. */
       $this->apcu_clear_cache();
     }
-    $this->sqlite->exec( 'COMMIT' );
+    $this->commit();
   }
 
   /**
@@ -875,7 +936,7 @@ class WP_Object_Cache {
    * @noinspection SqlResolve
    */
   private function maybe_create_stats_table( $tbl ) {
-    $this->sqlite->exec( 'BEGIN' );
+    $this->begin();
     /* Does our table exist?  */
     $q = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND tbl_name = '$tbl';";
     $r = $this->sqlite->querySingle( $q );
@@ -889,7 +950,7 @@ class WP_Object_Cache {
 						CREATE INDEX IF NOT EXISTS expires ON $tbl (timestamp);";
       $this->sqlite->exec( $t );
     }
-    $this->sqlite->exec( 'COMMIT' );
+    $this->commit();
   }
 
   /**
@@ -1405,18 +1466,17 @@ class WP_Object_Cache {
     try {
       /* use a transaction to accelerate add_multiple */
       $this->transaction_active = true;
-      $this->sqlite->exec( 'BEGIN' );
+      $this->begin( true );
       $transaction_size = self::TRANSACTION_SIZE_LIMIT;
       foreach ( $data as $key => $value ) {
         $values[ $key ] = $this->add( $key, $value, $group, $expire );
         /* limit the size of the transaction, hopefully preventing timeouts in other clients */
         if ( -- $transaction_size <= 0 ) {
-          $this->sqlite->exec( 'COMMIT' );
-          $this->sqlite->exec( 'BEGIN' );
+          $this->begin_new_batch();
           $transaction_size = self::TRANSACTION_SIZE_LIMIT;
         }
       }
-      $this->sqlite->exec( 'COMMIT' );
+      $this->commit();
       $this->transaction_active = false;
     } catch ( Exception $ex ) {
       $this->error_log( 'add_multiple', $ex );
@@ -1725,9 +1785,10 @@ class WP_Object_Cache {
    * @return void
    */
   private function put_by_name( $name, $data, $expire ) {
-    $exception = null;
-    $expires   = $expire ?: $this->noexpire_timestamp_offset;
-    $retries   = 3;
+    $exception  = null;
+    $expires    = $expire ?: $this->noexpire_timestamp_offset;
+    $retries    = 7;
+    $retry_time = 8;
     while ( $retries -- > 0 ) {
       try {
         $this->actual_put_by_name( $name, $this->encode( $data ), $expires );
@@ -1744,7 +1805,8 @@ class WP_Object_Cache {
           break;
         }
       }
-      sleep( 1 );
+      usleep( $retry_time );
+      $retry_time += $retry_time;
     }
     if ( $exception ) {
       $this->error_log( 'put_by_name', $exception );
@@ -1779,7 +1841,7 @@ class WP_Object_Cache {
        * Race conditions are possible, hence BEGIN / COMMIT
        */
       if ( ! $this->transaction_active ) {
-        $this->sqlite->exec( 'BEGIN' );
+        $this->begin( true );
       }
       $stmt = $this->updateone_stmt;
       $stmt->bindValue( ':name', $name, SQLITE3_TEXT );
@@ -1798,7 +1860,7 @@ class WP_Object_Cache {
 
       }
       if ( ! $this->transaction_active ) {
-        $this->sqlite->exec( 'COMMIT' );
+        $this->commit();
       }
     }
   }
@@ -1853,19 +1915,18 @@ class WP_Object_Cache {
     try {
       /* use a transaction to accelerate set_multiple */
       $this->transaction_active = true;
-      $this->sqlite->exec( 'BEGIN' );
+      $this->begin( true );
       $transaction_size = self::TRANSACTION_SIZE_LIMIT;
 
       foreach ( $data as $key => $value ) {
         $values[ $key ] = $this->set( $key, $value, $group, $expire );
         /* limit the size of the transaction, hopefully preventing timeouts in other clients */
         if ( -- $transaction_size <= 0 ) {
-          $this->sqlite->exec( 'COMMIT' );
-          $this->sqlite->exec( 'BEGIN' );
+          $this->begin_new_batch();
           $transaction_size = self::TRANSACTION_SIZE_LIMIT;
         }
       }
-      $this->sqlite->exec( 'COMMIT' );
+      $this->commit();
       $this->transaction_active = false;
     } catch ( Exception $ex ) {
       $this->error_log( 'set_multiple', $ex );
@@ -1962,6 +2023,8 @@ class WP_Object_Cache {
     foreach ( $keys_not_found as $key => $name ) {
       if ( is_numeric( $key ) && (int) $key == $key && (int) $key > 0 && (int) $key <= $this->intkey_max ) {
         $intkeys [] = (int) $key;
+        /* Temporarily mark them all as missing. We clear this later when finding them. */
+        $this->not_in_persistent_cache [ $this->normalize_name( $key, $group ) ] = true;
       } else {
         $alphakeys [ $key ] = $name;
       }
@@ -1972,7 +2035,7 @@ class WP_Object_Cache {
 
       /* use a transaction to accelerate get_multiple */
       $this->transaction_active = true;
-      $this->sqlite->exec( 'BEGIN' );
+      $this->begin( );
       $transaction_size = self::TRANSACTION_SIZE_LIMIT;
 
       /* Start by loading the consecutive runs of int keys */
@@ -2013,8 +2076,7 @@ class WP_Object_Cache {
         $resultset->finalize();
         /* limit the size of the transaction, hopefully preventing timeouts in other clients */
         if ( -- $transaction_size <= 0 ) {
-          $this->sqlite->exec( 'COMMIT' );
-          $this->sqlite->exec( 'BEGIN' );
+          $this->begin_new_batch();
           $transaction_size = self::TRANSACTION_SIZE_LIMIT;
         }
       }
@@ -2028,8 +2090,7 @@ class WP_Object_Cache {
           }
           /* limit the size of the transaction, hopefully preventing timeouts in other clients */
           if ( -- $transaction_size <= 0 ) {
-            $this->sqlite->exec( 'COMMIT' );
-            $this->sqlite->exec( 'BEGIN' );
+            $this->begin_new_batch();
             $transaction_size = self::TRANSACTION_SIZE_LIMIT;
           }
         }
@@ -2043,13 +2104,12 @@ class WP_Object_Cache {
           }
           /* limit the size of the transaction, hopefully preventing timeouts in other clients */
           if ( -- $transaction_size <= 0 ) {
-            $this->sqlite->exec( 'COMMIT' );
-            $this->sqlite->exec( 'BEGIN' );
+            $this->begin_new_batch();
             $transaction_size = self::TRANSACTION_SIZE_LIMIT;
           }
         }
       }
-      $this->sqlite->exec( 'COMMIT' );
+      $this->commit();
       $this->transaction_active = false;
     } catch ( Exception $ex ) {
       $this->error_log( 'get_multiple', $ex );
@@ -2220,18 +2280,17 @@ class WP_Object_Cache {
     /* use a transaction to accelerate delete_multiple */
     $transaction_size         = self::TRANSACTION_SIZE_LIMIT;
     $this->transaction_active = true;
-    $this->sqlite->exec( 'BEGIN' );
+    $this->begin( true );
 
     foreach ( $keys as $key ) {
       $values[ $key ] = $this->delete( $key, $group );
       /* limit the size of the transaction, hopefully preventing timeouts in other clients */
       if ( -- $transaction_size <= 0 ) {
-        $this->sqlite->exec( 'COMMIT' );
-        $this->sqlite->exec( 'BEGIN' );
+        $this->begin_new_batch();
         $transaction_size = self::TRANSACTION_SIZE_LIMIT;
       }
     }
-    $this->sqlite->exec( 'COMMIT' );
+    $this->commit();
     $this->transaction_active = false;
 
     return $values;
@@ -2375,7 +2434,8 @@ class WP_Object_Cache {
    */
   private function delete_by_name( $name ) {
     $exception                              = null;
-    $retries                                = 3;
+    $retries                                = 7;
+    $retry_time                             = 8;
     $stmt                                   = $this->deleteone_stmt;
     $this->not_in_persistent_cache[ $name ] = true;
     $start                                  = hrtime( true );
@@ -2396,7 +2456,8 @@ class WP_Object_Cache {
           break;
         }
       }
-      sleep( 1 );
+      usleep( $retry_time );
+      $retry_time += $retry_time;
     }
     if ( $exception ) {
       $this->error_log( 'delete_by_name', $exception );
@@ -2424,9 +2485,9 @@ class WP_Object_Cache {
     $name = $this->normalize_name( $key, $group );
 
     $this->transaction_active = true;
-    $this->sqlite->exec( 'BEGIN' );
+    $this->begin( true );
     if ( $this->cache_item_not_exists( $name ) ) {
-      $this->sqlite->exec( 'COMMIT' );
+      $this->commit();
       $this->transaction_active = false;
       return false;
     }
@@ -2449,7 +2510,7 @@ class WP_Object_Cache {
       $this->put_by_name( $name, $this->cache[ $name ], $expires );
     }
 
-    $this->sqlite->exec( 'COMMIT' );
+    $this->commit();
     $this->transaction_active = false;
     return $this->cache[ $name ];
   }
