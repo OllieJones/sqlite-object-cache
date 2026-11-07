@@ -494,8 +494,15 @@ class WP_Object_Cache {
    * @var bool  The most recent BEGIN was IMMEDIATE.
    */
   private $begin_immmediate = false;
-
   /**
+   * @var int Number of times to retry a blocked operation.
+   */
+  private $retries = 6;
+  /**
+   * @var int Starting delay time before retrying. Doubles every retry.
+   */
+  private $retry_time = 64;
+   /**
    * Constructor for SQLite Object Cache.
    *
    * @since 2.0.8
@@ -590,11 +597,11 @@ class WP_Object_Cache {
   private function begin( $immediate = false ) {
 
     $exception = null;
-    $loop      = 7;
-    $time      = 8; /* Microseconds */
+    $retries    = $this->retries;
+    $retry_time = $this->retry_time;
     $this->begin_immmediate = $immediate;
 
-    while ( $loop -- > 0 ) {
+    while ( $retries -- > 0 ) {
       try {
         $result = $this->sqlite->exec( $immediate ? 'BEGIN IMMEDIATE' : 'BEGIN' );
         if ( $result ) {
@@ -605,11 +612,11 @@ class WP_Object_Cache {
         if ( ! str_contains( $ex->getMessage(), 'database is locked' ) || 5 !== $this->sqlite->lastErrorCode() ) {
           break;
         }
-        if ( $loop <= 0 ) {
+        if ( $retries <= 0 ) {
           break;
         }
-        usleep( $time );
-        $time += $time;
+        usleep( $retry_time );
+        $retry_time += $retry_time;
       }
     }
     $this->error_log( $immediate ? 'BEGIN IMMEDIATE' : 'BEGIN', $exception );
@@ -1787,8 +1794,8 @@ class WP_Object_Cache {
   private function put_by_name( $name, $data, $expire ) {
     $exception  = null;
     $expires    = $expire ?: $this->noexpire_timestamp_offset;
-    $retries    = 7;
-    $retry_time = 8;
+    $retries    = $this->retries;
+    $retry_time = $this->retry_time;
     while ( $retries -- > 0 ) {
       try {
         $this->actual_put_by_name( $name, $this->encode( $data ), $expires );
@@ -2023,8 +2030,8 @@ class WP_Object_Cache {
     foreach ( $keys_not_found as $key => $name ) {
       if ( is_numeric( $key ) && (int) $key == $key && (int) $key > 0 && (int) $key <= $this->intkey_max ) {
         $intkeys [] = (int) $key;
-        /* Temporarily mark them all as missing. We clear this later when finding them. */
-        $this->not_in_persistent_cache [ $this->normalize_name( $key, $group ) ] = true;
+        /* Temporarily mark all the numeric keys as missing. We clear these later when finding them. */
+        $this->not_in_persistent_cache [ $normalized[ $key] ] = true;
       } else {
         $alphakeys [ $key ] = $name;
       }
@@ -2434,8 +2441,8 @@ class WP_Object_Cache {
    */
   private function delete_by_name( $name ) {
     $exception                              = null;
-    $retries                                = 7;
-    $retry_time                             = 8;
+    $retries                                = $this->retries;
+    $retry_time                             = $this->retry_time;
     $stmt                                   = $this->deleteone_stmt;
     $this->not_in_persistent_cache[ $name ] = true;
     $start                                  = hrtime( true );
