@@ -6,8 +6,8 @@ Author: Oliver Jones
 **Requires at least:** 5.9 \
 **Requires PHP:** 5.6 \
 **Tested up to:** 7.1.3 \
-Version: 1.6.6 \
-**Stable tag:** 1.6.6 \
+Version: 1.6.7
+**Stable tag:** 1.6.7 \
 **License:** GPLv2 or later \
 **License URI:** http://www.gnu.org/licenses/gpl-2.0.html \
 Github Plugin URI: https://github.com/OllieJones/sqlite-object-cache \
@@ -320,6 +320,10 @@ Please look for more questions and answers [here](https://www.plumislandmedia.ne
 
 ## Changelog
 
+### 1.6.7
+
+Eliminate a couple of race conditions, fix some bugs. Props to https://github.com/rubas .
+
 ### 1.6.6
 
 Avoid functions requiring WordPress to be initialized when handling cache initialization errors. Props to [@etermed](https://wordpress.org/support/users/etermed/).
@@ -357,4 +361,4 @@ A race condition caused expired cache entries to be copied to APCu incorrectly s
 
 ## Upgrade Notice
 
-Support plugins that use transients in their destructors.
+Fix race conditions and other bugs.
